@@ -7,10 +7,13 @@ logs/
 credentials.enc
 dist/
 .DS_Store
+downloads/
+maternidade-config.json
 
 # Perfis temporários do Chrome
 .chrome-temp-profile/
 .monitor-chrome-profile/
+.tjse_chrome_profile/
 
 # Arquivos temporários do Windows
 Thumbs.db

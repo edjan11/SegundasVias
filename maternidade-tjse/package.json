@@ -29,9 +29,7 @@
       "output": "dist"
     }
   },
-  "dependencies": {
-    "puppeteer-core": "^21.11.0"
-  },
+  "dependencies": {},
   "author": "",
   "license": "MIT",
   "devDependencies": {

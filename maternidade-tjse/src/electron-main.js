@@ -1,22 +1,32 @@
-const { app, Tray, Menu, nativeImage, Notification, BrowserWindow, session } = require('electron');
+﻿const { app, Tray, Menu, nativeImage, Notification, BrowserWindow, session, globalShortcut, dialog } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const crypto = require('crypto');
+const http = require('http');
+const https = require('https');
+// removed external chrome automation helpers (we use Electron flow)
 
-// ========================================
-// CONFIGURAÇÃO
+// Evita crash por EPIPE ao logar quando stdout some.
+try {
+    const safeWrite = () => true;
+    process.stdout.write = safeWrite;
+    process.stderr.write = safeWrite;
+} catch {}
+
+process.on('uncaughtException', (err) => {
+    if (err && err.code === 'EPIPE') return;
+    throw err;
+});
+// CONFIGURAÃ‡ÃƒO
 // ========================================
 const CHECK_INTERVAL_MS = 5 * 60 * 1000; // 5 minutos
-const LOGIN_RETRY_MS = 5 * 60 * 1000;    // 5 minutos
-
 const TARGET_URL = 'https://www.tjse.jus.br/registrocivil/seguro/maternidade/solicitacaoExterna/consultaSolicitacaoExterna.tjse';
 const LOGIN_URL = 'https://www.tjse.jus.br/controleacesso/paginas/loginTJSE.tjse';
-const PORTAL_URL = 'https://www.tjse.jus.br/portalExterno/';
-const REGISTRO_CIVIL_URL = 'https://www.tjse.jus.br/registrocivil/';
 
 const ICONS_DIR = path.join(__dirname, '..', 'icons');
-const CREDENTIALS_FILE = path.join(__dirname, '..', 'credentials.enc');
 const SECRET_KEY = 'tjse-monitor-2024-secure-key-32b';
+
+// Chrome externo automation removed â€” priorizamos fluxo Electron (fazerLogin)
 
 // ========================================
 // ESTADO GLOBAL
@@ -24,10 +34,54 @@ const SECRET_KEY = 'tjse-monitor-2024-secure-key-32b';
 let tray = null;
 let mainWindow = null;
 let checkInterval = null;
-let loginRetryTimeout = null;
 let isLoggedIn = false;
-let lastCount = 0;
-let loginComplete = false; // flag para desativar automação após login
+let lastCount = -1; // -1 para forÃ§ar notificaÃ§Ã£o na primeira verificaÃ§Ã£o
+let lastUserFocus = 0;
+let isDoingLogin = false; // Evita logins simultÃ¢neos
+let isHandlingSolicitacao = false; // Evita handler concorrente
+
+// Config simples persistida em arquivo para pasta de downloads
+const LEGACY_CONFIG_FILE = path.join(__dirname, '..', 'maternidade-config.json');
+function getUserDataDir() {
+    return app.getPath('userData');
+}
+function getCredentialsFile() {
+    return path.join(getUserDataDir(), 'credentials.enc');
+}
+function getConfigFile() {
+    return path.join(getUserDataDir(), 'maternidade-config.json');
+}
+function getLogsDir() {
+    return path.join(getUserDataDir(), 'logs');
+}
+function readConfig() {
+    try {
+        const file = getConfigFile();
+        if (fs.existsSync(file)) {
+            return JSON.parse(fs.readFileSync(file, 'utf8') || '{}');
+        }
+        if (fs.existsSync(LEGACY_CONFIG_FILE)) {
+            const legacy = JSON.parse(fs.readFileSync(LEGACY_CONFIG_FILE, 'utf8') || '{}');
+            writeConfig(legacy);
+            return legacy;
+        }
+    } catch (e) { }
+    return {};
+}
+function writeConfig(cfg) {
+    try { fs.writeFileSync(getConfigFile(), JSON.stringify(cfg, null, 2), 'utf8'); } catch (e) { console.warn('Erro ao salvar config:', e.message); }
+}
+function getDownloadBase() {
+    const cfg = readConfig();
+    if (cfg && cfg.downloadDir) return cfg.downloadDir;
+    if (process.env.MATERNIDADE_DOWNLOAD_DIR) return process.env.MATERNIDADE_DOWNLOAD_DIR;
+    return path.join(getUserDataDir(), 'downloads');
+}
+function setDownloadBase(dir) {
+    const cfg = readConfig();
+    cfg.downloadDir = dir;
+    writeConfig(cfg);
+}
 
 // ========================================
 // CRIPTOGRAFIA
@@ -42,7 +96,7 @@ function encrypt(text) {
 
 function decrypt(text) {
     try {
-        const parts = text.split(':');
+            const parts = text.split(':');
         const iv = Buffer.from(parts[0], 'hex');
         const encrypted = Buffer.from(parts[1], 'hex');
         const decipher = crypto.createDecipheriv('aes-256-cbc', Buffer.from(SECRET_KEY), iv);
@@ -55,90 +109,100 @@ function decrypt(text) {
 }
 
 function saveCredentials(login, senha) {
-    const data = JSON.stringify({ login, senha });
-    fs.writeFileSync(CREDENTIALS_FILE, encrypt(data));
+    fs.writeFileSync(getCredentialsFile(), encrypt(JSON.stringify({ login, senha })));
 }
 
 function loadCredentials() {
     try {
-        if (fs.existsSync(CREDENTIALS_FILE)) {
-            const encrypted = fs.readFileSync(CREDENTIALS_FILE, 'utf8');
-            const decrypted = decrypt(encrypted);
+            const file = getCredentialsFile();
+        if (fs.existsSync(file)) {
+            const decrypted = decrypt(fs.readFileSync(file, 'utf8'));
             return decrypted ? JSON.parse(decrypted) : null;
         }
     } catch { }
     return null;
 }
 
-// Safe execute on a BrowserWindow's webContents
-async function safeExec(browserWin, code) {
-    try {
-        if (!browserWin) return null;
-        if (typeof browserWin.isDestroyed === 'function' && browserWin.isDestroyed()) return null;
-        if (!browserWin.webContents) return null;
-        return await browserWin.webContents.executeJavaScript(code);
-    } catch (err) {
-        console.log('❌ safeExec error:', err.message);
-        return null;
-    }
-}
-
 // ========================================
-// ÍCONES
+// ÃCONES E NOTIFICAÃ‡Ã•ES
 // ========================================
 function getIcon(type) {
-    const iconMap = {
+    const icons = {
         'ok': 'maternidade-ok.ico',
         'alert': 'maternidade-nova-solicitacao.ico',
-        'offline': 'maternidade-offline.ico'
+        'offline': 'maternidade-offline.ico',
+        'loading': 'maternidade-ok.ico'
     };
-    const iconPath = path.join(ICONS_DIR, iconMap[type] || iconMap['offline']);
-    if (fs.existsSync(iconPath)) {
-        return nativeImage.createFromPath(iconPath);
+    const iconPath = path.join(ICONS_DIR, icons[type] || icons['offline']);
+    return fs.existsSync(iconPath) ? nativeImage.createFromPath(iconPath) : null;
+}
+
+function toAscii(text) {
+    return (text || '').replace(/[^\x20-\x7E]/g, '');
+}
+
+function updateTray(type, tooltip) {
+    if (!tray) return;
+    const icon = getIcon(type);
+    if (icon) tray.setImage(icon);
+    tray.setToolTip(toAscii(tooltip || 'Monitor Maternidade TJSE'));
+    console.log('Tray: ' + type + ' - ' + tooltip);
+}
+
+function notify(title, body) {
+    console.log('Notificacao: ' + title + ' - ' + body);
+    new Notification({ title: toAscii(title), body: toAscii(body) }).show();
+}
+
+
+// ========================================
+// AÃ‡ÃƒO: quando houver novo SOLICITADO, captura nome e clica no link de AÃ§Ãµes
+// ========================================
+async function handleNewSolicitacaoAndClick() {
+    if (isHandlingSolicitacao) return;
+    isHandlingSolicitacao = true;
+    // helper para download com cookies da sessÃ£o persist:tjse-monitor   
+    function downloadWithCookies(fileUrl, destPath, cookieHeader, userAgent, referer, redirectsLeft = 5) {
+        return new Promise((resolve, reject) => {
+            try {
+                    const u = new URL(fileUrl);
+                const opts = {
+                    protocol: u.protocol,
+                    hostname: u.hostname,
+                    path: u.pathname + u.search,
+                    port: u.port || (u.protocol === 'https:' ? 443 : 80),
+                    headers: {
+                        Cookie: cookieHeader || undefined,
+                        'User-Agent': userAgent || undefined,
+                        'Referer': referer || undefined,
+                        'Accept': 'application/pdf,application/octet-stream,*/*'
+                    }
+                };
+                const lib = u.protocol === 'https:' ? https : http;
+                const req = lib.get(opts, (res) => {
+                    if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
+                        if (redirectsLeft <= 0) return reject(new Error('Redirect limit'));
+                        const nextUrl = new URL(res.headers.location, fileUrl).href;
+                        res.resume();
+                        return resolve(downloadWithCookies(nextUrl, destPath, cookieHeader, userAgent, referer, redirectsLeft - 1));
+                    }
+                    if (res.statusCode >= 400) return reject(new Error('Status ' + res.statusCode));
+                    const file = fs.createWriteStream(destPath);
+                    res.pipe(file);
+                    file.on('finish', () => file.close(resolve));
+                    file.on('error', (err) => reject(err));
+                });
+                req.on('error', reject);
+            } catch (e) { reject(e); }
+        });
     }
-    return null;
-}
 
-function updateTrayIcon(type, tooltip) {
-    if (tray) {
-        const icon = getIcon(type);
-        if (icon) tray.setImage(icon);
-        tray.setToolTip(tooltip || 'Monitor Maternidade TJSE');
-    }
-}
-
-// ========================================
-// NOTIFICAÇÃO
-// ========================================
-function showNotification(title, body) {
-    new Notification({ title, body }).show();
-}
-
-// ========================================
-// HORÁRIO DE TRABALHO
-// ========================================
-function isWorkHours() {
-    const now = new Date();
-    const day = now.getDay();
-    const hours = now.getHours();
-    const minutes = now.getMinutes();
-    const timeNum = hours * 100 + minutes;
-    
-    // Seg-Sex, 8:05 - 17:10
-    return day >= 1 && day <= 5 && timeNum >= 805 && timeNum <= 1710;
-}
-
-// ========================================
-// VERIFICAÇÃO EM BACKGROUND (INVISÍVEL)
-// ========================================
-async function checkNewRecords() {
-    console.log('\n🔍 Verificando em background...');
-    
-    return new Promise((resolve) => {
+    try {
+            // Abrir janela oculta com mesma sessÃ£o
         const win = new BrowserWindow({
             width: 1200,
             height: 800,
-            show: false, // INVISÍVEL!
+            show: false,
             webPreferences: {
                 partition: 'persist:tjse-monitor',
                 nodeIntegration: false,
@@ -146,503 +210,473 @@ async function checkNewRecords() {
             }
         });
 
-        let resolved = false;
-        const done = (result) => {
-            if (!resolved) {
-                resolved = true;
-                win.destroy();
-                resolve(result);
-            }
-        };
+        await win.loadURL(TARGET_URL);
 
-        // Intercepta popups e navega na mesma janela
-        win.webContents.setWindowOpenHandler(({ url }) => {
-            console.log('🔗 Popup interceptado:', url);
-            if (!url.includes('blank.tjse')) {
-                win.loadURL(url);
+        // Extrai nomes e hrefs (actionLink.href Ã© absoluto)
+        const encontrados = await win.webContents.executeJavaScript(`(function(){
+            const rows = Array.from(document.querySelectorAll('#j_idt27_data tr'));
+            const out = [];
+            for (const tr of rows) {
+                try {
+                        const tds = tr.querySelectorAll('td');
+                    if (!tds || tds.length < 6) continue;
+                    const nome = (tds[1].textContent || '').trim();
+                    const situacaoSpan = tds[5].querySelector('span.ui-message-warn, span.ui-message-info, span.ui-message-error');
+                    const situacao = situacaoSpan ? (situacaoSpan.textContent || '').trim().toUpperCase() : '';
+                    const actionLink = tr.querySelector('td.opcoesDataTable a');
+                    const href = actionLink ? actionLink.href : null;
+                    if (situacao === 'SOLICITADO') out.push({ nome, href });
+                } catch(e) { }
             }
-            return { action: 'deny' };
+            return out;
+        })();`);
+
+        if (!encontrados || encontrados.length === 0) {
+            console.log('ðŸ”Ž Nenhum SOLICITADO encontrado (background).');
+            writeStatusLog({ event: 'no_solicitado_found' });
+            isHandlingSolicitacao = false;
+            win.destroy();
+            return;
+        }
+
+        const primeiro = encontrados[0];
+        const nome = primeiro.nome.replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_\-]/g, '');
+        const href = primeiro.href;
+        console.log('ðŸ“‹ (bg) Primeiro SOLICITADO:', nome, href);
+        writeStatusLog({ event: 'auto_process_solicitado', nome, href });
+
+        // Navega para a pÃ¡gina da solicitaÃ§Ã£o (oculto)
+        if (href) {
+            await win.loadURL(href);
+            // espera carregar
+            await new Promise(r => setTimeout(r, 1500));
+
+            // Extrai dados da pÃ¡gina: nome registrado, data e links especÃ­ficos
+            const info = await win.webContents.executeJavaScript(`(function(){
+                function abs(h) { try { if (!h) return null; if (h.startsWith('http')) return h; if (h.startsWith('/')) return location.origin + h; return new URL(h, location.href).href; } catch(e){ return h; } }
+                const nomeInput = document.querySelector('#nomeRegistrado');
+                const nomeVal = nomeInput ? (nomeInput.value || nomeInput.textContent || '').trim() : '';
+                const dataInput = document.querySelector('#dataSolicitacao_input');
+                const dataVal = dataInput ? (dataInput.value || dataInput.textContent || '').trim() : '';
+                const docAnchor = document.querySelector('#linkDownloadDocumentos') || document.querySelector('#idDocumentos a');
+                const dnvAnchor = document.querySelector('#linkDownloadDeclaracao') || document.querySelector('#idDnv a');
+                return {
+                    nomeVal: nomeVal || null,
+                    dataVal: dataVal || null,
+                    docHref: docAnchor ? abs(docAnchor.getAttribute('href') || docAnchor.href) : null,
+                    dnvHref: dnvAnchor ? abs(dnvAnchor.getAttribute('href') || dnvAnchor.href) : null
+                };
+            })();`);
+
+            // Normaliza nome (para uso em nomes de arquivos/pastas)
+            const rawName = (info && info.nomeVal) ? info.nomeVal : nome.replace(/_/g, ' ');
+            const sanitizedName = rawName.replace(/\s+/g, ' ').trim().replace(/[\\/:*?"<>|]/g, '').replace(/\s/g, ' ');
+
+            // Formata data (espera dd/mm/yyyy) -> yyyy-mm-dd
+            let dateFormatted = null;
+            if (info && info.dataVal) {
+                const parts = info.dataVal.split('/').map(p=>p.trim());
+                if (parts.length === 3) {
+                    const [dd, mm, yyyy] = parts;
+                    dateFormatted = `${yyyy}-${mm.padStart(2,'0')}-${dd.padStart(2,'0')}`;
+                } else {
+                    // fallback para timestamp
+                    dateFormatted = new Date().toISOString().slice(0,10);
+                }
+            } else {
+                dateFormatted = new Date().toISOString().slice(0,10);
+            }
+            // Monta diretorio base (config, env ou fallback)
+            const baseDownloads = getDownloadBase();
+            if (!fs.existsSync(baseDownloads)) fs.mkdirSync(baseDownloads, { recursive: true });
+
+            const childDirName = `${sanitizedName} - ${dateFormatted}`.replace(/\s+/g,' ').trim();
+            const childDir = path.join(baseDownloads, childDirName);
+            if (!fs.existsSync(childDir)) fs.mkdirSync(childDir, { recursive: true });
+
+            // Evita reprocessar se os PDFs ja existem na pasta compartilhada
+            let solicitacaoId = null;
+            try {
+                    const u = new URL(href);
+                solicitacaoId = u.searchParams.get('idSolicitacao');
+            } catch {}
+            const docPath = path.join(childDir, `DOCUMENTOS - ${sanitizedName}.pdf`);
+            const dnvPath = path.join(childDir, `DNV - ${sanitizedName}.pdf`);
+            const doneMarker = path.join(childDir, `.done${solicitacaoId ? '-' + solicitacaoId : ''}`);
+            if ((fs.existsSync(docPath) && fs.existsSync(dnvPath)) || fs.existsSync(doneMarker)) {
+                console.log('Ja processado, pulando download:', childDir);
+                writeStatusLog({ event: 'already_downloaded', nome: sanitizedName, href, dir: childDir });
+                try { win.destroy(); } catch {}
+                isHandlingSolicitacao = false;
+                return;
+            }
+            // Obter cookies da sessÃ£o para autenticar downloads
+            const sess = session.fromPartition('persist:tjse-monitor');
+            const cookieBaseUrl = href ? new URL(href).origin : TARGET_URL;
+            const cookieList = await sess.cookies.get({ url: cookieBaseUrl });
+            const cookieHeader = cookieList.map(c => `${c.name}=${c.value}`).join('; ');
+            const userAgent = win.webContents.getUserAgent();
+
+            // Baixa os PDFs esperados com nomes fixos
+            const tasks = [];
+            let allOk = true;
+            if (info && info.docHref) {
+                const dest = path.join(childDir, `DOCUMENTOS - ${sanitizedName}.pdf`);
+                tasks.push({ url: info.docHref, dest, label: 'DOCUMENTOS' });
+            } else {
+                writeStatusLog({ event: 'missing_documentos_link', nome: sanitizedName, href });
+            }
+
+            if (info && info.dnvHref) {
+                const dest = path.join(childDir, `DNV - ${sanitizedName}.pdf`);
+                tasks.push({ url: info.dnvHref, dest, label: 'DNV' });
+            } else {
+                writeStatusLog({ event: 'missing_dnv_link', nome: sanitizedName, href });
+            }
+
+            for (const t of tasks) {
+                try {
+                        await downloadWithCookies(t.url, t.dest, cookieHeader, userAgent, href);
+                    console.log(`âœ… ${t.label} baixado:`, t.dest);
+                    writeStatusLog({ event: 'pdf_downloaded', tipo: t.label, nome: sanitizedName, pdfUrl: t.url, dest: t.dest });
+                } catch (e) {
+                    console.warn(`Falha ao baixar ${t.label}`, t.url, e.message);
+                    writeStatusLog({ event: 'pdf_download_failed', tipo: t.label, nome: sanitizedName, pdfUrl: t.url, error: e.message });
+                    allOk = false;
+                }
+            }
+            if (allOk && tasks.length > 0) {
+                try { fs.writeFileSync(doneMarker, new Date().toISOString(), 'utf8'); } catch (e) {}
+            }
+            // ApÃ³s completar ciclo de download, voltar ao loop principal normalmente
+            try {
+                    setTimeout(() => { try { loopPrincipal(); } catch (e) {} }, 2000);
+            } catch (e) { }
+        }
+
+        // fecha a janela de background
+        try { win.destroy(); } catch {}
+
+    } catch (err) {
+        console.error('Erro em handleNewSolicitacaoAndClick (bg):', err.message);
+        writeStatusLog({ event: 'error_handle_solicitacao', error: err.message });
+    } finally {
+        isHandlingSolicitacao = false;
+    }
+}
+
+// ========================================
+// AGUARDAR ELEMENTO NA PÃGINA
+// ========================================
+async function aguardarElemento(win, selector, timeout = 10000) {
+    const inicio = Date.now();
+    while (Date.now() - inicio < timeout) {
+        try {
+                const existe = await win.webContents.executeJavaScript(`
+                !!document.querySelector('${selector.replace(/'/g, "\\'")}')
+            `);
+            if (existe) return true;
+        } catch { }
+        await new Promise(r => setTimeout(r, 300));
+    }
+    return false;
+}
+
+// ========================================
+// LOGGING: escreve status periÃ³dicos em logs/
+// ========================================
+function writeStatusLog(payload) {
+    try {
+            const logsDir = getLogsDir();
+        if (!fs.existsSync(logsDir)) fs.mkdirSync(logsDir, { recursive: true });
+        const file = path.join(logsDir, `status-${new Date().toISOString().slice(0,10)}.log`);
+        const line = `${new Date().toISOString()} ${JSON.stringify(payload)}\n`;
+        fs.appendFileSync(file, line, 'utf8');
+    } catch (e) {
+        console.warn('Erro ao gravar log de status:', e.message);
+    }
+}
+
+// ========================================
+// VERIFICAÃ‡ÃƒO RÃPIDA (USA SESSÃƒO LOGADA)
+// ========================================
+async function verificarSolicitados() {
+    console.log('\nðŸ” Verificando solicitaÃ§Ãµes...');
+    
+    return new Promise((resolve) => {
+        // USA A MESMA SESSÃƒO DO LOGIN para manter cookies!
+        const win = new BrowserWindow({
+            width: 800,
+            height: 600,
+            show: false,
+            webPreferences: {
+                partition: 'persist:tjse-monitor',
+                nodeIntegration: false,
+                contextIsolation: true
+            }
         });
 
-        // Timeout de 30 segundos
-        setTimeout(() => done({ success: false, count: 0, needsLogin: true }), 30000);
+        let done = false;
+        const finish = (result) => {
+            if (done) return;
+            done = true;
+            win.destroy();
+            resolve(result);
+        };
+
+        // Timeout 60 segundos (aumentado para conexÃµes lentas)
+        setTimeout(() => {
+            console.log('â° Timeout na verificaÃ§Ã£o');
+            finish({ ok: false, count: 0, needsLogin: true });
+        }, 60000);
 
         win.webContents.on('did-finish-load', async () => {
             const url = win.webContents.getURL();
-            
-            // Ignora blank.tjse
             if (url.includes('blank.tjse')) return;
             
-            console.log('📄', url);
+            console.log('ðŸ“„', url);
 
-            // Se redirecionou para login ou acesso negado = sessão expirada
+            // SessÃ£o expirada?
             if (url.includes('loginTJSE') || url.includes('acessonegado')) {
-                console.log('⚠️ Sessão expirada');
+                console.log('âš ï¸ SessÃ£o expirada - precisa logar');
                 isLoggedIn = false;
-                done({ success: false, count: 0, needsLogin: true });
+                finish({ ok: false, count: 0, needsLogin: true });
                 return;
             }
 
-            // Se está na página de consultas
+            // PÃ¡gina de consultas - conta SOLICITADO
             if (url.includes('consultaSolicitacaoExterna')) {
+                // Espera a pÃ¡gina carregar completamente
+                await new Promise(r => setTimeout(r, 3000));
+                
                 try {
-                    // Aguarda tabela carregar
-                    await new Promise(r => setTimeout(r, 3000));
-                    
-                    // Conta SOLICITADO na tabela
-                    const count = await win.webContents.executeJavaScript(`
+                        const count = await win.webContents.executeJavaScript(`
                         (function() {
-                            const cells = document.querySelectorAll('td');
-                            let count = 0;
-                            cells.forEach(td => {
-                                if (td.textContent.trim() === 'SOLICITADO') count++;
+                            let c = 0;
+                            // Busca em todas as cÃ©lulas e spans da tabela
+                            document.querySelectorAll('td, span, div').forEach(el => {
+                                const texto = el.textContent.trim().toUpperCase();
+                                if (texto === 'SOLICITADO' || texto === 'SOLICITADA') c++;
                             });
-                            // Também verifica spans com ui-message-warn
-                            document.querySelectorAll('span.ui-message-warn, span').forEach(span => {
-                                if (span.textContent.trim() === 'SOLICITADO') count++;
-                            });
-                            return count;
+                            console.log('Contagem SOLICITADO:', c);
+                            return c;
                         })();
                     `);
                     
-                    console.log(`✅ Encontrados: ${count} SOLICITADO(s)`);
+                    console.log('âœ… Encontrados:', count, 'SOLICITADO(s)');
                     isLoggedIn = true;
-                    done({ success: true, count, needsLogin: false });
-                } catch (err) {
-                    console.log('❌ Erro ao contar:', err.message);
-                    done({ success: false, count: 0, needsLogin: false });
+                    finish({ ok: true, count, needsLogin: false });
+                } catch (e) {
+                    console.log('âŒ Erro ao contar:', e.message);
+                    finish({ ok: false, count: 0, needsLogin: false });
                 }
                 return;
             }
 
-            // Se está no portal após login, navega para consultas
-            if (url.includes('portalExterno') || url.includes('portal')) {
-                console.log('📍 Portal detectado, indo para Registro Civil...');
-                win.loadURL(REGISTRO_CIVIL_URL);
-                return;
-            }
-
-            // Se está no Registro Civil, vai para consultas
-            if (url.includes('/registrocivil/') && !url.includes('consultaSolicitacaoExterna') && !url.includes('acessonegado')) {
-                console.log('📍 Registro Civil, verificando seleção de cartório...');
-                await new Promise(r => setTimeout(r, 2000));
-                
-                // Verifica se apareceu o painel de seleção de cartório
-                const needsCartorioSelection = await win.webContents.executeJavaScript(`
-                    (function() {
-                        const dialog = document.querySelector('.ui-dialog');
-                        const titleSpan = dialog ? dialog.querySelector('.ui-dialog-title') : null;
-                        
-                        if (titleSpan && titleSpan.textContent.includes('Selecionar Competência/Setor')) {
-                            return true;
-                        }
-                        return false;
-                    })();
-                `);
-                
-                if (needsCartorioSelection) {
-                    console.log('🏢 Selecionando cartório...');
-                    
-                    // Clica no dropdown
-                    await win.webContents.executeJavaScript(`
-                        (function() {
-                            const label = document.querySelector('label[id*="cbSetor_label"]');
-                            if (label) label.click();
-                        })();
-                    `);
-                    
-                    await new Promise(r => setTimeout(r, 1000));
-                    
-                    // Seleciona o cartório
-                    await win.webContents.executeJavaScript(`
-                        (function() {
-                            const items = document.querySelectorAll('.ui-selectonemenu-item');
-                            for (const item of items) {
-                                if (item.getAttribute('data-label')?.includes('9º Ofício da Comarca de Aracaju')) {
-                                    item.click();
-                                    return;
-                                }
-                            }
-                        })();
-                    `);
-                    
-                    await new Promise(r => setTimeout(r, 1000));
-                    
-                    // Clica em Entrar
-                    await win.webContents.executeJavaScript(`
-                        (function() {
-                            const buttons = document.querySelectorAll('button');
-                            for (const btn of buttons) {
-                                const spanText = btn.querySelector('.ui-button-text');
-                                if (spanText?.textContent.trim() === 'Entrar') {
-                                    btn.click();
-                                    return;
-                                }
-                            }
-                        })();
-                    `);
-                    
-                    await new Promise(r => setTimeout(r, 3000));
-                }
-                
-                console.log('📍 Indo para consultas...');
-                await new Promise(r => setTimeout(r, 1000));
+            // Se caiu em outro lugar, vai para consultas
+            if (url.includes('/registrocivil/') || url.includes('portal')) {
+                console.log('ðŸ“ Redirecionando para consultas...');
                 win.loadURL(TARGET_URL);
-                return;
             }
         });
 
-        // Carrega diretamente a URL de consultas
         win.loadURL(TARGET_URL);
     });
 }
 
 // ========================================
-// AUTO-LOGIN (INVISÍVEL - SEM 2FA)
+// LOGIN AUTOMÃTICO (VISÃVEL)
 // ========================================
-async function tryAutoLogin() {
+async function fazerLogin() {
+    // Evita logins simultÃ¢neos
+    if (isDoingLogin) {
+        console.log('â³ Login jÃ¡ em andamento...');
+        return false;
+    }
+    
     const creds = loadCredentials();
     if (!creds) {
-        console.log('❌ Sem credenciais salvas');
+        console.log('âŒ Configure suas credenciais primeiro!');
+        notify('Monitor TJSE', 'âš ï¸ Configure suas credenciais no menu');
         return false;
     }
 
-    console.log('🔐 Iniciando login em background...');
+    isDoingLogin = true;
+    console.log('ðŸ” Iniciando login...');
+
+    // Se jÃ¡ existe janela, fecha
+    if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.destroy();
+    }
 
     return new Promise((resolve) => {
-        // 🛑 PROTEÇÃO FORTE: Se a janela principal está visível, NÃO FAZ NADA
-        if (mainWindow && !mainWindow.isDestroyed() && mainWindow.isVisible()) {
-            console.log('⏸️ Janela visível — usuário usando, login cancelado.');
-            resolve(true); // retorna true para não agendar retry
-            return;
-        }
-        
-        // 🛑 PROTEÇÃO: Se login já foi completado e janela existe, não refaz
-        if (loginComplete && mainWindow && !mainWindow.isDestroyed()) {
-            console.log('⏸️ Login já completo, não refazendo.');
-            resolve(true);
-            return;
-        }
-        
-        // Se já existe mainWindow oculta e logada, apenas retorna sucesso
-        if (mainWindow && !mainWindow.isDestroyed()) {
-            resolve(true);
-            return;
-        }
-        
         mainWindow = new BrowserWindow({
-            width: 1200,
-            height: 800,
-            show: true, // VISÍVEL para login funcionar corretamente
+            width: 1100,
+            height: 750,
+            show: true,
             webPreferences: {
                 partition: 'persist:tjse-monitor',
                 nodeIntegration: false,
                 contextIsolation: true
             }
         });
-        let resolved = false;
-        let loginAttempted = false;
-        let registroCivilClicked = false;
 
-        const done = (success) => {
-            if (!resolved) {
-                resolved = true;
-                // Apenas oculta, não destrói a janela
-                if (mainWindow && !mainWindow.isDestroyed()) mainWindow.hide();
-                resolve(success);
+        let done = false;
+        let etapa = 'inicio';
+        
+        const finish = (success) => {
+            if (done) return;
+            done = true;
+            isDoingLogin = false;
+            if (success) {
+                mainWindow.hide();
             }
+            resolve(success);
         };
 
-        // Intercepta popups e navega na mesma janela
+        // Timeout 120 segundos (aumentado para conexÃµes lentas)
+        setTimeout(() => {
+            console.log('â° Timeout no login');
+            finish(false);
+        }, 120000);
+
+        // Oculta ao fechar (nÃ£o destrÃ³i)
+        mainWindow.on('close', () => { app.quit(); });
+
+        // Detecta foco do usuÃ¡rio
+        mainWindow.on('focus', () => {
+            lastUserFocus = Date.now();
+        });
+
+        // Intercepta popups
         mainWindow.webContents.setWindowOpenHandler(({ url }) => {
-            console.log('🔗 Popup interceptado:', url);
             if (!url.includes('blank.tjse')) {
                 mainWindow.loadURL(url);
             }
             return { action: 'deny' };
         });
 
-        // Timeout de 60 segundos
-        setTimeout(() => {
-            console.log('⏰ Timeout no login');
-            done(false);
-        }, 60000);
-
-
-        // Oculta ao fechar
-        mainWindow.on('close', (e) => {
-            e.preventDefault();
-            mainWindow.hide();
-        });
-
         mainWindow.webContents.on('did-finish-load', async () => {
+            if (done) return;
+            
             try {
-                if (!mainWindow || mainWindow.isDestroyed()) return;
-                
-                // 🛑 SE O LOGIN JÁ FOI COMPLETADO, NÃO FAZ MAIS NADA!
-                // Isso permite ao usuário navegar livremente sem interferência
-                if (loginComplete) {
-                    console.log('⏭️ Login já completo — navegação livre do usuário.');
-                    return;
-                }
-                
-                const url = mainWindow.webContents.getURL();
+                    const url = mainWindow.webContents.getURL();
                 if (url.includes('blank.tjse')) return;
-                console.log('📄 Login:', url);
+                
+                console.log(`ðŸ“„ [${etapa}]`, url);
 
-
-                // Se chegou na página de login
-                if (url.includes('loginTJSE') && !loginAttempted) {
-                    loginAttempted = true;
-                    await new Promise(r => setTimeout(r, 1500));
-                    try {
-                        // 1. Clica no botão "Login e senha"
-                    console.log('📝 Clicando em "Login e senha"...');
+                // === ETAPA 1: PÃ¡gina de Login ===
+                if (url.includes('loginTJSE') && etapa === 'inicio') {
+                    etapa = 'login';
+                    // Espera a pÃ¡gina carregar
+                    await aguardarElemento(mainWindow, 'img[alt="Entrar com login e senha"]', 10000);
+                    
+                    // Clica em "Login e senha"
                     await mainWindow.webContents.executeJavaScript(`
-                        (function() {
-                            const btn = document.querySelector('img[alt=\"Entrar com login e senha\"]');
-                            if (btn) btn.click();
-                        })();
+                        document.querySelector('img[alt="Entrar com login e senha"]')?.click();
                     `);
-                    await new Promise(r => setTimeout(r, 2000));
-                    // 2. Preenche credenciais
-                    console.log('📝 Preenchendo credenciais...');
+                    
+                    // Espera os campos aparecerem
+                    await aguardarElemento(mainWindow, '#loginName', 8000);
+                    await new Promise(r => setTimeout(r, 500));
+                    
+                    // Preenche credenciais
                     await mainWindow.webContents.executeJavaScript(`
-                        (function() {
-                            const loginField = document.querySelector('#loginName');
-                            const senhaField = document.querySelector('#loginSenha');
-                            if (loginField) {
-                                loginField.value = '${creds.login}';
-                                loginField.dispatchEvent(new Event('input', { bubbles: true }));
-                            }
-                            if (senhaField) {
-                                senhaField.value = '${creds.senha}';
-                                senhaField.dispatchEvent(new Event('input', { bubbles: true }));
-                            }
-                        })();
+                        const l = document.querySelector('#loginName');
+                        const s = document.querySelector('#loginSenha');
+                        if (l) { l.value = '${creds.login}'; l.dispatchEvent(new Event('input', {bubbles:true})); }
+                        if (s) { s.value = '${creds.senha}'; s.dispatchEvent(new Event('input', {bubbles:true})); }
                     `);
-                    await new Promise(r => setTimeout(r, 1000));
-                    // 3. Clica em Entrar
-                    console.log('📝 Clicando em Entrar...');
+                    
+                    await new Promise(r => setTimeout(r, 300));
+                    
+                    // Clica Entrar
                     await mainWindow.webContents.executeJavaScript(`
-                        (function() {
-                            const btn = document.querySelector('input[value=\"Entrar\"]') || 
-                                       document.querySelector('button[type=\"submit\"]') ||
-                                       document.querySelector('input[type=\"submit\"]');
-                            if (btn) btn.click();
-                        })();
+                        (document.querySelector('input[value="Entrar"]') || document.querySelector('button[type="submit"]'))?.click();
                     `);
-                    console.log('⏳ Aguardando redirecionamento...');
-                } catch (err) {
-                    console.log('❌ Erro no login:', err.message);
-                }
-                return;
-            }
-
-            // Se chegou no portal = login OK!
-            if ((url.includes('portalExterno') || url.includes('portal') || url.includes('sistemasTJSE')) && !url.includes('login')) {
-                if (registroCivilClicked) {
-                    console.log('⏭️ [DEBUG] Já clicou em Registro Civil, aguardando navegação...');
+                    
+                    etapa = 'aguardando-portal';
                     return;
                 }
-                
-                registroCivilClicked = true;
-                isLoggedIn = true;
-                
-                console.log('✅ [DEBUG] Portal/Sistemas! Clicando em Registro Civil...');
-                await new Promise(r => setTimeout(r, 2000));
-                
-                // Clica no botão Registro Civil
-                await mainWindow.webContents.executeJavaScript(`
-                    (function() {
-                        const allLinks = document.querySelectorAll('a[id*="clAcessar"]');
-                        for (let link of allLinks) {
-                            const h2 = link.querySelector('h2');
+
+                // === ETAPA 2: Portal de Sistemas ===
+                if ((url.includes('sistemasTJSE') || url.includes('portalExterno')) && etapa === 'aguardando-portal') {
+                    etapa = 'portal';
+                    // Espera o link do Registro Civil aparecer
+                    await aguardarElemento(mainWindow, 'a[id*="clAcessar"]', 10000);
+                    
+                    // Clica em Registro Civil
+                    await mainWindow.webContents.executeJavaScript(`
+                        const links = document.querySelectorAll('a[id*="clAcessar"]');
+                        for (let a of links) {
+                            const h2 = a.querySelector('h2');
                             if (h2 && h2.textContent.trim() === 'Registro Civil') {
-                                link.click();
-                                return;
+                                a.click();
+                                break;
                             }
                         }
-                    })();
-                `);
-                
-                // Aguarda o modal aparecer (5 segundos)
-                console.log('⏳ [DEBUG] Aguardando modal (5s)...');
-                await new Promise(r => setTimeout(r, 5000));
-                
-                // Verifica e abre dropdown
-                const resultado = await mainWindow.webContents.executeJavaScript(`
-                    (function() {
-                        const dialog = document.querySelector('.ui-dialog[aria-hidden="false"]');
-                        const title = dialog ? dialog.querySelector('.ui-dialog-title') : null;
-                        if (!title || !title.textContent.includes('Selecionar')) {
-                            return 'Modal não encontrado';
-                        }
-                        const dropdownLabel = document.querySelector('#formSetor\\\\:cbSetor_label');
-                        if (dropdownLabel) dropdownLabel.click();
-                        return 'Modal encontrado, abrindo dropdown...';
-                    })();
-                `);
-                console.log('   ', resultado);
-                
-                if (resultado.includes('Modal encontrado')) {
-                    console.log('🏢 [DEBUG] Modal detectado! Selecionando cartório via JS...');
+                    `);
                     
-                    await new Promise(r => setTimeout(r, 1500));
+                    etapa = 'aguardando-rc';
+                    return;
+                }
+
+                // === ETAPA 3: Registro Civil (modal de cartÃ³rio) ===
+                if (url.includes('/registrocivil/') && !url.includes('consultaSolicitacaoExterna') && etapa === 'aguardando-rc') {
+                    etapa = 'registro-civil';
+                    await new Promise(r => setTimeout(r, 2000));
                     
-                    // Seleciona o item
-                    const selecao = await mainWindow.webContents.executeJavaScript(`
-                        (function() {
+                    // Verifica se tem modal de seleÃ§Ã£o
+                    const temModal = await mainWindow.webContents.executeJavaScript(`
+                        !!document.querySelector('.ui-dialog-title')?.textContent?.includes('Selecionar');
+                    `);
+                    
+                    if (temModal) {
+                        console.log('ðŸ¢ Selecionando cartÃ³rio...');
+                        
+                        // Abre dropdown
+                        await mainWindow.webContents.executeJavaScript(`
+                            document.querySelector('#formSetor\\\\:cbSetor_label')?.click();
+                        `);
+                        await aguardarElemento(mainWindow, '#formSetor\\\\:cbSetor_items li', 5000);
+                        
+                        // Seleciona 9Âº OfÃ­cio
+                        await mainWindow.webContents.executeJavaScript(`
                             const items = document.querySelectorAll('#formSetor\\\\:cbSetor_items li');
                             for (const item of items) {
-                                if (item.textContent.includes('9º Ofício')) {
-                                    item.dispatchEvent(new MouseEvent('mouseover', { bubbles: true }));
-                                    item.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
-                                    item.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
+                                if (item.textContent.includes('9Âº OfÃ­cio')) {
                                     item.click();
-                                    return 'Selecionou: ' + item.textContent.substring(0, 50);
+                                    break;
                                 }
                             }
-                            return 'Item 9º Ofício não encontrado';
-                        })();
-                    `);
-                    console.log('   ', selecao);
-                    
-                    await new Promise(r => setTimeout(r, 2000));
-                    
-                    // Clica em Entrar
-                    await mainWindow.webContents.executeJavaScript(`
-                        (function() {
-                            const btn = document.querySelector('#formSetor\\\\:sim');
-                            if (btn) {
-                                btn.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
-                                btn.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
-                                btn.click();
-                            }
-                        })();
-                    `);
-                    console.log('    Clicou em Entrar');
-                } else {
-                    console.log('ℹ️ [DEBUG] Modal não apareceu, aguardando redirecionamento...');
-                }
-                return;
-            }
-
-                // Se está no Registro Civil, verifica se precisa selecionar cartório
-            if (url.includes('/registrocivil/') && !url.includes('acessonegado') && !url.includes('login') && !url.includes('consultaSolicitacaoExterna')) {
-                console.log('✅ Registro Civil! Verificando seleção de cartório...');
-                await new Promise(r => setTimeout(r, 2000));
-                
-                // Verifica se apareceu o painel de seleção de cartório
-                const needsCartorioSelection = await mainWindow.webContents.executeJavaScript(`
-                    (function() {
-                        // Procura pelo painel de seleção
-                        const dialog = document.querySelector('.ui-dialog');
-                        const titleSpan = dialog ? dialog.querySelector('.ui-dialog-title') : null;
+                        `);
+                        await new Promise(r => setTimeout(r, 500));
                         
-                        if (titleSpan && titleSpan.textContent.includes('Selecionar Competência/Setor')) {
-                            return true;
-                        }
-                        return false;
-                    })();
-                `);
-                
-                if (needsCartorioSelection) {
-                    console.log('🏢 Detectado painel de seleção de cartório!');
+                        // Clica Entrar
+                        await mainWindow.webContents.executeJavaScript(`
+                            document.querySelector('#formSetor\\\\:sim')?.click();
+                        `);
+                        await new Promise(r => setTimeout(r, 1000));
+                    }
                     
-                    // Clica no dropdown
-                    await mainWindow.webContents.executeJavaScript(`
-                        (function() {
-                            const label = document.querySelector('label[id*="cbSetor_label"]');
-                            if (label) {
-                                label.click();
-                            }
-                        })();
-                    `);
-                    
-                    await new Promise(r => setTimeout(r, 1000));
-                    
-                    // Seleciona o cartório "9º Ofício"
-                    await mainWindow.webContents.executeJavaScript(`
-                        (function() {
-                            const items = document.querySelectorAll('.ui-selectonemenu-item');
-                            for (const item of items) {
-                                if (item.getAttribute('data-label') && 
-                                    item.getAttribute('data-label').includes('9º Ofício da Comarca de Aracaju')) {
-                                    item.click();
-                                    return;
-                                }
-                            }
-                        })();
-                    `);
-                    
-                    await new Promise(r => setTimeout(r, 1000));
-                    
-                    // Clica no botão Entrar
-                    await mainWindow.webContents.executeJavaScript(`
-                        (function() {
-                            const buttons = document.querySelectorAll('button');
-                            for (const btn of buttons) {
-                                const spanText = btn.querySelector('.ui-button-text');
-                                if (spanText && spanText.textContent.trim() === 'Entrar') {
-                                    btn.click();
-                                    return;
-                                }
-                            }
-                        })();
-                    `);
-                    
-                    console.log('✅ Cartório selecionado e confirmado!');
-                    await new Promise(r => setTimeout(r, 3000));
+                    // Navega para Maternidade
+                    mainWindow.loadURL(TARGET_URL);
+                    etapa = 'aguardando-maternidade';
+                    return;
                 }
-                
-                // Agora continua o fluxo normal - navega para Maternidade
-                console.log('📋 Navegando para menu Maternidade...');
-                
-                // Abre dropdown Maternidade
-                await mainWindow.webContents.executeJavaScript(`
-                    (function() {
-                        const maternidadeMenu = Array.from(document.querySelectorAll('span.ui-menuitem-text'))
-                            .find(span => span.textContent.includes('Maternidade'));
-                        if (maternidadeMenu) {
-                            const parentLi = maternidadeMenu.closest('li');
-                            if (parentLi) {
-                                parentLi.dispatchEvent(new MouseEvent('mouseenter', { bubbles: true }));
-                                parentLi.dispatchEvent(new MouseEvent('mouseover', { bubbles: true }));
-                            }
-                        }
-                    })();
-                `);
-                
-                await new Promise(r => setTimeout(r, 1500));
-                
-                // Clica no link de Solicitação Externa
-                await mainWindow.webContents.executeJavaScript(`
-                    (function() {
-                        const link = document.querySelector('a[href*="consultaSolicitacaoExterna"]');
-                        if (link) {
-                            link.click();
-                        } else {
-                            window.location.href = '/registrocivil/seguro/maternidade/solicitacaoExterna/consultaSolicitacaoExterna.tjse';
-                        }
-                    })();
-                `);
-                return;
-            }
 
-            // Se chegou nas consultas = tudo OK!
-            if (url.includes('consultaSolicitacaoExterna')) {
-                console.log('✅ LOGIN COMPLETO!');
-                isLoggedIn = true;
-                loginComplete = true; // 🛑 DESATIVA AUTOMAÇÃO - USUÁRIO LIVRE!
-                showNotification('Monitor TJSE', '✅ Login realizado com sucesso!');
-                done(true);
-                return;
-            }
+                // === ETAPA 4: PÃ¡gina de Maternidade ===
+                if (url.includes('consultaSolicitacaoExterna')) {
+                    console.log('âœ… LOGIN COMPLETO!');
+                    isLoggedIn = true;
+                    updateTray('ok', 'âœ… Logado com sucesso');
+                    notify('Monitor TJSE', 'âœ… Login realizado!');
+                    finish(true);
+                    return;
+                }
+
             } catch (err) {
-                console.log('❌ tryAutoLogin handler error:', err && err.message ? err.message : err);
-                done(false);
-                return;
+                console.log('âŒ Erro no login:', err.message);
             }
         });
 
@@ -653,148 +687,178 @@ async function tryAutoLogin() {
 // ========================================
 // LOOP PRINCIPAL
 // ========================================
-async function mainLoop() {
-    // 🛑 SE A JANELA PRINCIPAL ESTÁ VISÍVEL, NÃO INTERFERE!
-    // O usuário está usando, a verificação é feita em OUTRA janela invisível
-    if (mainWindow && !mainWindow.isDestroyed() && mainWindow.isVisible()) {
-        console.log('⏸️ Janela visível — usuário usando, pulando verificação completa.');
-        return; // Não faz nada, deixa o usuário trabalhar
+async function loopPrincipal() {
+    // SÃ“ pausa se o usuÃ¡rio estÃ¡ ATIVAMENTE usando a janela (em foco)
+    if (mainWindow && !mainWindow.isDestroyed() && mainWindow.isFocused()) {
+        console.log('â¸ï¸ Janela em foco, pulando verificaÃ§Ã£o automÃ¡tica');
+        return;
     }
+
+    const result = await verificarSolicitados();
+    // Gravacao simples do status para debug/monitoramento externo
+    try { writeStatusLog({ check: 'verificarSolicitados', result }); } catch {}
     
-    const result = await checkNewRecords();
-    
-    if (result.success) {
-        // Sessão OK, verificou com sucesso
+    if (result.ok) {
         if (result.count > 0) {
-            updateTrayIcon('alert', `⚠️ ${result.count} SOLICITADO(s) pendente(s)!`);
-            if (result.count > lastCount) {
-                showNotification('Nova Solicitação!', `Existem ${result.count} solicitação(ões) pendente(s).`);
+            updateTray('alert', `âš ï¸ ${result.count} SOLICITADO(s) pendente(s)`);
+            
+            // Notifica se Ã© primeira vez OU se aumentou
+            if (lastCount === -1 || result.count > lastCount) {
+                notify('ðŸ¥ Nova SolicitaÃ§Ã£o!', `Existem ${result.count} solicitaÃ§Ã£o(Ãµes) com status SOLICITADO`);
+                // Ao detectar nova solicitaÃ§Ã£o, captura nome e clica no botÃ£o para teste
+                try { await handleNewSolicitacaoAndClick(); } catch (e) { console.warn('Erro ao executar handleNewSolicitacaoAndClick:', e.message); }
             }
         } else {
-            updateTrayIcon('ok', '✅ Nenhuma solicitação pendente');
+            updateTray('ok', 'âœ… Nenhuma solicitaÃ§Ã£o pendente');
         }
         lastCount = result.count;
         
-        // Cancela retry de login se estava agendado
-        if (loginRetryTimeout) {
-            clearTimeout(loginRetryTimeout);
-            loginRetryTimeout = null;
-        }
     } else if (result.needsLogin) {
-        // Precisa fazer login
-        updateTrayIcon('offline', '🔴 Sessão expirada - faça login');
+        updateTray('offline', 'ðŸ”´ SessÃ£o expirada');
         
-        // 🛑 RESETA flag de login completo para permitir novo login
-        loginComplete = false;
-        
-        // Se horário de trabalho E janela NÃO está visível, agenda retry
-        if (isWorkHours() && !loginRetryTimeout) {
-            // Proteção adicional: não agenda se janela visível
-            if (!mainWindow || mainWindow.isDestroyed() || !mainWindow.isVisible()) {
-                scheduleAutoLoginRetry();
-            }
+        // Tenta login automÃ¡tico (qualquer horÃ¡rio)
+        console.log('ðŸ”„ Tentando login automÃ¡tico...');
+        const ok = await fazerLogin();
+        if (ok) {
+            // Verifica de novo apÃ³s logar
+            setTimeout(() => loopPrincipal(), 3000);
         }
     }
-}
-
-function scheduleAutoLoginRetry() {
-    if (loginRetryTimeout) return;
-    
-    console.log('⏰ Próxima tentativa de login em 5 minutos...');
-    loginRetryTimeout = setTimeout(async () => {
-        loginRetryTimeout = null;
-        
-        if (!isLoggedIn && isWorkHours()) {
-            // 🛑 PROTEÇÃO: Se janela visível, NÃO tenta relogar de jeito nenhum
-            if (mainWindow && !mainWindow.isDestroyed() && mainWindow.isVisible()) {
-                console.log('⏸️ Janela visível — usuário usando, cancelando login.');
-                return; // NÃO reagenda, espera próximo mainLoop
-            }
-
-            const success = await tryAutoLogin();
-            if (success) {
-                // Login OK, verifica imediatamente
-                await mainLoop();
-            } else if (isWorkHours()) {
-                // Ainda não logado, agenda outra tentativa
-                scheduleAutoLoginRetry();
-            }
-        }
-    }, LOGIN_RETRY_MS);
 }
 
 // ========================================
 // MENU DO TRAY
 // ========================================
-function createTrayMenu() {
+function criarMenu() {
     const creds = loadCredentials();
     
     return Menu.buildFromTemplate([
+        { label: 'Monitor Maternidade TJSE', enabled: false },
+        { type: 'separator' },
         {
-            label: '🏥 Monitor Maternidade TJSE',
+            label: 'Pasta destino: ' + getDownloadBase(),
             enabled: false
         },
-        { type: 'separator' },
         {
-            label: '🔑 Fazer Login (background)',
+            label: 'Escolher pasta de destino',
             click: async () => {
-                const success = await tryAutoLogin();
-                if (success) {
-                    await mainLoop();
-                }
-            }
-        },
-        {
-            label: '👁️ Ver Login (debug)',
-            click: async () => {
-                const success = await tryLoginVisible();
-                if (success) {
-                    await mainLoop();
-                }
-            }
-        },
-        {
-            label: '🔄 Verificar Agora',
-            click: () => mainLoop()
-        },
-        {
-            label: '👁️ Abrir Maternidade (já logado)',
-            click: () => {
-                const win = new BrowserWindow({
-                    width: 1200,
-                    height: 800,
-                    show: true,
-                    webPreferences: {
-                        partition: 'persist:tjse-monitor',
-                        nodeIntegration: false,
-                        contextIsolation: true
+                try {
+                        const res = await dialog.showOpenDialog({ properties: ['openDirectory'] });
+                    if (!res.canceled && res.filePaths && res.filePaths[0]) {
+                        setDownloadBase(res.filePaths[0]);
+                        tray.setContextMenu(criarMenu());
+
+
+                        notify('Monitor TJSE', 'Pasta destino atualizada');
                     }
-                });
-                // URL da página já logada de maternidade
-                win.loadURL('https://www.tjse.jus.br/registrocivil/seguro/maternidade/solicitacaoExterna/consultaSolicitacaoExterna.tjse');
+                } catch (e) { console.warn('Erro ao escolher pasta:', e.message); }
             }
         },
         {
-            label: '🌐 Abrir Site',
+            label: 'Fazer Login',
+            click: async () => {
+                await fazerLogin();
+                await loopPrincipal();
+            }
+        },
+        {
+            label: 'Verificar Agora',
             click: () => {
-                const { shell } = require('electron');
-                shell.openExternal(TARGET_URL);
+                lastCount = -1;
+                loopPrincipal();
+            }
+        },
+        {
+            label: 'Forcar download agora',
+            click: async () => {
+                lastCount = -1;
+                try {
+                        await handleNewSolicitacaoAndClick();
+                } catch (e) {
+                    console.warn('Erro ao forcar download agora:', e.message);
+                }
+            }
+        },
+        {
+            label: 'Toggle DevTools (F12)',
+            accelerator: 'F12',
+            click: (menuItem, browserWindow) => {
+                (async () => {
+                    let win = browserWindow || mainWindow;
+                    if (!win || win.isDestroyed()) {
+                        // criar uma janela temporÃ¡ria para debug
+                        win = new BrowserWindow({
+                            width: 1200,
+                            height: 800,
+                            show: true,
+                            webPreferences: {
+                                partition: 'persist:tjse-monitor',
+                                nodeIntegration: false,
+                                contextIsolation: true
+                            }
+                        });
+                        await win.loadURL(TARGET_URL);
+                    }
+                    try {
+                            if (!win.isVisible()) win.show();
+                        win.focus();
+                        win.webContents.toggleDevTools();
+                    } catch (e) {
+                        console.warn('Falha ao abrir DevTools:', e.message);
+                    }
+                })();
+            }
+        },
+        {
+            label: 'Abrir Maternidade',
+            click: async () => {
+                lastUserFocus = Date.now();
+
+                // Se jÃ¡ estÃ¡ logado, apenas abre/mostra a janela com a pÃ¡gina
+                if (isLoggedIn) {
+                    if (mainWindow && !mainWindow.isDestroyed()) {
+                        mainWindow.loadURL(TARGET_URL);
+                        mainWindow.show();
+                        mainWindow.focus();
+                    } else {
+                        const win = new BrowserWindow({
+                            width: 1200,
+                            height: 800,
+                            show: true,
+                            webPreferences: {
+                                partition: 'persist:tjse-monitor',
+                                nodeIntegration: false,
+                                contextIsolation: true
+                            }
+                        });
+                        win.loadURL(TARGET_URL);
+                    }
+                    return;
+                }
+
+                // Se nÃ£o estÃ¡ logado, usar o fluxo Electron confiÃ¡vel
+                console.log('âœ³ï¸ NÃ£o logado â€” iniciando fluxo Electron de login');
+                const ok = await fazerLogin();
+                if (ok) {
+            
+                } else {
+                    // Opcional: fallback para Chrome externo (comentado por seguranÃ§a)
+                    // launchChromeWithProfile(TARGET_URL, CHROME_PROFILE);
+                    notify('Monitor TJSE', 'âš ï¸ NÃ£o foi possÃ­vel efetuar login automaticamente');
+                }
             }
         },
         { type: 'separator' },
         {
-            label: creds ? `⚙️ ${creds.login}` : '⚙️ Configurar Login',
-            click: () => promptCredentials()
+            label: creds ? ('Login: ' + creds.login) : 'Configurar Login',
+            click: () => abrirConfigCredenciais()
         },
         { type: 'separator' },
-        {
-            label: '❌ Sair',
-            click: () => app.quit()
-        }
+        { label: 'Sair', click: () => app.quit() }
     ]);
 }
 
-function promptCredentials() {
+function abrirConfigCredenciais() {
     const creds = loadCredentials();
     
     const win = new BrowserWindow({
@@ -810,7 +874,7 @@ function promptCredentials() {
         }
     });
 
-    // Cria preload se não existir
+    // Cria preload se necessÃ¡rio
     const preloadPath = path.join(__dirname, 'preload-creds.js');
     if (!fs.existsSync(preloadPath)) {
         fs.writeFileSync(preloadPath, `
@@ -821,47 +885,41 @@ function promptCredentials() {
         `);
     }
 
-    const html = `
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <meta charset="utf-8">
-            <style>
-                body { font-family: Segoe UI, sans-serif; padding: 20px; background: #f5f5f5; }
-                h2 { color: #333; margin-bottom: 20px; text-align: center; }
-                label { display: block; margin: 10px 0 5px; font-weight: 500; }
-                input { width: 100%; padding: 10px; margin-bottom: 10px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; font-size: 14px; }
-                .buttons { text-align: center; margin-top: 20px; }
-                button { background: #0078d4; color: white; border: none; padding: 10px 25px; border-radius: 4px; cursor: pointer; margin: 0 5px; font-size: 14px; }
-                button:hover { background: #106ebe; }
-                button.cancel { background: #666; }
-            </style>
-        </head>
-        <body>
-            <h2>🔑 Credenciais TJSE</h2>
-            <label>Login:</label>
-            <input type="text" id="login" value="${creds ? creds.login : ''}" placeholder="seu.usuario">
-            <label>Senha:</label>
-            <input type="password" id="senha" value="${creds ? creds.senha : ''}" placeholder="sua senha">
-            <div class="buttons">
-                <button onclick="salvar()">💾 Salvar</button>
-                <button class="cancel" onclick="window.close()">Cancelar</button>
-            </div>
-            <script>
-                function salvar() {
-                    const login = document.getElementById('login').value;
-                    const senha = document.getElementById('senha').value;
-                    if (login && senha) {
-                        window.api.saveCredentials({ login, senha });
-                        window.close();
-                    } else {
-                        alert('Preencha login e senha');
-                    }
-                }
-            </script>
-        </body>
-        </html>
-    `;
+    const html = `<!DOCTYPE html>
+<html><head><meta charset="utf-8">
+<style>
+body { font-family: Segoe UI, sans-serif; padding: 20px; background: #f5f5f5; }
+h2 { color: #333; text-align: center; }
+label { display: block; margin: 10px 0 5px; font-weight: 500; }
+input { width: 100%; padding: 10px; margin-bottom: 10px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
+.buttons { text-align: center; margin-top: 20px; }
+button { background: #0078d4; color: white; border: none; padding: 10px 25px; border-radius: 4px; cursor: pointer; margin: 0 5px; }
+button:hover { background: #106ebe; }
+button.cancel { background: #666; }
+</style></head>
+<body>
+<h2>ðŸ”‘ Credenciais TJSE</h2>
+<label>Login:</label>
+<input type="text" id="login" value="${creds?.login || ''}" placeholder="seu.usuario">
+<label>Senha:</label>
+<input type="password" id="senha" value="${creds?.senha || ''}" placeholder="sua senha">
+<div class="buttons">
+<button onclick="salvar()">ðŸ’¾ Salvar</button>
+<button class="cancel" onclick="window.close()">Cancelar</button>
+</div>
+<script>
+function salvar() {
+    const login = document.getElementById('login').value;
+    const senha = document.getElementById('senha').value;
+    if (login && senha) {
+        window.api.saveCredentials({ login, senha });
+        window.close();
+    } else {
+        alert('Preencha login e senha');
+    }
+}
+</script>
+</body></html>`;
 
     const tempFile = path.join(app.getPath('temp'), 'tjse-creds.html');
     fs.writeFileSync(tempFile, html);
@@ -871,375 +929,166 @@ function promptCredentials() {
     const { ipcMain } = require('electron');
     ipcMain.once('save-credentials', (event, data) => {
         saveCredentials(data.login, data.senha);
-        console.log('✅ Credenciais salvas:', data.login);
-        tray.setContextMenu(createTrayMenu());
+        console.log('âœ… Credenciais salvas:', data.login);
+        tray.setContextMenu(criarMenu());
+
+    
     });
 }
 
 // ========================================
-// LOGIN VISÍVEL (PARA DEBUG)
-// ========================================
-async function tryLoginVisible() {
-    const creds = loadCredentials();
-    if (!creds) {
-        console.log('❌ Configure as credenciais primeiro');
-        return false;
-    }
-
-    console.log('🔐 Login VISÍVEL para debug...');
-
-    return new Promise((resolve) => {
-        const win = new BrowserWindow({
-            width: 1000,
-            height: 700,
-            show: true,
-            title: 'TJSE Login - Debug',
-            webPreferences: {
-                partition: 'persist:tjse-monitor',
-                nodeIntegration: false,
-                contextIsolation: true
-            }
-        });
-
-        let resolved = false;
-        let loginAttempted = false;
-        let currentWin = win; // Rastreia a janela ativa
-        
-        const done = (success) => {
-            if (!resolved) {
-                resolved = true;
-                resolve(success);
-                // NÃO fecha a janela para debug
-            }
-        };
-
-        // Intercepta popups e navega na mesma janela
-        const setupPopupHandler = (browserWin) => {
-            browserWin.webContents.setWindowOpenHandler(({ url }) => {
-                console.log('🔗 [DEBUG] Popup interceptado:', url);
-                // Ignora blank.tjse e navega diretamente
-                if (!url.includes('blank.tjse')) {
-                    browserWin.loadURL(url);
-                }
-                return { action: 'deny' };
-            });
-        };
-
-        setupPopupHandler(win);
-
-        win.webContents.on('did-finish-load', async () => {
-            try {
-                if (!win || win.isDestroyed()) return;
-                const url = win.webContents.getURL();
-
-                // Ignora páginas blank.tjse
-                if (url.includes('blank.tjse')) {
-                    console.log('⏭️ [DEBUG] Ignorando blank.tjse');
-                    return;
-                }
-
-                console.log('📄 [DEBUG]', url);
-
-            if (url.includes('loginTJSE') && !loginAttempted) {
-                loginAttempted = true;
-                await new Promise(r => setTimeout(r, 1500));
-
-                try {
-                    console.log('📝 [DEBUG] Clicando em "Login e senha"...');
-                    await safeExec(win, `
-                        (function() {
-                            const btn = document.querySelector('img[alt="Entrar com login e senha"]');
-                            if (btn) { btn.click(); return 'OK'; }
-                            return 'Botão não encontrado';
-                        })();
-                    `).then(r => console.log('   Resultado:', r));
-                    
-                    await new Promise(r => setTimeout(r, 2000));
-                    
-                    console.log('📝 [DEBUG] Preenchendo credenciais...');
-                    await safeExec(win, `
-                        (function() {
-                            const loginField = document.querySelector('#loginName');
-                            const senhaField = document.querySelector('#loginSenha');
-                            let result = [];
-                            if (loginField) {
-                                loginField.value = '${creds.login}';
-                                loginField.dispatchEvent(new Event('input', { bubbles: true }));
-                                result.push('login OK');
-                            } else {
-                                result.push('login NÃO ENCONTRADO');
-                            }
-                            if (senhaField) {
-                                senhaField.value = '${creds.senha}';
-                                senhaField.dispatchEvent(new Event('input', { bubbles: true }));
-                                result.push('senha OK');
-                            } else {
-                                result.push('senha NÃO ENCONTRADO');
-                            }
-                            return result.join(', ');
-                        })();
-                    `).then(r => console.log('   Resultado:', r));
-                    
-                    await new Promise(r => setTimeout(r, 1000));
-                    
-                    console.log('📝 [DEBUG] Clicando em Entrar...');
-                    await safeExec(win, `
-                        (function() {
-                            const btn = document.querySelector('input[value="Entrar"]') || 
-                                       document.querySelector('button[type="submit"]') ||
-                                       document.querySelector('input[type="submit"]');
-                            if (btn) { btn.click(); return 'Clicou em: ' + btn.tagName; }
-                            return 'Botão Entrar não encontrado';
-                        })();
-                    `).then(r => console.log('   Resultado:', r));
-                    
-                } catch (err) {
-                    console.log('❌ [DEBUG] Erro:', err.message);
-                }
-                return;
-            }
-
-            if ((url.includes('portalExterno') || url.includes('portal') || url.includes('sistemasTJSE')) && !url.includes('login')) {
-                // Evita loop - só processa uma vez
-                if (win.processouPortal) {
-                    console.log('⏭️ [DEBUG] Portal já processado, aguardando...');
-                    return;
-                }
-                win.processouPortal = true;
-                
-                console.log('✅ [DEBUG] Portal/Sistemas! Procurando botão Registro Civil...');
-                isLoggedIn = true;
-                await new Promise(r => setTimeout(r, 2000));
-                
-                // Clica no botão Registro Civil - busca pelo texto exato no h2
-                const clickResult = await safeExec(win, `
-                    (function() {
-                        const allLinks = document.querySelectorAll('a[id*="clAcessar"]');
-                        for (let link of allLinks) {
-                            const h2 = link.querySelector('h2');
-                            if (h2 && h2.textContent.trim() === 'Registro Civil') {
-                                link.click();
-                                return 'Clicou em Registro Civil (id: ' + link.id + ')';
-                            }
-                        }
-                        return 'Botão Registro Civil não encontrado';
-                    })();
-                `);
-                console.log('   ', clickResult);
-                
-                // Aguarda modal aparecer (5 segundos)
-                console.log('⏳ [DEBUG] Aguardando modal de seleção de cartório (5s)...');
-                await new Promise(r => setTimeout(r, 5000));
-                
-                // Verifica se o modal de seleção apareceu e preenche tudo via JS
-                const resultado = await safeExec(win, `
-                    (function() {
-                        const dialog = document.querySelector('.ui-dialog[aria-hidden="false"]');
-                        const title = dialog ? dialog.querySelector('.ui-dialog-title') : null;
-                        if (!title || !title.textContent.includes('Selecionar')) {
-                            return 'Modal não encontrado';
-                        }
-                        
-                        // Encontra o dropdown label e clica para abrir
-                        const dropdownLabel = document.querySelector('#formSetor\\\\:cbSetor_label');
-                        if (dropdownLabel) {
-                            dropdownLabel.click();
-                        }
-                        return 'Modal encontrado, abrindo dropdown...';
-                    })();
-                `);
-                console.log('   ', resultado);
-                
-                if (resultado.includes('Modal encontrado')) {
-                    console.log('🏢 [DEBUG] Modal detectado! Selecionando cartório via JS...');
-                    
-                    // Aguarda dropdown abrir
-                    await new Promise(r => setTimeout(r, 1500));
-                    
-                    // Seleciona o item via JavaScript simulando clique real
-                    const selecao = await safeExec(win, `
-                        (function() {
-                            // Procura o item na lista
-                            const items = document.querySelectorAll('#formSetor\\\\:cbSetor_items li');
-                            for (const item of items) {
-                                if (item.textContent.includes('9º Ofício')) {
-                                    // Simula eventos de mouse completos
-                                    item.dispatchEvent(new MouseEvent('mouseover', { bubbles: true, cancelable: true }));
-                                    item.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true }));
-                                    item.dispatchEvent(new MouseEvent('mouseup', { bubbles: true, cancelable: true }));
-                                    item.click();
-                                    return 'Selecionou: ' + item.textContent.substring(0, 50);
-                                }
-                            }
-                            
-                            // Tenta pelo ID direto
-                            const item5 = document.querySelector('#formSetor\\\\:cbSetor_5');
-                            if (item5) {
-                                item5.dispatchEvent(new MouseEvent('mouseover', { bubbles: true }));
-                                item5.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
-                                item5.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
-                                item5.click();
-                                return 'Selecionou via ID: ' + item5.textContent.substring(0, 50);
-                            }
-                            
-                            return 'Item 9º Ofício não encontrado. Items: ' + items.length;
-                        })();
-                    `);
-                    console.log('   ', selecao);
-                    
-                    // Aguarda seleção ser processada
-                    await new Promise(r => setTimeout(r, 2000));
-                    
-                    // Clica no botão Entrar
-                    console.log('✅ [DEBUG] Clicando em Entrar...');
-                    const btnResult = await safeExec(win, `
-                        (function() {
-                            const btn = document.querySelector('#formSetor\\\\:sim');
-                            if (btn) {
-                                btn.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
-                                btn.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
-                                btn.click();
-                                return 'Clicou em Entrar';
-                            }
-                            return 'Botão Entrar não encontrado';
-                        })();
-                    `);
-                    console.log('   ', btnResult);
-                } else {
-                    console.log('ℹ️ [DEBUG] Modal não apareceu, navegação direta...');
-                }
-                return;
-            }
-
-            // Se está no Registro Civil, clica no menu Maternidade
-            if (url.includes('/registrocivil/') && !url.includes('acessonegado') && !url.includes('login') && !url.includes('consultaSolicitacaoExterna')) {
-                console.log('✅ [DEBUG] Registro Civil! Navegando para consultas via menu...');
-                await new Promise(r => setTimeout(r, 2000));
-                
-                // Tenta clicar no menu Maternidade e depois no submenu
-                const menuResult = await safeExec(win, `
-                    (function() {
-                        // Procura o menu Maternidade
-                        const maternidadeMenu = Array.from(document.querySelectorAll('span.ui-menuitem-text'))
-                            .find(span => span.textContent.includes('Maternidade'));
-                        
-                        if (maternidadeMenu) {
-                            // Dispara evento de mouse para abrir o dropdown
-                            const parentLi = maternidadeMenu.closest('li');
-                            if (parentLi) {
-                                parentLi.dispatchEvent(new MouseEvent('mouseenter', { bubbles: true }));
-                                parentLi.dispatchEvent(new MouseEvent('mouseover', { bubbles: true }));
-                            }
-                            return 'Menu Maternidade encontrado, abrindo dropdown...';
-                        }
-                        return 'Menu Maternidade não encontrado';
-                    })();
-                `);
-                console.log('   ', menuResult);
-                
-                await new Promise(r => setTimeout(r, 1500));
-                
-                // Agora clica no link de Solicitação Externa
-                const linkResult = await safeExec(win, `
-                    (function() {
-                        // Tenta encontrar o link direto
-                        const link = document.querySelector('a[href*="consultaSolicitacaoExterna"]');
-                        if (link) {
-                            link.click();
-                            return 'Clicou em Solicitação Externa';
-                        }
-                        
-                        // Se não achou, tenta navegar direto
-                        window.location.href = '/registrocivil/seguro/maternidade/solicitacaoExterna/consultaSolicitacaoExterna.tjse';
-                        return 'Navegando direto para URL';
-                    })();
-                `);
-                console.log('   ', linkResult);
-                return;
-            }
-
-            if (url.includes('consultaSolicitacaoExterna')) {
-                console.log('✅ [DEBUG] LOGIN COMPLETO!');
-                isLoggedIn = true;
-                showNotification('Monitor TJSE', '✅ Login realizado!');
-                done(true);
-                return;
-            }
-            } catch (err) {
-                console.log('❌ tryLoginVisible handler error:', err && err.message ? err.message : err);
-                return;
-            }
-        });
-
-        win.loadURL(LOGIN_URL);
-    });
-}
-
-// ========================================
-// INICIALIZAÇÃO
+// INICIALIZAÃ‡ÃƒO
 // ========================================
 app.whenReady().then(() => {
-    // Instância única
     const gotLock = app.requestSingleInstanceLock();
     if (!gotLock) {
-        console.log('❌ Já existe uma instância rodando!');
+        console.log('ƒ?O JÇ­ existe uma instÇ½ncia rodando!');
         app.quit();
         return;
     }
-
+    app.on('second-instance', () => {
+        try {
+                if (mainWindow && !mainWindow.isDestroyed()) {
+                if (!mainWindow.isVisible()) mainWindow.show();
+                mainWindow.focus();
+            }
+        } catch {}
+    });
     const creds = loadCredentials();
     
-    console.log('\n╔════════════════════════════════════════════╗');
-    console.log('║  🏥 Monitor Maternidade TJSE               ║');
-    console.log('╚════════════════════════════════════════════╝');
-    console.log(`├─ Intervalo: 5 min`);
-    console.log(`├─ Auto-login: 8:05 - 17:10`);
-    console.log(`├─ Login: ${creds ? creds.login : '(não configurado)'}`);
-    console.log(`├─ Horário trabalho: ${isWorkHours() ? 'SIM' : 'NÃO'}`);
+    console.log('\nâ•”â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•—');
+    console.log('Monitor Maternidade TJSE - SIMPLIFICADO');
+    console.log('â•šâ•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•');
+    console.log(`â”œâ”€ VerificaÃ§Ã£o: a cada 5 minutos`);
+    console.log(`â”œâ”€ Login: ${creds ? creds.login : '(nÃ£o configurado)'}`);
 
     // Cria tray
-    tray = new Tray(getIcon('offline'));
-    tray.setToolTip('Monitor Maternidade - Iniciando...');
-    tray.setContextMenu(createTrayMenu());
+    tray = new Tray(getIcon('loading'));
+    tray.setToolTip('Carregando...');
+    tray.setContextMenu(criarMenu());
+    updateTray('loading', 'Carregando...');
 
-    // Duplo clique revela janela já logada
-    tray.on('double-click', () => {
+    
+
+    // Duplo clique abre a janela (prioriza Electron)
+    tray.on('double-click', async () => {
+        lastUserFocus = Date.now();
         if (mainWindow && !mainWindow.isDestroyed()) {
-            const url = mainWindow.webContents.getURL();
-            if (!url || url === 'about:blank' || url.includes('acessonegado')) {
-                mainWindow.loadURL('https://www.tjse.jus.br/registrocivil/seguro/maternidade/solicitacaoExterna/consultaSolicitacaoExterna.tjse');
-            } else {
-                mainWindow.reload(); // Força reload para evitar tela branca
-            }
             mainWindow.show();
             mainWindow.focus();
-        } else {
-            tryAutoLogin().then(() => {
-                if (mainWindow) {
-                    mainWindow.show();
-                    mainWindow.focus();
+            return;
+        }
+
+        if (isLoggedIn) {
+            const win = new BrowserWindow({
+                width: 1200,
+                height: 800,
+                show: true,
+                webPreferences: {
+                    partition: 'persist:tjse-monitor',
+                    nodeIntegration: false,
+                    contextIsolation: true
                 }
             });
+            win.loadURL(TARGET_URL);
+            return;
+        }
+
+        // Se nÃ£o logado, iniciar fluxo de login via Electron
+        const ok = await fazerLogin();
+        if (ok && mainWindow && !mainWindow.isDestroyed()) {
+            mainWindow.loadURL(TARGET_URL);
+            mainWindow.show();
+            mainWindow.focus();
         }
     });
 
-    // Primeira verificação
-    mainLoop();
-    
-    // Tenta fazer login automaticamente no início
-    if (isWorkHours()) {
-        setTimeout(() => {
-            tryAutoLogin().then((success) => {
-                if (success) {
-                    console.log('✅ Login automático inicial bem-sucedido!');
-                    mainLoop();
-                }
-            });
-        }, 3000);
+    // Registrar globalShortcut F12 para abrir DevTools (quando possÃ­vel)
+    try {
+            globalShortcut.register('F12', async () => {
+            let win = BrowserWindow.getFocusedWindow() || mainWindow;
+            if (!win || win.isDestroyed()) {
+                win = new BrowserWindow({
+                    width: 1200,
+                    height: 800,
+                    show: true,
+                    webPreferences: {
+                        partition: 'persist:tjse-monitor',
+                        nodeIntegration: false,
+                        contextIsolation: true
+                    }
+                });
+                await win.loadURL(TARGET_URL);
+            }
+            try {
+                    if (!win.isVisible()) win.show();
+                win.focus();
+                win.webContents.toggleDevTools();
+            } catch (e) {
+                console.warn('Falha ao abrir DevTools via globalShortcut:', e.message);
+            }
+        });
+    } catch (e) {
+        console.warn('NÃ£o foi possÃ­vel registrar globalShortcut F12:', e.message);
     }
+
+    // Primeira verificaÃ§Ã£o em 5 segundos
+    setTimeout(() => {
+        loopPrincipal();
+    }, 5000);
     
-    // Loop de verificação a cada 5 min
-    checkInterval = setInterval(mainLoop, CHECK_INTERVAL_MS);
+    // Loop a cada 5 minutos
+    checkInterval = setInterval(loopPrincipal, CHECK_INTERVAL_MS);
 });
 
-app.on('window-all-closed', (e) => e.preventDefault());
+app.on('window-all-closed', () => app.quit());
+
+app.on('will-quit', () => {
+    try { globalShortcut.unregisterAll(); } catch {}
+});
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
