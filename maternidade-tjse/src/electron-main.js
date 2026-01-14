@@ -1,4 +1,4 @@
-﻿const { app, Tray, Menu, nativeImage, Notification, BrowserWindow, session, globalShortcut, dialog } = require('electron');
+const { app, Tray, Menu, nativeImage, Notification, BrowserWindow, session, globalShortcut, dialog } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const crypto = require('crypto');
@@ -17,16 +17,28 @@ process.on('uncaughtException', (err) => {
     if (err && err.code === 'EPIPE') return;
     throw err;
 });
-// CONFIGURAÃ‡ÃƒO
+// CONFIGURAÇÃO
 // ========================================
 const CHECK_INTERVAL_MS = 5 * 60 * 1000; // 5 minutos
+const CHECK_TIMEOUT_MS = 120000; // timeout mais folgado para a verificacao
+const FAILOVER_MS = 15 * 60 * 1000; // 15 minutos para trocar credencial
+const ALT_LOGIN = process.env.MATERNIDADE_ALT_LOGIN;
+const ALT_SENHA = process.env.MATERNIDADE_ALT_SENHA;
+const HAS_ALT_CREDS = !!(ALT_LOGIN && ALT_SENHA);
+const FAILURE_NOTIFY_COOLDOWN_MS = 15 * 60 * 1000; // 15 minutos entre notificacoes de falha
 const TARGET_URL = 'https://www.tjse.jus.br/registrocivil/seguro/maternidade/solicitacaoExterna/consultaSolicitacaoExterna.tjse';
 const LOGIN_URL = 'https://www.tjse.jus.br/controleacesso/paginas/loginTJSE.tjse';
 
 const ICONS_DIR = path.join(__dirname, '..', 'icons');
 const SECRET_KEY = 'tjse-monitor-2024-secure-key-32b';
+const APP_ICON = (() => {
+    const fromEnv = process.env.MATERNIDADE_APP_ICON;
+    if (fromEnv && fs.existsSync(fromEnv)) return fromEnv;
+    const fallback = path.join(ICONS_DIR, 'maternidade-ok.ico');
+    return fs.existsSync(fallback) ? fallback : undefined;
+})();
 
-// Chrome externo automation removed â€” priorizamos fluxo Electron (fazerLogin)
+// Chrome externo automation removed a priorizamos fluxo Electron (fazerLogin)
 
 // ========================================
 // ESTADO GLOBAL
@@ -35,10 +47,19 @@ let tray = null;
 let mainWindow = null;
 let checkInterval = null;
 let isLoggedIn = false;
-let lastCount = -1; // -1 para forÃ§ar notificaÃ§Ã£o na primeira verificaÃ§Ã£o
+let lastCount = -1; // -1 para forcar notificacao na primeira verificacao
 let lastUserFocus = 0;
-let isDoingLogin = false; // Evita logins simultÃ¢neos
+let lastUserActivity = Date.now();
+let isDoingLogin = false; // Evita logins simultaneos
 let isHandlingSolicitacao = false; // Evita handler concorrente
+let isQuitting = false;
+let consecutiveCheckFailures = 0;
+let alertBlinkTimer = null;
+let alertBlinkState = false;
+let consecutiveTimeouts = 0;
+let currentCredSource = 'primary';
+let failureSince = null;
+let lastFailureNotifyAt = 0;
 
 // Config simples persistida em arquivo para pasta de downloads
 const LEGACY_CONFIG_FILE = path.join(__dirname, '..', 'maternidade-config.json');
@@ -47,6 +68,9 @@ function getUserDataDir() {
 }
 function getCredentialsFile() {
     return path.join(getUserDataDir(), 'credentials.enc');
+}
+function getAltCredentialsFile() {
+    return path.join(getUserDataDir(), 'credentials-alt.enc');
 }
 function getConfigFile() {
     return path.join(getUserDataDir(), 'maternidade-config.json');
@@ -112,9 +136,18 @@ function saveCredentials(login, senha) {
     fs.writeFileSync(getCredentialsFile(), encrypt(JSON.stringify({ login, senha })));
 }
 
-function loadCredentials() {
+function loadCredentials(source = 'primary') {
     try {
-            const file = getCredentialsFile();
+        if (source === 'alternate') {
+            if (HAS_ALT_CREDS) return { login: ALT_LOGIN, senha: ALT_SENHA };
+            const altFile = getAltCredentialsFile();
+            if (fs.existsSync(altFile)) {
+                const decrypted = decrypt(fs.readFileSync(altFile, 'utf8'));
+                return decrypted ? JSON.parse(decrypted) : null;
+            }
+            return null;
+        }
+        const file = getCredentialsFile();
         if (fs.existsSync(file)) {
             const decrypted = decrypt(fs.readFileSync(file, 'utf8'));
             return decrypted ? JSON.parse(decrypted) : null;
@@ -123,8 +156,12 @@ function loadCredentials() {
     return null;
 }
 
+function saveAltCredentials(login, senha) {
+    fs.writeFileSync(getAltCredentialsFile(), encrypt(JSON.stringify({ login, senha })));
+}
+
 // ========================================
-// ÃCONES E NOTIFICAÃ‡Ã•ES
+// ÍCONES E NOTIFICAÇÕES
 // ========================================
 function getIcon(type) {
     const icons = {
@@ -143,25 +180,45 @@ function toAscii(text) {
 
 function updateTray(type, tooltip) {
     if (!tray) return;
-    const icon = getIcon(type);
-    if (icon) tray.setImage(icon);
+    // Controla piscar quando estiver em alerta
+    if (alertBlinkTimer) {
+        clearInterval(alertBlinkTimer);
+        alertBlinkTimer = null;
+    }
+    const setIcon = (iconType) => {
+        const icon = getIcon(iconType);
+        if (icon) tray.setImage(icon);
+    };
+    if (type === 'alert') {
+        setIcon('alert');
+        alertBlinkState = false;
+        alertBlinkTimer = setInterval(() => {
+            alertBlinkState = !alertBlinkState;
+            setIcon(alertBlinkState ? 'alert' : 'ok');
+        }, 800);
+    } else {
+        setIcon(type);
+    }
     tray.setToolTip(toAscii(tooltip || 'Monitor Maternidade TJSE'));
     console.log('Tray: ' + type + ' - ' + tooltip);
 }
 
 function notify(title, body) {
-    console.log('Notificacao: ' + title + ' - ' + body);
-    new Notification({ title: toAscii(title), body: toAscii(body) }).show();
+    const finalTitle = (title && title.toLowerCase().includes('maternidade'))
+        ? title
+        : `Maternidade TJSE - ${title || 'Aviso'}`;
+    console.log('Notificacao: ' + finalTitle + ' - ' + body);
+    new Notification({ title: toAscii(finalTitle), body: toAscii(body) }).show();
 }
 
 
 // ========================================
-// AÃ‡ÃƒO: quando houver novo SOLICITADO, captura nome e clica no link de AÃ§Ãµes
+// AAAO: quando houver novo SOLICITADO, captura nome e clica no link de AAAes
 // ========================================
 async function handleNewSolicitacaoAndClick() {
     if (isHandlingSolicitacao) return;
     isHandlingSolicitacao = true;
-    // helper para download com cookies da sessÃ£o persist:tjse-monitor   
+    // helper para download com cookies da sessAo persist:tjse-monitor   
     function downloadWithCookies(fileUrl, destPath, cookieHeader, userAgent, referer, redirectsLeft = 5) {
         return new Promise((resolve, reject) => {
             try {
@@ -198,11 +255,12 @@ async function handleNewSolicitacaoAndClick() {
     }
 
     try {
-            // Abrir janela oculta com mesma sessÃ£o
+            // Abrir janela oculta com mesma sessAo
         const win = new BrowserWindow({
             width: 1200,
             height: 800,
             show: false,
+            icon: APP_ICON,
             webPreferences: {
                 partition: 'persist:tjse-monitor',
                 nodeIntegration: false,
@@ -212,7 +270,7 @@ async function handleNewSolicitacaoAndClick() {
 
         await win.loadURL(TARGET_URL);
 
-        // Extrai nomes e hrefs (actionLink.href Ã© absoluto)
+        // Extrai nomes e hrefs (actionLink.href A absoluto)
         const encontrados = await win.webContents.executeJavaScript(`(function(){
             const rows = Array.from(document.querySelectorAll('#j_idt27_data tr'));
             const out = [];
@@ -232,7 +290,7 @@ async function handleNewSolicitacaoAndClick() {
         })();`);
 
         if (!encontrados || encontrados.length === 0) {
-            console.log('ðŸ”Ž Nenhum SOLICITADO encontrado (background).');
+            console.log('Nenhum SOLICITADO encontrado (background).');
             writeStatusLog({ event: 'no_solicitado_found' });
             isHandlingSolicitacao = false;
             win.destroy();
@@ -242,16 +300,16 @@ async function handleNewSolicitacaoAndClick() {
         const primeiro = encontrados[0];
         const nome = primeiro.nome.replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_\-]/g, '');
         const href = primeiro.href;
-        console.log('ðŸ“‹ (bg) Primeiro SOLICITADO:', nome, href);
+        console.log('(bg) Primeiro SOLICITADO:', nome, href);
         writeStatusLog({ event: 'auto_process_solicitado', nome, href });
 
-        // Navega para a pÃ¡gina da solicitaÃ§Ã£o (oculto)
+        // Navega para a pAgina da solicitaAAo (oculto)
         if (href) {
             await win.loadURL(href);
             // espera carregar
             await new Promise(r => setTimeout(r, 1500));
 
-            // Extrai dados da pÃ¡gina: nome registrado, data e links especÃ­ficos
+            // Extrai dados da pAgina: nome registrado, data e links especAficos
             const info = await win.webContents.executeJavaScript(`(function(){
                 function abs(h) { try { if (!h) return null; if (h.startsWith('http')) return h; if (h.startsWith('/')) return location.origin + h; return new URL(h, location.href).href; } catch(e){ return h; } }
                 const nomeInput = document.querySelector('#nomeRegistrado');
@@ -310,7 +368,7 @@ async function handleNewSolicitacaoAndClick() {
                 isHandlingSolicitacao = false;
                 return;
             }
-            // Obter cookies da sessÃ£o para autenticar downloads
+            // Obter cookies da sessAo para autenticar downloads
             const sess = session.fromPartition('persist:tjse-monitor');
             const cookieBaseUrl = href ? new URL(href).origin : TARGET_URL;
             const cookieList = await sess.cookies.get({ url: cookieBaseUrl });
@@ -325,6 +383,7 @@ async function handleNewSolicitacaoAndClick() {
                 tasks.push({ url: info.docHref, dest, label: 'DOCUMENTOS' });
             } else {
                 writeStatusLog({ event: 'missing_documentos_link', nome: sanitizedName, href });
+                notify('Maternidade - Link faltando', `Sem link de DOCUMENTOS para ${sanitizedName}.`);
             }
 
             if (info && info.dnvHref) {
@@ -332,23 +391,25 @@ async function handleNewSolicitacaoAndClick() {
                 tasks.push({ url: info.dnvHref, dest, label: 'DNV' });
             } else {
                 writeStatusLog({ event: 'missing_dnv_link', nome: sanitizedName, href });
+                notify('Maternidade - Link faltando', `Sem link de DNV para ${sanitizedName}.`);
             }
 
             for (const t of tasks) {
                 try {
                         await downloadWithCookies(t.url, t.dest, cookieHeader, userAgent, href);
-                    console.log(`âœ… ${t.label} baixado:`, t.dest);
+                    console.log(`a... ${t.label} baixado:`, t.dest);
                     writeStatusLog({ event: 'pdf_downloaded', tipo: t.label, nome: sanitizedName, pdfUrl: t.url, dest: t.dest });
                 } catch (e) {
                     console.warn(`Falha ao baixar ${t.label}`, t.url, e.message);
                     writeStatusLog({ event: 'pdf_download_failed', tipo: t.label, nome: sanitizedName, pdfUrl: t.url, error: e.message });
+                    notify('Maternidade - Erro download', `${t.label} de ${sanitizedName} falhou: ${e.message}`);
                     allOk = false;
                 }
             }
             if (allOk && tasks.length > 0) {
                 try { fs.writeFileSync(doneMarker, new Date().toISOString(), 'utf8'); } catch (e) {}
             }
-            // ApÃ³s completar ciclo de download, voltar ao loop principal normalmente
+            // ApA3s completar ciclo de download, voltar ao loop principal normalmente
             try {
                     setTimeout(() => { try { loopPrincipal(); } catch (e) {} }, 2000);
             } catch (e) { }
@@ -366,7 +427,7 @@ async function handleNewSolicitacaoAndClick() {
 }
 
 // ========================================
-// AGUARDAR ELEMENTO NA PÃGINA
+// AGUARDAR ELEMENTO NA PAGINA
 // ========================================
 async function aguardarElemento(win, selector, timeout = 10000) {
     const inicio = Date.now();
@@ -383,7 +444,7 @@ async function aguardarElemento(win, selector, timeout = 10000) {
 }
 
 // ========================================
-// LOGGING: escreve status periÃ³dicos em logs/
+// LOGGING: escreve status periA3dicos em logs/
 // ========================================
 function writeStatusLog(payload) {
     try {
@@ -398,62 +459,78 @@ function writeStatusLog(payload) {
 }
 
 // ========================================
-// VERIFICAÃ‡ÃƒO RÃPIDA (USA SESSÃƒO LOGADA)
+// VERIFICAAAO RAPIDA (USA SESSAO LOGADA)
 // ========================================
 async function verificarSolicitados() {
-    console.log('\nðŸ” Verificando solicitaÃ§Ãµes...');
-    
-    return new Promise((resolve) => {
-        // USA A MESMA SESSÃƒO DO LOGIN para manter cookies!
-        const win = new BrowserWindow({
-            width: 800,
-            height: 600,
-            show: false,
-            webPreferences: {
-                partition: 'persist:tjse-monitor',
-                nodeIntegration: false,
-                contextIsolation: true
-            }
-        });
+    console.log('\nVerificando solicitações...');
+    const MAX_RETRY = 3;
+    let lastResult = { ok: false, count: 0, needsLogin: true, reason: 'timeout' };
 
-        let done = false;
-        const finish = (result) => {
-            if (done) return;
-            done = true;
-            win.destroy();
-            resolve(result);
-        };
+    for (let attempt = 1; attempt <= MAX_RETRY; attempt++) {
+        const result = await new Promise((resolve) => {
+            // USA A MESMA SESSAO DO LOGIN para manter cookies!
+            const win = new BrowserWindow({
+                width: 800,
+                height: 600,
+                show: false,
+                icon: APP_ICON,
+                webPreferences: {
+                    partition: 'persist:tjse-monitor',
+                    nodeIntegration: false,
+                    contextIsolation: true
+                }
+            });
 
-        // Timeout 60 segundos (aumentado para conexÃµes lentas)
-        setTimeout(() => {
-            console.log('â° Timeout na verificaÃ§Ã£o');
-            finish({ ok: false, count: 0, needsLogin: true });
-        }, 60000);
+            let done = false;
+            const finish = (res) => {
+                if (done) return;
+                done = true;
+                try { win.destroy(); } catch {}
+                resolve(res);
+            };
 
-        win.webContents.on('did-finish-load', async () => {
-            const url = win.webContents.getURL();
-            if (url.includes('blank.tjse')) return;
-            
-            console.log('ðŸ“„', url);
+            const timeout = setTimeout(() => {
+                console.log('Timeout na verificação (tentativa ' + attempt + ')');
+                finish({ ok: false, count: 0, needsLogin: true, reason: 'timeout' });
+            }, CHECK_TIMEOUT_MS);
 
-            // SessÃ£o expirada?
-            if (url.includes('loginTJSE') || url.includes('acessonegado')) {
-                console.log('âš ï¸ SessÃ£o expirada - precisa logar');
-                isLoggedIn = false;
-                finish({ ok: false, count: 0, needsLogin: true });
-                return;
-            }
-
-            // PÃ¡gina de consultas - conta SOLICITADO
-            if (url.includes('consultaSolicitacaoExterna')) {
-                // Espera a pÃ¡gina carregar completamente
-                await new Promise(r => setTimeout(r, 3000));
+            win.webContents.on('did-finish-load', async () => {
+                const url = win.webContents.getURL();
+                if (url.includes('blank.tjse')) return;
                 
+                console.log('URL carregada:', url);
+
+                // Verifica se a página atual já mostra "Acesso negado" (mesmo sem trocar a URL)
                 try {
+                    const bodyText = await win.webContents.executeJavaScript("document.body ? document.body.innerText : ''");
+                    if ((bodyText || '').toLowerCase().includes('acesso negado')) {
+                        console.log('Sessão expirada (acesso negado detectado) - precisa logar');
+                        isLoggedIn = false;
+                        clearTimeout(timeout);
+                        finish({ ok: false, count: 0, needsLogin: true, reason: 'acesso_negado' });
+                        return;
+                    }
+                } catch {}
+
+                // Sessão expirada?
+                if (url.includes('loginTJSE') || url.includes('acessonegado')) {
+                    console.log('Sessão expirada - precisa logar');
+                    isLoggedIn = false;
+                    clearTimeout(timeout);
+                    finish({ ok: false, count: 0, needsLogin: true, reason: 'login' });
+                    return;
+                }
+
+                // Página de consultas - conta SOLICITADO
+                if (url.includes('consultaSolicitacaoExterna')) {
+                    // Espera a página carregar completamente
+                    await new Promise(r => setTimeout(r, 3000));
+                    
+                    try {
                         const count = await win.webContents.executeJavaScript(`
                         (function() {
                             let c = 0;
-                            // Busca em todas as cÃ©lulas e spans da tabela
+                            // Busca em todas as células e spans da tabela
                             document.querySelectorAll('td, span, div').forEach(el => {
                                 const texto = el.textContent.trim().toUpperCase();
                                 if (texto === 'SOLICITADO' || texto === 'SOLICITADA') c++;
@@ -462,49 +539,70 @@ async function verificarSolicitados() {
                             return c;
                         })();
                     `);
-                    
-                    console.log('âœ… Encontrados:', count, 'SOLICITADO(s)');
-                    isLoggedIn = true;
-                    finish({ ok: true, count, needsLogin: false });
-                } catch (e) {
-                    console.log('âŒ Erro ao contar:', e.message);
-                    finish({ ok: false, count: 0, needsLogin: false });
+                        
+                        console.log('Encontrados:', count, 'SOLICITADO(s)');
+                        isLoggedIn = true;
+                        clearTimeout(timeout);
+                        finish({ ok: true, count, needsLogin: false });
+                    } catch (e) {
+                        console.log('Erro ao contar:', e.message);
+                        clearTimeout(timeout);
+                        finish({ ok: false, count: 0, needsLogin: true, reason: 'count_error' });
+                    }
+                    return;
                 }
-                return;
-            }
 
-            // Se caiu em outro lugar, vai para consultas
-            if (url.includes('/registrocivil/') || url.includes('portal')) {
-                console.log('ðŸ“ Redirecionando para consultas...');
-                win.loadURL(TARGET_URL);
-            }
+                // Se caiu em outro lugar, vai para consultas
+                if (url.includes('/registrocivil/') || url.includes('portal')) {
+                    console.log('Redirecionando para consultas...');
+                    win.loadURL(TARGET_URL);
+                }
+            });
+
+            win.loadURL(TARGET_URL);
         });
 
-        win.loadURL(TARGET_URL);
-    });
+        if (result.ok) {
+            return result;
+        }
+
+        lastResult = result;
+        if (attempt < MAX_RETRY) {
+            console.log(`Repetindo verificação (${attempt}/${MAX_RETRY})...`);
+            await new Promise(r => setTimeout(r, 1500));
+            continue;
+        }
+    }
+
+    return lastResult;
 }
 
 // ========================================
-// LOGIN AUTOMÃTICO (VISÃVEL)
+// LOGIN AUTOMATICO (VISAVEL)
 // ========================================
 async function fazerLogin() {
-    // Evita logins simultÃ¢neos
+    // Evita logins simultAneos
     if (isDoingLogin) {
-        console.log('â³ Login jÃ¡ em andamento...');
+        console.log('a3 Login jA em andamento...');
         return false;
     }
     
-    const creds = loadCredentials();
+    let creds = loadCredentials(currentCredSource);
     if (!creds) {
-        console.log('âŒ Configure suas credenciais primeiro!');
-        notify('Monitor TJSE', 'âš ï¸ Configure suas credenciais no menu');
+        // tenta alternativo se o atual nao existir
+        creds = loadCredentials(currentCredSource === 'primary' ? 'alternate' : 'primary');
+        if (creds) currentCredSource = currentCredSource === 'primary' ? 'alternate' : 'primary';
+    }
+    if (!creds) {
+        console.log('Configure suas credenciais primeiro!');
+        notify('Maternidade - Credenciais ausentes', 'Configure o login/senha pelo menu ou defina MATERNIDADE_ALT_LOGIN/MATERNIDADE_ALT_SENHA.');
         return false;
     }
 
     isDoingLogin = true;
-    console.log('ðŸ” Iniciando login...');
+    console.log('Iniciando login...');
 
-    // Se jÃ¡ existe janela, fecha
+    // Se jA existe janela, fecha
     if (mainWindow && !mainWindow.isDestroyed()) {
         mainWindow.destroy();
     }
@@ -514,6 +612,7 @@ async function fazerLogin() {
             width: 1100,
             height: 750,
             show: true,
+            icon: APP_ICON,
             webPreferences: {
                 partition: 'persist:tjse-monitor',
                 nodeIntegration: false,
@@ -534,18 +633,27 @@ async function fazerLogin() {
             resolve(success);
         };
 
-        // Timeout 120 segundos (aumentado para conexÃµes lentas)
+        // Timeout 120 segundos (aumentado para conexões lentas)
         setTimeout(() => {
-            console.log('â° Timeout no login');
+            console.log('Timeout no login');
             finish(false);
         }, 120000);
 
-        // Oculta ao fechar (nÃ£o destrÃ³i)
-        mainWindow.on('close', () => { app.quit(); });
+        // Oculta ao fechar (nao destroi)
+        mainWindow.on('close', (e) => {
+            if (isQuitting) return;
+            try { e.preventDefault(); } catch {}
+            try { mainWindow.hide(); mainWindow.setSkipTaskbar(true); } catch {}
+        });
 
-        // Detecta foco do usuÃ¡rio
+        // Detecta foco/atividade do usuario
         mainWindow.on('focus', () => {
             lastUserFocus = Date.now();
+            lastUserActivity = Date.now();
+            try { mainWindow.setSkipTaskbar(false); } catch {}
+        });
+        mainWindow.webContents.on('before-input-event', () => {
+            lastUserActivity = Date.now();
         });
 
         // Intercepta popups
@@ -563,12 +671,12 @@ async function fazerLogin() {
                     const url = mainWindow.webContents.getURL();
                 if (url.includes('blank.tjse')) return;
                 
-                console.log(`ðŸ“„ [${etapa}]`, url);
+                console.log(`Login etapa [${etapa}]`, url);
 
-                // === ETAPA 1: PÃ¡gina de Login ===
+                // === ETAPA 1: Página de Login ===
                 if (url.includes('loginTJSE') && etapa === 'inicio') {
                     etapa = 'login';
-                    // Espera a pÃ¡gina carregar
+                    // Espera a página carregar
                     await aguardarElemento(mainWindow, 'img[alt="Entrar com login e senha"]', 10000);
                     
                     // Clica em "Login e senha"
@@ -621,18 +729,18 @@ async function fazerLogin() {
                     return;
                 }
 
-                // === ETAPA 3: Registro Civil (modal de cartÃ³rio) ===
+                // === ETAPA 3: Registro Civil (modal de cartório) ===
                 if (url.includes('/registrocivil/') && !url.includes('consultaSolicitacaoExterna') && etapa === 'aguardando-rc') {
                     etapa = 'registro-civil';
                     await new Promise(r => setTimeout(r, 2000));
                     
-                    // Verifica se tem modal de seleÃ§Ã£o
+                    // Verifica se tem modal de seleAAo
                     const temModal = await mainWindow.webContents.executeJavaScript(`
                         !!document.querySelector('.ui-dialog-title')?.textContent?.includes('Selecionar');
                     `);
                     
                     if (temModal) {
-                        console.log('ðŸ¢ Selecionando cartÃ³rio...');
+                        console.log('Selecionando cartório...');
                         
                         // Abre dropdown
                         await mainWindow.webContents.executeJavaScript(`
@@ -640,11 +748,11 @@ async function fazerLogin() {
                         `);
                         await aguardarElemento(mainWindow, '#formSetor\\\\:cbSetor_items li', 5000);
                         
-                        // Seleciona 9Âº OfÃ­cio
+                        // Seleciona 9º Ofício
                         await mainWindow.webContents.executeJavaScript(`
                             const items = document.querySelectorAll('#formSetor\\\\:cbSetor_items li');
                             for (const item of items) {
-                                if (item.textContent.includes('9Âº OfÃ­cio')) {
+                                if (item.textContent.includes('9Ao OfAcio')) {
                                     item.click();
                                     break;
                                 }
@@ -665,18 +773,18 @@ async function fazerLogin() {
                     return;
                 }
 
-                // === ETAPA 4: PÃ¡gina de Maternidade ===
-                if (url.includes('consultaSolicitacaoExterna')) {
-                    console.log('âœ… LOGIN COMPLETO!');
-                    isLoggedIn = true;
-                    updateTray('ok', 'âœ… Logado com sucesso');
-                    notify('Monitor TJSE', 'âœ… Login realizado!');
-                    finish(true);
-                    return;
-                }
+                // === ETAPA 4: Página de Maternidade ===
+            if (url.includes('consultaSolicitacaoExterna')) {
+                console.log('LOGIN COMPLETO!');
+                isLoggedIn = true;
+                updateTray('ok', 'Logado com sucesso');
+                notify('Maternidade - Login ok', 'Sessão autenticada com sucesso.');
+                finish(true);
+                return;
+            }
 
             } catch (err) {
-                console.log('âŒ Erro no login:', err.message);
+                console.log('Erro no login:', err.message);
             }
         });
 
@@ -688,39 +796,49 @@ async function fazerLogin() {
 // LOOP PRINCIPAL
 // ========================================
 async function loopPrincipal() {
-    // SÃ“ pausa se o usuÃ¡rio estÃ¡ ATIVAMENTE usando a janela (em foco)
-    if (mainWindow && !mainWindow.isDestroyed() && mainWindow.isFocused()) {
-        console.log('â¸ï¸ Janela em foco, pulando verificaÃ§Ã£o automÃ¡tica');
-        return;
-    }
-
     const result = await verificarSolicitados();
     // Gravacao simples do status para debug/monitoramento externo
     try { writeStatusLog({ check: 'verificarSolicitados', result }); } catch {}
     
     if (result.ok) {
+        consecutiveCheckFailures = 0;
+        failureSince = null;
+        lastFailureNotifyAt = 0;
         if (result.count > 0) {
-            updateTray('alert', `âš ï¸ ${result.count} SOLICITADO(s) pendente(s)`);
+            updateTray('alert', `${result.count} SOLICITADO(s) pendente(s)`);
             
-            // Notifica se Ã© primeira vez OU se aumentou
+            // Notifica se e primeira vez OU se aumentou
             if (lastCount === -1 || result.count > lastCount) {
-                notify('ðŸ¥ Nova SolicitaÃ§Ã£o!', `Existem ${result.count} solicitaÃ§Ã£o(Ãµes) com status SOLICITADO`);
-                // Ao detectar nova solicitaÃ§Ã£o, captura nome e clica no botÃ£o para teste
+                notify('Maternidade - Nova solicitação', `Existem ${result.count} solicitação(ões) com status SOLICITADO`);
+                // Ao detectar nova solicitacao, captura nome e clica no botao para teste
                 try { await handleNewSolicitacaoAndClick(); } catch (e) { console.warn('Erro ao executar handleNewSolicitacaoAndClick:', e.message); }
             }
         } else {
-            updateTray('ok', 'âœ… Nenhuma solicitaÃ§Ã£o pendente');
+            updateTray('ok', 'Nenhuma solicitacao pendente');
         }
         lastCount = result.count;
         
     } else if (result.needsLogin) {
-        updateTray('offline', 'ðŸ”´ SessÃ£o expirada');
+        updateTray('offline', 'Sessao expirada');
+        consecutiveCheckFailures += 1;
+        if (!failureSince) failureSince = Date.now();
+        const now = Date.now();
+        // Evita notificar na primeira falha logo ao abrir; só notifica a partir da segunda falha
+        if (consecutiveCheckFailures > 1 && (now - lastFailureNotifyAt) >= FAILURE_NOTIFY_COOLDOWN_MS) {
+            notify('Maternidade - Sessão expirada', 'A sessão caiu ou houve timeout. Refaça o login.');
+            lastFailureNotifyAt = now;
+        }
+        if (HAS_ALT_CREDS && (now - failureSince) >= FAILOVER_MS) {
+            currentCredSource = currentCredSource === 'primary' ? 'alternate' : 'primary';
+            failureSince = now;
+            notify('Maternidade - Alternando login', `Trocando para credencial ${currentCredSource === 'primary' ? 'principal' : 'alternativa'} após falhas contínuas.`);
+        }
         
-        // Tenta login automÃ¡tico (qualquer horÃ¡rio)
-        console.log('ðŸ”„ Tentando login automÃ¡tico...');
+        // Tenta login automatico (qualquer horario)
+        console.log('Tentando login automatico...');
         const ok = await fazerLogin();
         if (ok) {
-            // Verifica de novo apÃ³s logar
+            // Verifica de novo apos logar
             setTimeout(() => loopPrincipal(), 3000);
         }
     }
@@ -749,7 +867,7 @@ function criarMenu() {
                         tray.setContextMenu(criarMenu());
 
 
-                        notify('Monitor TJSE', 'Pasta destino atualizada');
+                        notify('Maternidade - Pasta alterada', 'Pasta destino atualizada.');
                     }
                 } catch (e) { console.warn('Erro ao escolher pasta:', e.message); }
             }
@@ -786,7 +904,7 @@ function criarMenu() {
                 (async () => {
                     let win = browserWindow || mainWindow;
                     if (!win || win.isDestroyed()) {
-                        // criar uma janela temporÃ¡ria para debug
+                        // criar uma janela temporAria para debug
                         win = new BrowserWindow({
                             width: 1200,
                             height: 800,
@@ -813,18 +931,21 @@ function criarMenu() {
             label: 'Abrir Maternidade',
             click: async () => {
                 lastUserFocus = Date.now();
+                lastUserActivity = Date.now();
 
-                // Se jÃ¡ estÃ¡ logado, apenas abre/mostra a janela com a pÃ¡gina
+                // Se ja esta logado, apenas abre/mostra a janela com a pagina
                 if (isLoggedIn) {
                     if (mainWindow && !mainWindow.isDestroyed()) {
                         mainWindow.loadURL(TARGET_URL);
                         mainWindow.show();
+                        try { mainWindow.setSkipTaskbar(false); } catch {}
                         mainWindow.focus();
                     } else {
                         const win = new BrowserWindow({
                             width: 1200,
                             height: 800,
                             show: true,
+                            icon: APP_ICON,
                             webPreferences: {
                                 partition: 'persist:tjse-monitor',
                                 nodeIntegration: false,
@@ -836,15 +957,15 @@ function criarMenu() {
                     return;
                 }
 
-                // Se nÃ£o estÃ¡ logado, usar o fluxo Electron confiÃ¡vel
-                console.log('âœ³ï¸ NÃ£o logado â€” iniciando fluxo Electron de login');
+                // Se nao esta logado, usar o fluxo Electron confiavel
+                console.log('Nao logado - iniciando fluxo Electron de login');
                 const ok = await fazerLogin();
                 if (ok) {
             
                 } else {
-                    // Opcional: fallback para Chrome externo (comentado por seguranÃ§a)
+                    // Opcional: fallback para Chrome externo (comentado por seguranca)
                     // launchChromeWithProfile(TARGET_URL, CHROME_PROFILE);
-                    notify('Monitor TJSE', 'âš ï¸ NÃ£o foi possÃ­vel efetuar login automaticamente');
+                    notify('Maternidade - Falha login', 'Nao foi possivel efetuar login automaticamente.');
                 }
             }
         },
@@ -854,16 +975,17 @@ function criarMenu() {
             click: () => abrirConfigCredenciais()
         },
         { type: 'separator' },
-        { label: 'Sair', click: () => app.quit() }
+        { label: 'Sair', click: () => { isQuitting = true; app.quit(); } }
     ]);
 }
 
 function abrirConfigCredenciais() {
     const creds = loadCredentials();
+    const altCreds = loadCredentials('alternate');
     
     const win = new BrowserWindow({
-        width: 400,
-        height: 320,
+        width: 420,
+        height: 420,
         resizable: false,
         alwaysOnTop: true,
         title: 'Credenciais TJSE',
@@ -874,13 +996,14 @@ function abrirConfigCredenciais() {
         }
     });
 
-    // Cria preload se necessÃ¡rio
+    // Cria preload se necessario
     const preloadPath = path.join(__dirname, 'preload-creds.js');
     if (!fs.existsSync(preloadPath)) {
         fs.writeFileSync(preloadPath, `
             const { contextBridge, ipcRenderer } = require('electron');
             contextBridge.exposeInMainWorld('api', {
-                saveCredentials: (data) => ipcRenderer.send('save-credentials', data)
+                saveCredentials: (data) => ipcRenderer.send('save-credentials', data),
+                saveAltCredentials: (data) => ipcRenderer.send('save-alt-credentials', data)
             });
         `);
     }
@@ -892,31 +1015,42 @@ body { font-family: Segoe UI, sans-serif; padding: 20px; background: #f5f5f5; }
 h2 { color: #333; text-align: center; }
 label { display: block; margin: 10px 0 5px; font-weight: 500; }
 input { width: 100%; padding: 10px; margin-bottom: 10px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
-.buttons { text-align: center; margin-top: 20px; }
+hr { margin: 16px 0; }
+.buttons { text-align: center; margin-top: 10px; }
 button { background: #0078d4; color: white; border: none; padding: 10px 25px; border-radius: 4px; cursor: pointer; margin: 0 5px; }
 button:hover { background: #106ebe; }
 button.cancel { background: #666; }
 </style></head>
 <body>
-<h2>ðŸ”‘ Credenciais TJSE</h2>
-<label>Login:</label>
+<h2>Credenciais TJSE</h2>
+<label>Login principal:</label>
 <input type="text" id="login" value="${creds?.login || ''}" placeholder="seu.usuario">
-<label>Senha:</label>
+<label>Senha principal:</label>
 <input type="password" id="senha" value="${creds?.senha || ''}" placeholder="sua senha">
+<hr>
+<label>Login alternativo:</label>
+<input type="text" id="loginAlt" value="${altCreds?.login || ''}" placeholder="usuario alternativo (opcional)">
+<label>Senha alternativa:</label>
+<input type="password" id="senhaAlt" value="${altCreds?.senha || ''}" placeholder="senha alternativa (opcional)">
 <div class="buttons">
-<button onclick="salvar()">ðŸ’¾ Salvar</button>
+<button onclick="salvar()">Salvar</button>
 <button class="cancel" onclick="window.close()">Cancelar</button>
 </div>
 <script>
 function salvar() {
     const login = document.getElementById('login').value;
     const senha = document.getElementById('senha').value;
-    if (login && senha) {
-        window.api.saveCredentials({ login, senha });
-        window.close();
-    } else {
-        alert('Preencha login e senha');
+    const loginAlt = document.getElementById('loginAlt').value;
+    const senhaAlt = document.getElementById('senhaAlt').value;
+    if (!login || !senha) {
+        alert('Preencha login e senha principal');
+        return;
     }
+    window.api.saveCredentials({ login, senha });
+    if (loginAlt && senhaAlt) {
+        window.api.saveAltCredentials({ login: loginAlt, senha: senhaAlt });
+    }
+    window.close();
 }
 </script>
 </body></html>`;
@@ -929,20 +1063,22 @@ function salvar() {
     const { ipcMain } = require('electron');
     ipcMain.once('save-credentials', (event, data) => {
         saveCredentials(data.login, data.senha);
-        console.log('âœ… Credenciais salvas:', data.login);
+        console.log('Credenciais principais salvas:', data.login);
         tray.setContextMenu(criarMenu());
-
-    
+    });
+    ipcMain.once('save-alt-credentials', (event, data) => {
+        saveAltCredentials(data.login, data.senha);
+        console.log('Credenciais alternativas salvas:', data.login);
     });
 }
 
 // ========================================
-// INICIALIZAÃ‡ÃƒO
+// INICIALIZAAAO
 // ========================================
 app.whenReady().then(() => {
     const gotLock = app.requestSingleInstanceLock();
     if (!gotLock) {
-        console.log('ƒ?O JÇ­ existe uma instÇ½ncia rodando!');
+        console.log('?O JC existe uma instC12ncia rodando!');
         app.quit();
         return;
     }
@@ -950,17 +1086,18 @@ app.whenReady().then(() => {
         try {
                 if (mainWindow && !mainWindow.isDestroyed()) {
                 if (!mainWindow.isVisible()) mainWindow.show();
+                try { mainWindow.setSkipTaskbar(false); } catch {}
                 mainWindow.focus();
             }
         } catch {}
     });
     const creds = loadCredentials();
     
-    console.log('\nâ•”â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•—');
+    console.log('\naaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa');
     console.log('Monitor Maternidade TJSE - SIMPLIFICADO');
-    console.log('â•šâ•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•');
-    console.log(`â”œâ”€ VerificaÃ§Ã£o: a cada 5 minutos`);
-    console.log(`â”œâ”€ Login: ${creds ? creds.login : '(nÃ£o configurado)'}`);
+    console.log('asaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa');
+    console.log(`aa VerificaAAo: a cada 5 minutos`);
+    console.log(`aa Login: ${creds ? creds.login : '(nAo configurado)'}`);
 
     // Cria tray
     tray = new Tray(getIcon('loading'));
@@ -973,8 +1110,10 @@ app.whenReady().then(() => {
     // Duplo clique abre a janela (prioriza Electron)
     tray.on('double-click', async () => {
         lastUserFocus = Date.now();
+        lastUserActivity = Date.now();
         if (mainWindow && !mainWindow.isDestroyed()) {
             mainWindow.show();
+            try { mainWindow.setSkipTaskbar(false); } catch {}
             mainWindow.focus();
             return;
         }
@@ -984,6 +1123,7 @@ app.whenReady().then(() => {
                 width: 1200,
                 height: 800,
                 show: true,
+                icon: APP_ICON,
                 webPreferences: {
                     partition: 'persist:tjse-monitor',
                     nodeIntegration: false,
@@ -994,7 +1134,7 @@ app.whenReady().then(() => {
             return;
         }
 
-        // Se nÃ£o logado, iniciar fluxo de login via Electron
+        // Se nAo logado, iniciar fluxo de login via Electron
         const ok = await fazerLogin();
         if (ok && mainWindow && !mainWindow.isDestroyed()) {
             mainWindow.loadURL(TARGET_URL);
@@ -1003,7 +1143,7 @@ app.whenReady().then(() => {
         }
     });
 
-    // Registrar globalShortcut F12 para abrir DevTools (quando possÃ­vel)
+    // Registrar globalShortcut F12 para abrir DevTools (quando possAvel)
     try {
             globalShortcut.register('F12', async () => {
             let win = BrowserWindow.getFocusedWindow() || mainWindow;
@@ -1012,6 +1152,7 @@ app.whenReady().then(() => {
                     width: 1200,
                     height: 800,
                     show: true,
+                    icon: APP_ICON,
                     webPreferences: {
                         partition: 'persist:tjse-monitor',
                         nodeIntegration: false,
@@ -1029,19 +1170,43 @@ app.whenReady().then(() => {
             }
         });
     } catch (e) {
-        console.warn('NÃ£o foi possÃ­vel registrar globalShortcut F12:', e.message);
+        console.warn('NAo foi possAvel registrar globalShortcut F12:', e.message);
     }
 
-    // Primeira verificaÃ§Ã£o em 5 segundos
+        // Primeira verificação em 5 segundos
     setTimeout(() => {
         loopPrincipal();
     }, 5000);
     
     // Loop a cada 5 minutos
     checkInterval = setInterval(loopPrincipal, CHECK_INTERVAL_MS);
+
+    // Auto-ocultar após inatividade (padrão 5 min). Defina MATERNIDADE_AUTO_HIDE_MINUTES para alterar ou 0 para desativar.
+    const AUTO_HIDE_MINUTES = parseInt(process.env.MATERNIDADE_AUTO_HIDE_MINUTES || '5', 10);
+    const AUTO_HIDE_MS = isNaN(AUTO_HIDE_MINUTES) ? 0 : AUTO_HIDE_MINUTES * 60 * 1000;
+    if (AUTO_HIDE_MS > 0) {
+        setInterval(() => {
+            try {
+                const win = mainWindow;
+                if (!win || win.isDestroyed()) return;
+                const idleMs = Date.now() - (lastUserActivity || lastUserFocus || 0);
+                if (win.isVisible() && idleMs >= AUTO_HIDE_MS) {
+                    win.hide();
+                    try { win.setSkipTaskbar(true); } catch {}
+                    console.log(`Auto-hide apos ${AUTO_HIDE_MINUTES} min sem atividade`);
+                }
+            } catch {}
+        }, 60 * 1000);
+    }
 });
 
-app.on('window-all-closed', () => app.quit());
+app.on('window-all-closed', (e) => {
+    if (!isQuitting) {
+        try { e.preventDefault(); } catch {}
+        return;
+    }
+    app.quit();
+});
 
 app.on('will-quit', () => {
     try { globalShortcut.unregisterAll(); } catch {}

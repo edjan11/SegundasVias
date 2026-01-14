@@ -6,7 +6,6 @@
   "main": "src/electron-main.js",
   "scripts": {
     "start": "electron .",
-    "open-tjse": "node src/simple-start.js",
     "build": "electron-builder --win --x64",
     "dist": "electron-builder"
   },
