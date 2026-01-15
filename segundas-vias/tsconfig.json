@@ -1,0 +1,16 @@
+{
+  "compilerOptions": {
+    "target": "ES2020",
+    "module": "ES2020",
+    "moduleResolution": "node",
+    "rootDir": "src",
+    "outDir": "dist-src",
+    "esModuleInterop": true,
+    "resolveJsonModule": true,
+    "skipLibCheck": true,
+    "noEmitOnError": false,
+    "strict": false
+  },
+  "include": ["src/ui.ts", "src/ui.css", "src/ui.html"],
+  "exclude": ["src/main.ts", "src/preload.ts", "src/db.ts", "node_modules", "dist-src"]
+}
