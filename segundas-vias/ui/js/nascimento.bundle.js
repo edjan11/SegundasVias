@@ -904,7 +904,7 @@ function isValidTime(value) {
   if (!normalized) return true;
   return /^([01]\d|2[0-3]):([0-5]\d)$/.test(normalized);
 }
-function validateData(data, setStatus2, context = {}) {
+function validateData(data, setStatus3, context = {}) {
   var _a;
   clearInvalid();
   let ok = true;
@@ -965,7 +965,7 @@ function validateData(data, setStatus2, context = {}) {
     markInvalid("ui.cartorio_oficio");
     ok = false;
   }
-  if (!ok && setStatus2) setStatus2("Campos obrigatorios pendentes", true);
+  if (!ok && setStatus3) setStatus3("Campos obrigatorios pendentes", true);
   return ok;
 }
 function maskDate(el) {
@@ -1070,15 +1070,21 @@ async function fetchCsvText(path) {
 async function loadCsvData() {
   let nomesText = "";
   let gruposText = "";
-  try {
-    nomesText = await fetchCsvText("/data/nomes.csv.gz");
-  } catch {
-    nomesText = await fetchCsvText("/data/nomes.csv");
+  const nomesPaths = ["/data/nomes.csv.gz", "/public/data/nomes.csv.gz", "/data/nomes.csv", "/public/data/nomes.csv"];
+  const gruposPaths = ["/data/grupos.csv.gz", "/public/data/grupos.csv.gz", "/data/grupos.csv", "/public/data/grupos.csv"];
+  for (const p of nomesPaths) {
+    try {
+      nomesText = await fetchCsvText(p);
+      break;
+    } catch (e) {
+    }
   }
-  try {
-    gruposText = await fetchCsvText("/data/grupos.csv.gz");
-  } catch {
-    gruposText = await fetchCsvText("/data/grupos.csv");
+  for (const p of gruposPaths) {
+    try {
+      gruposText = await fetchCsvText(p);
+      break;
+    } catch (e) {
+    }
   }
   const nomes = import_papaparse.default.parse(nomesText, { header: true, skipEmptyLines: true }).data || [];
   const grupos = import_papaparse.default.parse(gruposText, { header: true, skipEmptyLines: true }).data || [];
@@ -1188,7 +1194,16 @@ function createNameValidator(opts = {}) {
       if (!firstUnknown) firstUnknown = token;
     }
     if (unknown === 0) return { suspicious: false, token: "" };
-    if (tokens.length === 1) return { suspicious: true, token: firstUnknown };
+    if (tokens.length === 1) {
+      const token = firstUnknown || tokens[0];
+      const score = bestScore(token);
+      let effectiveThreshold = threshold;
+      if (token.length <= 3) effectiveThreshold = 0.55;
+      else if (token.length <= 5) effectiveThreshold = 0.7;
+      else if (token.length <= 7) effectiveThreshold = 0.78;
+      if (score < effectiveThreshold) return { suspicious: true, token };
+      return { suspicious: false, token: "" };
+    }
     if (known === 0) return { suspicious: true, token: firstUnknown };
     if (unknown >= 3) return { suspicious: true, token: firstUnknown };
     return { suspicious: false, token: "" };
@@ -1517,6 +1532,235 @@ function createPlaceAutofill(opts) {
   return { placeCache: placeCache2, setupLocalAutofill };
 }
 
+// ui/ts/shared/ui/drawer.ts
+function setupDrawer(opts = {}) {
+  const drawer = document.getElementById("drawer");
+  const toggle = document.getElementById("drawer-toggle");
+  const close = document.getElementById("drawer-close");
+  if (!drawer) return { open: () => {
+  }, close: () => {
+  }, setTab: () => {
+  } };
+  const tabs = Array.from(drawer.querySelectorAll(".tab-btn"));
+  const panes = Array.from(drawer.querySelectorAll(".tab-pane"));
+  let activeTab = opts.defaultTab || tabs[0] && tabs[0].dataset.tab || "";
+  const setTab = (id) => {
+    if (!id) return;
+    activeTab = id;
+    tabs.forEach((btn) => btn.classList.toggle("active", btn.dataset.tab === id));
+    panes.forEach((pane) => pane.classList.toggle("active", pane.id === id));
+  };
+  tabs.forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const id = btn.dataset.tab || "";
+      setTab(id);
+      drawer.classList.add("open");
+    });
+  });
+  const open = (id) => {
+    if (id) setTab(id);
+    drawer.classList.add("open");
+  };
+  const hide = () => drawer.classList.remove("open");
+  toggle == null ? void 0 : toggle.addEventListener("click", () => open(activeTab));
+  close == null ? void 0 : close.addEventListener("click", hide);
+  if (activeTab) setTab(activeTab);
+  return { open, close: hide, setTab };
+}
+
+// ui/ts/shared/ui/debug.ts
+function getFieldLabel(input) {
+  var _a, _b, _c, _d, _e;
+  const field = ((_a = input == null ? void 0 : input.closest) == null ? void 0 : _a.call(input, ".field")) || ((_b = input == null ? void 0 : input.closest) == null ? void 0 : _b.call(input, ".campo"));
+  if (!field) return ((_c = input == null ? void 0 : input.getAttribute) == null ? void 0 : _c.call(input, "data-bind")) || (input == null ? void 0 : input.name) || (input == null ? void 0 : input.id) || "";
+  const label = field.querySelector("label");
+  const text = (_d = label == null ? void 0 : label.textContent) == null ? void 0 : _d.trim();
+  return text || ((_e = input == null ? void 0 : input.getAttribute) == null ? void 0 : _e.call(input, "data-bind")) || (input == null ? void 0 : input.name) || (input == null ? void 0 : input.id) || "";
+}
+function collectInvalidFields(root = document) {
+  const items = /* @__PURE__ */ new Set();
+  root.querySelectorAll(".invalid").forEach((el) => {
+    const label = getFieldLabel(el);
+    if (label) items.add(label);
+  });
+  root.querySelectorAll(".field.field--error, .campo.field--error").forEach((field) => {
+    var _a, _b;
+    const label = (_b = (_a = field.querySelector("label")) == null ? void 0 : _a.textContent) == null ? void 0 : _b.trim();
+    if (label) items.add(label);
+  });
+  return Array.from(items);
+}
+
+// ui/ts/shared/productivity/index.ts
+function lockInput(input) {
+  if (!input) return;
+  input.readOnly = true;
+  input.tabIndex = -1;
+  input.classList.add("input-locked");
+}
+function setupPrimaryShortcut(getPrimary) {
+  window.addEventListener("keydown", (e) => {
+    if (e.ctrlKey && e.code === "Space") {
+      e.preventDefault();
+      const target = typeof getPrimary === "function" ? getPrimary() : null;
+      target == null ? void 0 : target.click();
+    }
+  });
+}
+function setupNameCopy(sourceSelector, targetSelector) {
+  const source = document.querySelector(sourceSelector);
+  const target = document.querySelector(targetSelector);
+  if (!source || !target) return;
+  let lastAuto = "";
+  const applyCopy = () => {
+    const value = String(source.value || "").trim();
+    if (!value) return;
+    if (!target.value || target.value === lastAuto) {
+      target.value = value;
+      lastAuto = value;
+      target.dispatchEvent(new Event("input", { bubbles: true }));
+    }
+  };
+  source.addEventListener("blur", applyCopy);
+  source.addEventListener("keydown", (e) => {
+    if (e.key === "Tab" && !e.shiftKey) {
+      applyCopy();
+    }
+  });
+}
+function setupAutoNationality(selector, value) {
+  const input = document.querySelector(selector);
+  if (!input) return;
+  if (String(input.value || "").trim()) return;
+  input.value = value;
+  lockInput(input);
+  input.dispatchEvent(new Event("input", { bubbles: true }));
+}
+
+// ui/ts/shared/ui/admin.ts
+var SIGNERS_KEY = "ui.admin.signers";
+function loadSigners() {
+  try {
+    const raw = localStorage.getItem(SIGNERS_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter((item) => typeof item === "string" && item.trim()).map((item) => item.trim());
+  } catch {
+    return [];
+  }
+}
+function saveSigners(list) {
+  localStorage.setItem(SIGNERS_KEY, JSON.stringify(list));
+}
+function buildSignerOption(name) {
+  const opt = document.createElement("option");
+  opt.value = name;
+  opt.textContent = name;
+  opt.dataset.localSigner = "1";
+  return opt;
+}
+function syncSignerSelects(signers) {
+  const selects = document.querySelectorAll('select[data-signer-select], select[name="idAssinante"]');
+  selects.forEach((select) => {
+    Array.from(select.options).forEach((opt) => {
+      if (opt.dataset && opt.dataset.localSigner === "1") opt.remove();
+    });
+    signers.forEach((name) => {
+      const exists = Array.from(select.options).some((opt) => opt.value === name);
+      if (!exists) select.appendChild(buildSignerOption(name));
+    });
+  });
+}
+function renderList(container, signers) {
+  if (!container) return;
+  container.innerHTML = "";
+  if (!signers.length) {
+    const empty = document.createElement("div");
+    empty.className = "muted";
+    empty.textContent = "Nenhum assinante cadastrado.";
+    container.appendChild(empty);
+    return;
+  }
+  signers.forEach((name, index) => {
+    const row = document.createElement("div");
+    row.className = "admin-row";
+    const label = document.createElement("span");
+    label.textContent = name;
+    const remove = document.createElement("button");
+    remove.type = "button";
+    remove.className = "btn tiny secondary";
+    remove.textContent = "Remover";
+    remove.addEventListener("click", () => {
+      const next = loadSigners().filter((item) => item !== name);
+      saveSigners(next);
+      renderList(container, next);
+      syncSignerSelects(next);
+    });
+    row.appendChild(label);
+    row.appendChild(remove);
+    container.appendChild(row);
+  });
+}
+function setupAdminPanel() {
+  const input = document.getElementById("admin-signer-name");
+  const addBtn = document.getElementById("admin-signer-add");
+  const list = document.getElementById("admin-signer-list");
+  if (!input || !addBtn || !list) {
+    syncSignerSelects(loadSigners());
+    return;
+  }
+  const render = () => {
+    const signers = loadSigners();
+    renderList(list, signers);
+    syncSignerSelects(signers);
+  };
+  addBtn.addEventListener("click", () => {
+    const value = String(input.value || "").trim();
+    if (!value) return;
+    const signers = loadSigners();
+    if (!signers.includes(value)) {
+      signers.push(value);
+      saveSigners(signers);
+    }
+    input.value = "";
+    render();
+  });
+  render();
+}
+function setupEditableDefaults() {
+  document.querySelectorAll("[data-default]").forEach((el) => {
+    const input = el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement || el instanceof HTMLSelectElement ? el : null;
+    if (!input) return;
+    const def = String(input.getAttribute("data-default") || "").trim();
+    if (!input.value) {
+      input.value = def;
+      input.classList.add("input-locked");
+      input.setAttribute("data-locked", "1");
+    }
+    input.addEventListener("click", () => {
+      if (input.getAttribute("data-locked") === "1") {
+        input.removeAttribute("data-locked");
+        input.classList.add("editing");
+        input.classList.remove("input-locked");
+        input.focus();
+      }
+    });
+    input.addEventListener("blur", () => {
+      if (!String(input.value || "").trim()) {
+        input.value = def;
+        input.setAttribute("data-locked", "1");
+        input.classList.remove("editing");
+        input.classList.add("input-locked");
+      }
+    });
+  });
+}
+try {
+  setTimeout(() => setupEditableDefaults(), 50);
+} catch (e) {
+}
+
 // ui/ts/events.ts
 var lastSavedSnapshot = "";
 var lastSavedId = "";
@@ -1547,22 +1791,10 @@ function updateDirty() {
 }
 function updateTipoButtons() {
   const tipo = state.certidao.tipo_registro || "nascimento";
-  const btnN = byId("btn-nascimento");
-  const btnC = byId("btn-casamento");
-  const btnO = byId("btn-obito");
-  if (btnN) btnN.classList.toggle("active", tipo === "nascimento");
-  if (btnC) btnC.classList.toggle("active", tipo === "casamento");
-  if (btnO) btnO.classList.toggle("active", tipo === "obito");
   const input = qs('[data-bind="certidao.tipo_registro"]');
   if (input) input.value = tipo;
   const casamentoWrap = byId("casamento-tipo-wrap");
   if (casamentoWrap) casamentoWrap.style.display = tipo === "casamento" ? "flex" : "none";
-}
-function setTipoRegistro(tipo) {
-  state.certidao.tipo_registro = tipo;
-  updateTipoButtons();
-  updateMatricula();
-  updateDirty();
 }
 function updateSexoOutros() {
   const sexo = state.registro.sexo;
@@ -1771,12 +2003,28 @@ function yearFromDate(value) {
   return match ? match[3] : "";
 }
 function tipoDigit() {
-  const registro = state.certidao.tipo_registro || "";
+  let registro = (state.certidao.tipo_registro || "").toString();
+  if (!registro) {
+    if (document.getElementById("form-casamento")) registro = "casamento";
+    else if (document.getElementById("form-obito")) registro = "obito";
+    else if (document.getElementById("form-nascimento")) registro = "nascimento";
+  }
   if (registro === "nascimento") return "1";
   if (registro === "casamento") {
-    const selected = digitsOnly2(state.ui.casamento_tipo || "").slice(0, 1);
+    const raw = String(state.ui.casamento_tipo || "").trim();
+    if (raw === "2") return "2";
+    if (raw === "3") return "3";
+    if (!raw) return "";
+    const first = raw[0].toUpperCase();
+    if (first === "2" || first === "3") return first;
+    if (first === "C") return "2";
+    if (first === "R") return "3";
+    if (raw.toLowerCase().startsWith("civil")) return "2";
+    if (raw.toLowerCase().startsWith("relig")) return "3";
+    const selected = digitsOnly2(raw).slice(0, 1);
     return selected || "";
   }
+  if (registro === "obito") return "4";
   return "";
 }
 function dvMatricula(base30) {
@@ -1791,24 +2039,26 @@ function dvMatricula(base30) {
   d2 = d2 === 11 ? 0 : d2 === 10 ? 1 : d2;
   return `${d1}${d2}`;
 }
-function buildMatricula() {
+function buildMatriculaParts() {
   const cns = digitsOnly2(state.certidao.cartorio_cns || "");
   const ano = yearFromDate(state.registro.data_registro || "");
   const tipo = tipoDigit();
   const livro = padDigits(state.ui.matricula_livro || "", 5);
   const folha = padDigits(state.ui.matricula_folha || "", 3);
   const termo = padDigits(state.ui.matricula_termo || "", 7);
-  if (cns.length !== 6 || !ano || !tipo || !livro || !folha || !termo) return "";
+  if (cns.length !== 6 || !ano || !tipo || !livro || !folha || !termo) {
+    return { base: "", dv: "", final: "" };
+  }
   const base30 = `${cns}0155${ano}${tipo}${livro}${folha}${termo}`;
-  if (base30.length !== 30) return "";
+  if (base30.length !== 30) return { base: "", dv: "", final: "" };
   const dv = dvMatricula(base30);
-  return base30 + dv;
+  return { base: base30, dv, final: dv ? base30 + dv : "" };
 }
 function updateMatricula() {
-  const value = buildMatricula();
-  state.registro.matricula = value || "";
+  const parts = buildMatriculaParts();
+  state.registro.matricula = parts.final || "";
   const matEl = byId("matricula");
-  if (matEl) matEl.value = value || "";
+  if (matEl) matEl.value = parts.final || "";
 }
 function applyCartorioChange() {
   const oficio = state.ui.cartorio_oficio || "";
@@ -1909,6 +2159,48 @@ async function generateFile(format2) {
     setStatus("Falha ao gerar arquivo", true);
   }
 }
+function dateToTime(value) {
+  const normalized = normalizeDateValue(value);
+  const m = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(normalized);
+  if (!m) return null;
+  const d = Number(m[1]);
+  const mo = Number(m[2]);
+  const y = Number(m[3]);
+  const dt = new Date(y, mo - 1, d);
+  if (dt.getFullYear() !== y || dt.getMonth() !== mo - 1 || dt.getDate() !== d) return null;
+  return dt.getTime();
+}
+function updateDebug(data) {
+  var _a, _b;
+  const parts = buildMatriculaParts();
+  const baseEl = byId("debug-matricula-base");
+  const dvEl = byId("debug-matricula-dv");
+  const finalEl = byId("debug-matricula-final");
+  if (baseEl) baseEl.value = parts.base || "";
+  if (dvEl) dvEl.value = parts.dv || "";
+  if (finalEl) finalEl.value = parts.final || "";
+  const invalidEl = byId("debug-invalid");
+  const invalids = collectInvalidFields(document);
+  if (invalidEl) invalidEl.value = invalids.join("\n");
+  const alerts = [];
+  const dr = dateToTime(((_a = data == null ? void 0 : data.registro) == null ? void 0 : _a.data_registro) || "");
+  const dn = dateToTime(((_b = data == null ? void 0 : data.registro) == null ? void 0 : _b.data_nascimento) || "");
+  if (dr && dn && dn > dr) alerts.push("Data de nascimento maior que data de registro.");
+  const alertsEl = byId("debug-alerts");
+  if (alertsEl) alertsEl.value = alerts.join("\n");
+}
+function updateOutputs() {
+  const jsonEl = byId("json-output");
+  const xmlEl = byId("xml-output");
+  if (!jsonEl && !xmlEl) return;
+  const data = normalizeData();
+  if (jsonEl) jsonEl.value = JSON.stringify(data, null, 2);
+  if (xmlEl) {
+    const root = `certidao_${data.certidao.tipo_registro || "registro"}`;
+    xmlEl.value = toXml(data, root, 0);
+  }
+  updateDebug(data);
+}
 function updateBadge() {
   const badge = byId("outputDirBadge");
   if (!badge) return;
@@ -1930,41 +2222,22 @@ async function refreshConfig() {
     setStatus("Falha ao ler config", true);
   }
 }
-function setupConfigModal() {
-  var _a, _b, _c, _d, _e;
-  const modal = byId("config-modal");
-  if (!modal) return;
-  const open = async () => {
-    await refreshConfig();
-    const radios = qsa('input[name="name-validation-mode"]');
-    radios.forEach((radio) => {
-      radio.checked = radio.value === nameValidationMode;
-    });
-    modal.classList.remove("hidden");
-  };
-  const close = () => modal.classList.add("hidden");
-  (_a = byId("btn-config")) == null ? void 0 : _a.addEventListener("click", open);
-  (_b = byId("config-close")) == null ? void 0 : _b.addEventListener("click", close);
-  (_c = byId("config-save")) == null ? void 0 : _c.addEventListener("click", () => {
+function setupConfigPanel() {
+  var _a, _b, _c;
+  refreshConfig();
+  const radios = qsa('input[name="name-validation-mode"]');
+  radios.forEach((radio) => {
+    radio.checked = radio.value === nameValidationMode;
+  });
+  (_a = byId("config-save")) == null ? void 0 : _a.addEventListener("click", () => {
     const selected = qs('input[name="name-validation-mode"]:checked');
     if (selected && selected.value) {
       nameValidationMode = selected.value;
       localStorage.setItem(NAME_MODE_KEY, nameValidationMode);
     }
     updateBadge();
-    close();
   });
-  modal.addEventListener("click", (e) => {
-    if (e.target === modal) close();
-  });
-  const tabs = qsa(".tab-btn");
-  const panes = qsa(".tab-pane");
-  const activateTab = (id) => {
-    tabs.forEach((btn) => btn.classList.toggle("active", btn.dataset.tab === id));
-    panes.forEach((pane) => pane.classList.toggle("active", pane.id === id));
-  };
-  tabs.forEach((btn) => btn.addEventListener("click", () => activateTab(btn.dataset.tab || "tab-pastas")));
-  (_d = byId("pick-json")) == null ? void 0 : _d.addEventListener("click", async () => {
+  (_b = byId("pick-json")) == null ? void 0 : _b.addEventListener("click", async () => {
     if (!window.api || !window.api.pickJsonDir) return;
     const dir = await window.api.pickJsonDir();
     const jsonEl = byId("json-dir");
@@ -1972,7 +2245,7 @@ function setupConfigModal() {
     currentDirs.jsonDir = dir;
     updateBadge();
   });
-  (_e = byId("pick-xml")) == null ? void 0 : _e.addEventListener("click", async () => {
+  (_c = byId("pick-xml")) == null ? void 0 : _c.addEventListener("click", async () => {
     if (!window.api || !window.api.pickXmlDir) return;
     const dir = await window.api.pickXmlDir();
     const xmlEl = byId("xml-dir");
@@ -1980,15 +2253,13 @@ function setupConfigModal() {
     currentDirs.xmlDir = dir;
     updateBadge();
   });
+  setupAdminPanel();
 }
 function setupActions() {
-  var _a, _b, _c, _d, _e, _f;
+  var _a, _b, _c;
   (_a = byId("btn-save")) == null ? void 0 : _a.addEventListener("click", saveDraft);
   (_b = byId("btn-json")) == null ? void 0 : _b.addEventListener("click", () => generateFile("json"));
   (_c = byId("btn-xml")) == null ? void 0 : _c.addEventListener("click", () => generateFile("xml"));
-  (_d = byId("btn-nascimento")) == null ? void 0 : _d.addEventListener("click", () => setTipoRegistro("nascimento"));
-  (_e = byId("btn-casamento")) == null ? void 0 : _e.addEventListener("click", () => setTipoRegistro("casamento"));
-  (_f = byId("btn-obito")) == null ? void 0 : _f.addEventListener("click", () => setTipoRegistro("obito"));
 }
 var placeAutofill = null;
 var placeCache = null;
@@ -2019,6 +2290,21 @@ function setupShortcuts() {
       e.preventDefault();
       saveDraft();
     }
+  });
+}
+function setupActSelect() {
+  const select = byId("ato-select");
+  if (!select) return;
+  select.value = "nascimento";
+  select.addEventListener("change", () => {
+    const value = select.value;
+    const map = {
+      nascimento: "./Nascimento2Via.html",
+      casamento: "./Casamento2Via.html",
+      obito: "./Obito2Via.html"
+    };
+    const next = map[value];
+    if (next) window.location.href = next;
   });
 }
 function setupCartorioTyping() {
@@ -2169,9 +2455,11 @@ function onPathChange(path) {
     const cpfEl = byId("cpf");
     if (cpfEl) validateLiveField("registro.cpf", cpfEl);
   }
+  updateOutputs();
   updateDirty();
 }
 async function bootstrap() {
+  state.certidao.tipo_registro = "nascimento";
   syncInputsFromState();
   updateTipoButtons();
   updateSexoOutros();
@@ -2182,7 +2470,9 @@ async function bootstrap() {
   bindDataBindInputs(onPathChange);
   setupMasks();
   setupActions();
-  setupConfigModal();
+  setupConfigPanel();
+  setupDrawer({ defaultTab: "tab-config" });
+  setupActSelect();
   placeAutofill = createPlaceAutofill({
     state,
     setBoundValue,
@@ -2195,15 +2485,1025 @@ async function bootstrap() {
   placeAutofill.setupLocalAutofill();
   setupNaturalidadeToggle();
   setupShortcuts();
+  setupPrimaryShortcut(() => byId("btn-save") || byId("btn-json"));
   setupCartorioTyping();
   setupNameValidation();
   setupBeforeUnload();
-  await refreshConfig();
   validateLiveField("registro.cpf", byId("cpf"));
   validateLiveField("ui.cartorio_oficio", qs('[data-bind="ui.cartorio_oficio"]'));
   updateDirty();
+  updateOutputs();
 }
 bootstrap();
+
+// ui/ts/shared/validators/date.ts
+function pad2(value) {
+  return String(value).padStart(2, "0");
+}
+function toYear(yearRaw) {
+  const y = Number(yearRaw);
+  if (yearRaw.length === 2) {
+    return y <= 29 ? 2e3 + y : 1900 + y;
+  }
+  return y;
+}
+function normalizeDate(raw) {
+  const input = String(raw || "").trim();
+  if (!input) return "";
+  const m = /^(\d{1,2})[\/-](\d{1,2})[\/-](\d{2,4})$/.exec(input);
+  let day = "";
+  let month = "";
+  let year = "";
+  if (m) {
+    day = m[1];
+    month = m[2];
+    year = m[3];
+  } else {
+    const digits = input.replace(/\D/g, "");
+    if (digits.length === 8) {
+      day = digits.slice(0, 2);
+      month = digits.slice(2, 4);
+      year = digits.slice(4, 8);
+    } else if (digits.length === 6) {
+      day = digits.slice(0, 2);
+      month = digits.slice(2, 4);
+      year = digits.slice(4, 6);
+    }
+  }
+  if (!day || !month || !year) return "";
+  const yyyy = toYear(year);
+  const dd = Number(day);
+  const mm = Number(month);
+  if (!isValidDateParts(dd, mm, yyyy)) return "";
+  return `${pad2(dd)}/${pad2(mm)}/${yyyy}`;
+}
+function validateDateDetailed(raw) {
+  const input = String(raw || "").trim();
+  if (!input) return { ok: false, code: "EMPTY", message: "Campo vazio" };
+  const m = /^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})$/.exec(input);
+  let day = "";
+  let month = "";
+  let year = "";
+  if (m) {
+    day = m[1];
+    month = m[2];
+    year = m[3];
+  } else {
+    const digits = input.replace(/\D/g, "");
+    if (digits.length === 8) {
+      day = digits.slice(0, 2);
+      month = digits.slice(2, 4);
+      year = digits.slice(4, 8);
+    } else if (digits.length === 6) {
+      day = digits.slice(0, 2);
+      month = digits.slice(2, 4);
+      year = digits.slice(4, 6);
+    } else {
+      return { ok: false, code: "FORMAT", message: "Formato inv\xE1lido \u2014 use DD/MM/AAAA (ex.: 31/12/2024)" };
+    }
+  }
+  const dd = Number(day);
+  const mm = Number(month);
+  const yyyy = toYear(year);
+  if (isNaN(mm) || mm < 1 || mm > 12) return { ok: false, code: "MONTH", message: "M\xEAs inv\xE1lido (01\u201312)" };
+  if (isNaN(dd) || dd < 1 || dd > 31) return { ok: false, code: "DAY", message: "Dia inv\xE1lido (1\u201331)" };
+  const d = new Date(yyyy, mm - 1, dd);
+  if (!(d.getFullYear() === yyyy && d.getMonth() === mm - 1 && d.getDate() === dd)) {
+    return { ok: false, code: "NONEXISTENT", message: "Data inexistente \u2014 verifique dia e m\xEAs (ex.: 31/02/2024 n\xE3o existe)" };
+  }
+  return { ok: true, code: "OK", message: `${String(dd).padStart(2, "0")}/${String(mm).padStart(2, "0")}/${yyyy}` };
+}
+function isValidDateParts(day, month, year) {
+  if (month < 1 || month > 12) return false;
+  if (day < 1 || day > 31) return false;
+  const d = new Date(year, month - 1, day);
+  return d.getFullYear() === year && d.getMonth() === month - 1 && d.getDate() === day;
+}
+
+// ui/ts/shared/validators/time.ts
+function pad22(value) {
+  return String(value).padStart(2, "0");
+}
+function normalizeTime(raw) {
+  const input = String(raw || "").trim();
+  if (!input) return "";
+  const m = /^(\d{1,2})[:]?(\d{2})$/.exec(input);
+  if (!m) return "";
+  const hh = Number(m[1]);
+  const mm = Number(m[2]);
+  if (!isValidTimeParts(hh, mm)) return "";
+  return `${pad22(hh)}:${pad22(mm)}`;
+}
+function isValidTimeParts(hour, minute) {
+  if (hour < 0 || hour > 23) return false;
+  if (minute < 0 || minute > 59) return false;
+  return true;
+}
+
+// ui/ts/shared/validators/cpf.ts
+function normalizeCpf(raw) {
+  return String(raw || "").replace(/\D/g, "");
+}
+function formatCpf2(digits) {
+  const v = normalizeCpf(digits);
+  if (v.length !== 11) return "";
+  return `${v.slice(0, 3)}.${v.slice(3, 6)}.${v.slice(6, 9)}-${v.slice(9)}`;
+}
+function isValidCpf(raw) {
+  const digits = normalizeCpf(raw);
+  return cpf.isValid(digits);
+}
+
+// ui/ts/shared/formatters/text.ts
+function normalizeText2(raw) {
+  return String(raw || "").replace(/\u00A0/g, " ").replace(/\s+/g, " ").trim();
+}
+
+// ui/ts/shared/location/uf.ts
+var UF_LIST = /* @__PURE__ */ new Set([
+  "AC",
+  "AL",
+  "AP",
+  "AM",
+  "BA",
+  "BR",
+  "CE",
+  "DF",
+  "ES",
+  "ET",
+  "GO",
+  "MA",
+  "MT",
+  "MS",
+  "MG",
+  "PA",
+  "PB",
+  "PR",
+  "PE",
+  "PI",
+  "RJ",
+  "RN",
+  "RS",
+  "RO",
+  "RR",
+  "SC",
+  "SP",
+  "SE",
+  "TO",
+  "IG"
+]);
+function normalizeUf(raw, opts = {}) {
+  const forceIg = !!opts.forceIg;
+  const allowIg = opts.allowIg !== false;
+  const value = String(raw || "").trim().toUpperCase();
+  if (!value) return forceIg ? "IG" : "";
+  if (UF_LIST.has(value)) return value;
+  if (allowIg && value === "IG") return "IG";
+  return forceIg ? "IG" : "";
+}
+
+// ui/ts/shared/location/municipio.ts
+function normalizeMunicipio(raw) {
+  return String(raw || "").replace(/\u00A0/g, " ").replace(/\s+/g, " ").trim();
+}
+
+// ui/ts/shared/matricula/cnj.ts
+function digitsOnly3(value) {
+  return String(value || "").replace(/\D/g, "");
+}
+function padLeft(value, size) {
+  const digits = digitsOnly3(value);
+  if (!digits) return "";
+  return digits.padStart(size, "0").slice(-size);
+}
+function buildMatriculaBase30(args) {
+  const cns = digitsOnly3(args.cns6 || "");
+  const ano = digitsOnly3(args.ano || "");
+  const tipoAto = digitsOnly3(args.tipoAto || "");
+  const acervo = digitsOnly3(args.acervo || "01").padStart(2, "0");
+  const servico = digitsOnly3(args.servico || "55").padStart(2, "0");
+  const livro = padLeft(args.livro, 5);
+  const folha = padLeft(args.folha, 3);
+  const termo = padLeft(args.termo, 7);
+  if (cns.length !== 6 || ano.length !== 4 || !tipoAto || !livro || !folha || !termo) return "";
+  const base = `${cns}${acervo}${servico}${ano}${tipoAto}${livro}${folha}${termo}`;
+  return base.length === 30 ? base : "";
+}
+function calcDv2Digits(base30) {
+  if (!base30 || base30.length !== 30) return "";
+  let s1 = 0;
+  for (let i = 0; i < 30; i++) s1 += Number(base30[i]) * (31 - i);
+  let d1 = 11 - s1 % 11;
+  d1 = d1 === 11 ? 0 : d1 === 10 ? 1 : d1;
+  const seq31 = base30 + String(d1);
+  let s2 = 0;
+  for (let i = 0; i < 31; i++) s2 += Number(seq31[i]) * (32 - i);
+  let d2 = 11 - s2 % 11;
+  d2 = d2 === 11 ? 0 : d2 === 10 ? 1 : d2;
+  return `${d1}${d2}`;
+}
+function buildMatriculaFinal(args) {
+  const base30 = buildMatriculaBase30(args);
+  if (!base30) return "";
+  const dv = calcDv2Digits(base30);
+  return dv ? base30 + dv : "";
+}
+
+// ui/ts/acts/obito/mapperHtmlToJson.ts
+function getInputValue(name, root = document) {
+  const el = root.querySelector(`[name="${name}"]`);
+  if (!el) return "";
+  if (el.tagName === "TEXTAREA") return el.value || "";
+  return el.value || "";
+}
+function getSelectValue(name, root = document) {
+  const el = root.querySelector(`select[name="${name}"]`);
+  if (!el) return "";
+  return el.value || "";
+}
+function getSelectText(name, root = document) {
+  const el = root.querySelector(`select[name="${name}"]`);
+  if (!el) return "";
+  const opt = el.selectedOptions && el.selectedOptions[0];
+  return opt ? opt.textContent.trim() : "";
+}
+function getCheckboxValue(name, root = document) {
+  const el = root.querySelector(`[name="${name}"]`);
+  if (!el) return false;
+  return !!el.checked;
+}
+function mapSexo(value, label) {
+  const map = { M: "masculino", F: "feminino", I: "ignorado", N: "outros" };
+  const sexo = map[value] || "";
+  const sexoOutros = sexo === "outros" ? normalizeText2(label || "") : "";
+  return { sexo, sexo_outros: sexoOutros };
+}
+function mapEstadoCivil(value) {
+  const map = {
+    SJ: "separado",
+    CA: "casado",
+    DE: "desquitado",
+    DI: "divorciado",
+    SO: "solteiro",
+    VI: "viuvo",
+    IG: "ignorado"
+  };
+  return map[value] || "";
+}
+function mapBens(value) {
+  if (value === "S") return "sim";
+  if (value === "N") return "nao";
+  return "ignorada";
+}
+function normalizeCpfFields(raw) {
+  const digits = normalizeCpf(raw);
+  if (!digits) return { cpf: "", cpf_sem_inscricao: true };
+  if (!isValidCpf(digits)) return { cpf: "", cpf_sem_inscricao: true };
+  return { cpf: formatCpf2(digits), cpf_sem_inscricao: false };
+}
+function buildGenitores(pai, mae) {
+  const p = normalizeText2(pai);
+  const m = normalizeText2(mae);
+  if (!p && !m) return "";
+  return `${p};${m}`;
+}
+function extractSelo(text) {
+  const obs = String(text || "");
+  const seloMatch = /SELO[^0-9]*([0-9]+)/i.exec(obs);
+  const codMatch = /(COD|CODIGO|CÓDIGO)[^0-9]*([0-9]+)/i.exec(obs);
+  return {
+    selo: seloMatch ? seloMatch[1] : "",
+    cod_selo: codMatch ? codMatch[2] : ""
+  };
+}
+function yearFromDate2(value) {
+  const normalized = normalizeDate(value);
+  const match = (normalized || "").match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  return match ? match[3] : "";
+}
+function buildMatricula(root) {
+  const cns = getInputValue("certidao.cartorio_cns", root);
+  const ano = yearFromDate2(getInputValue("dataTermo", root));
+  const livro = getInputValue("livro", root);
+  const folha = getInputValue("folha", root);
+  const termo = getInputValue("termo", root);
+  return buildMatriculaFinal({
+    cns6: cns,
+    ano,
+    tipoAto: "4",
+    acervo: "01",
+    servico: "55",
+    livro,
+    folha,
+    termo
+  });
+}
+function parseFilhos(raw) {
+  const lines = String(raw || "").split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
+  return lines.map((line) => ({ texto: line }));
+}
+function parseFilhosEstruturado(raw) {
+  const lines = String(raw || "").split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
+  const filhos = lines.map((line) => {
+    const parts = line.split("|").map((p) => p.trim());
+    return {
+      nome: normalizeText2(parts[0] || ""),
+      idade: normalizeText2(parts[1] || ""),
+      falecido: /^sim|true|1$/i.test(parts[2] || "")
+    };
+  });
+  return {
+    quantidade: filhos.length ? String(filhos.length) : "",
+    filhos
+  };
+}
+function buildDoc(tipo, numero, data, orgao, uf) {
+  const doc = normalizeText2(numero);
+  if (!doc) return null;
+  return {
+    tipo,
+    documento: doc,
+    orgao_emissor: normalizeText2(orgao),
+    uf_emissao: normalizeUf(uf, { forceIg: true }),
+    data_emissao: normalizeDate(data)
+  };
+}
+function mapperHtmlToJson(root = document) {
+  const observacao = getInputValue("observacaoCertidao", root);
+  const seloInfo = extractSelo(observacao);
+  const seloInput = normalizeText2(getInputValue("certidao.selo", root));
+  const codInput = normalizeText2(getInputValue("certidao.cod_selo", root));
+  const plataformaId = normalizeText2(getInputValue("certidao.plataformaId", root));
+  const tipoCertidao = normalizeText2(getSelectValue("certidao.tipo_certidao", root));
+  const modalidade = normalizeText2(getSelectValue("certidao.modalidade", root));
+  const cartorioCns = normalizeText2(getInputValue("certidao.cartorio_cns", root));
+  const cotaEmolumentos = normalizeText2(getInputValue("certidao.cota_emolumentos", root));
+  const transcricao = getCheckboxValue("certidao.transcricao", root);
+  const cpfInfo = normalizeCpfFields(getInputValue("CPFPessoa", root));
+  const sexoRaw = getSelectValue("sexo", root);
+  const sexoLabel = getSelectText("sexo", root);
+  const sexoInfo = mapSexo(sexoRaw, sexoLabel);
+  const localTipo = normalizeText2(getSelectText("localObito", root));
+  const localDesc = normalizeText2(getInputValue("descricaoLocalObito", root));
+  const localFalecimento = localDesc || localTipo;
+  const filhosTexto = getInputValue("descricaoFilhos", root);
+  let filhosOpcao = normalizeText2(getSelectValue("existenciaFilhosOpcao", root)).toLowerCase();
+  if (!filhosOpcao) filhosOpcao = filhosTexto ? "texto" : "";
+  let filhosPayload = { filhos: [] };
+  if (filhosOpcao === "sim") {
+    filhosPayload = parseFilhosEstruturado(filhosTexto);
+  } else if (filhosTexto) {
+    filhosPayload = { filhos: parseFilhos(filhosTexto) };
+  }
+  const anotacoes = [];
+  const docPrincipal = buildDoc("Outros", getInputValue("documento", root), "", "", "");
+  if (docPrincipal) anotacoes.push(docPrincipal);
+  const rg = buildDoc("RG", getInputValue("numeroRG", root), getInputValue("dataExpedicaoRG", root), getSelectText("idOrgaoExpedidorRG", root), "IG");
+  if (rg) anotacoes.push(rg);
+  const pis = buildDoc("PIS", getInputValue("numeroPIS", root), getInputValue("dataExpedicaoPIS", root), getSelectText("idOrgaoExpedidorPIS", root), "IG");
+  if (pis) anotacoes.push(pis);
+  const passaporte = buildDoc("Passaporte", getInputValue("numeroPassaporte", root), getInputValue("dataExpedicaoPassaporte", root), getSelectText("idOrgaoExpedidorPassaporte", root), "IG");
+  if (passaporte) anotacoes.push(passaporte);
+  const cns = buildDoc("CNS", getInputValue("numeroCNS", root), getInputValue("dataExpedicaoCNS", root), getSelectText("idOrgaoExpedidorCNS", root), "IG");
+  if (cns) anotacoes.push(cns);
+  const titulo = buildDoc("TituloEleitor", getInputValue("numeroTitulo", root), "", "", getSelectValue("ufTitulo", root));
+  if (titulo) anotacoes.push(titulo);
+  const matricula = buildMatricula(root);
+  return {
+    certidao: {
+      plataformaId,
+      tipo_registro: "obito",
+      tipo_certidao: tipoCertidao,
+      transcricao,
+      cartorio_cns: cartorioCns,
+      selo: seloInput || seloInfo.selo,
+      cod_selo: codInput || seloInfo.cod_selo,
+      modalidade,
+      cota_emolumentos: cotaEmolumentos,
+      cota_emolumentos_isento: false
+    },
+    registro: {
+      nome_completo: normalizeText2(getInputValue("nomePessoa", root)),
+      cpf_sem_inscricao: cpfInfo.cpf_sem_inscricao,
+      cpf: cpfInfo.cpf,
+      matricula,
+      data_falecimento_ignorada: false,
+      data_falecimento: normalizeDate(getInputValue("dataObito", root)),
+      hora_falecimento: normalizeTime(getInputValue("horaObito", root)),
+      local_falecimento: localFalecimento,
+      municipio_falecimento: normalizeMunicipio(getInputValue("municipioObito", root)),
+      uf_falecimento: normalizeUf(getSelectValue("ufMunicipioObito", root), { forceIg: true }),
+      sexo: sexoInfo.sexo,
+      sexo_outros: sexoInfo.sexo_outros || "",
+      estado_civil: mapEstadoCivil(getSelectValue("estadoCivil", root)),
+      nome_ultimo_conjuge_convivente: normalizeText2(getInputValue("conjuge", root)),
+      idade: normalizeText2(getInputValue("idade", root)),
+      data_nascimento: normalizeDate(getInputValue("dataNascimento", root)),
+      municipio_naturalidade: normalizeMunicipio(getInputValue("cidadeNascimento", root)),
+      uf_naturalidade: normalizeUf(getSelectValue("ufNascimento", root), { forceIg: true }),
+      filiacao: buildGenitores(getInputValue("nomePai", root), getInputValue("nomeMae", root)),
+      causa_morte: normalizeText2(getInputValue("causaObito", root)),
+      nome_medico: normalizeText2(getInputValue("nomeMedico", root)),
+      crm_medico: normalizeText2(getInputValue("crm", root)),
+      local_sepultamento_cremacao: normalizeText2(getInputValue("sepultamento", root)),
+      municipio_sepultamento_cremacao: normalizeMunicipio(getInputValue("municipioSepultamento", root)),
+      uf_sepultamento_cremacao: normalizeUf(getSelectValue("ufMunicipioSepultamento", root), { forceIg: true }),
+      data_registro: normalizeDate(getInputValue("dataTermo", root)),
+      nome_declarante: normalizeText2(getInputValue("declarante", root)),
+      existencia_bens: mapBens(getSelectValue("flagBens", root)),
+      existencia_filhos_opcao: filhosOpcao,
+      existencia_filhos: filhosPayload,
+      averbacao_anotacao: normalizeText2(observacao),
+      anotacoes_cadastro: anotacoes
+    }
+  };
+}
+
+// ui/ts/shared/validators/name.ts
+var NAME_RE = /^[A-Za-zÀ-ÿ' -]+$/;
+function normalizeName2(raw) {
+  return String(raw || "").replace(/\u00A0/g, " ").replace(/\s+/g, " ").trim();
+}
+function validateName(raw, opts = {}) {
+  const minWords = opts.minWords || 2;
+  const value = normalizeName2(raw);
+  if (!value) return { value: "", invalid: false, warn: false };
+  if (!NAME_RE.test(value)) return { value, invalid: true, warn: false };
+  const words = value.split(" ").filter(Boolean);
+  const warn = words.length < minWords;
+  return { value, invalid: false, warn };
+}
+
+// ui/ts/shared/ui/fieldState.ts
+function getFieldState(args) {
+  const required = !!args.required;
+  const value = String(args.value || "").trim();
+  const isValid2 = args.isValid !== false;
+  const warn = !!args.warn;
+  if (!required && !value) return "valid";
+  if (required && !value) return "empty";
+  if (!isValid2) return "invalid";
+  if (warn) return "warn";
+  return value ? "valid" : "empty";
+}
+function applyFieldState(el, state2) {
+  if (!el) return;
+  el.classList.toggle("field--error", state2 === "empty" || state2 === "invalid");
+  el.classList.toggle("field--empty", state2 === "empty");
+  el.classList.toggle("field--invalid", state2 === "invalid");
+  el.classList.toggle("field--warn", state2 === "warn");
+}
+
+// ui/ts/shared/ui/mask.ts
+function digitsOnly4(value) {
+  return String(value || "").replace(/\D/g, "");
+}
+function applyDateMask(input) {
+  if (!input) return;
+  const digits = digitsOnly4(input.value).slice(0, 8);
+  let out = "";
+  if (digits.length >= 1) out += digits.slice(0, 2);
+  if (digits.length >= 3) out += "/" + digits.slice(2, 4);
+  else if (digits.length > 2) out += "/" + digits.slice(2);
+  if (digits.length >= 5) out += "/" + digits.slice(4, 8);
+  input.value = out;
+}
+function applyTimeMask(input) {
+  if (!input) return;
+  const digits = digitsOnly4(input.value).slice(0, 4);
+  let out = "";
+  if (digits.length >= 1) out += digits.slice(0, 2);
+  if (digits.length > 2) out += ":" + digits.slice(2, 4);
+  input.value = out;
+}
+
+// ui/ts/acts/nascimento/nascimento.ts
+var DRAWER_POS_KEY = "ui.drawerPosition";
+var ENABLE_CPF_KEY = "ui.enableCpfValidation";
+var ENABLE_NAME_KEY = "ui.enableNameValidation";
+var PANEL_INLINE_KEY = "ui.panelInline";
+function setStatus2(text, isError) {
+  const el = document.getElementById("statusText");
+  if (!el) return;
+  el.textContent = text;
+  el.style.color = isError ? "#dc2626" : "#64748b";
+  clearTimeout(el._timer);
+  el._timer = setTimeout(() => {
+    el.textContent = "Pronto";
+    el.style.color = "#64748b";
+  }, 2e3);
+}
+function showToast2(message) {
+  let container = document.getElementById("toast-container");
+  if (!container) {
+    container = document.createElement("div");
+    container.id = "toast-container";
+    document.body.appendChild(container);
+  }
+  const toast = document.createElement("div");
+  toast.className = "toast";
+  toast.textContent = message;
+  container.appendChild(toast);
+  setTimeout(() => {
+    toast.classList.add("show");
+  }, 10);
+  setTimeout(() => {
+    toast.classList.remove("show");
+    setTimeout(() => toast.remove(), 200);
+  }, 2e3);
+}
+function resolveField(input) {
+  return input.closest("td") || input.closest(".campo") || input.closest(".field") || input.parentElement;
+}
+function setFieldHint(field, message) {
+  if (!field) return;
+  let hint = field.querySelector(".hint");
+  if (!hint) {
+    hint = document.createElement("div");
+    hint.className = "hint";
+    field.appendChild(hint);
+  }
+  if (message) {
+    hint.innerHTML = "";
+    const icon = document.createElement("span");
+    icon.className = "icon";
+    icon.textContent = "\u26A0";
+    icon.setAttribute("aria-hidden", "true");
+    hint.appendChild(icon);
+    const txt = document.createElement("span");
+    txt.className = "hint-text";
+    txt.textContent = message;
+    hint.appendChild(txt);
+    hint.classList.add("visible");
+    let aria = document.getElementById("aria-live-errors");
+    if (!aria) {
+      aria = document.createElement("div");
+      aria.id = "aria-live-errors";
+      aria.className = "sr-only";
+      aria.setAttribute("aria-live", "assertive");
+      aria.setAttribute("role", "status");
+      document.body.appendChild(aria);
+    }
+    aria.textContent = message;
+  } else {
+    hint.innerHTML = "";
+    hint.classList.remove("visible");
+  }
+}
+function clearFieldHint2(field) {
+  setFieldHint(field, "");
+}
+function setupFocusEmphasis() {
+  document.addEventListener("focusin", (e) => {
+    const el = e.target;
+    if (!(el instanceof HTMLElement)) return;
+    if (["INPUT", "SELECT", "TEXTAREA"].includes(el.tagName)) {
+      try {
+        el.scrollIntoView({ behavior: "smooth", block: "center" });
+      } catch {
+      }
+      el.classList.add("focus-emphasis");
+    }
+  });
+  document.addEventListener("focusout", (e) => {
+    const el = e.target;
+    if (!(el instanceof HTMLElement)) return;
+    if (["INPUT", "SELECT", "TEXTAREA"].includes(el.tagName)) el.classList.remove("focus-emphasis");
+  });
+}
+function formatCpfInput(value) {
+  const digits = normalizeCpf(value).slice(0, 11);
+  if (!digits) return "";
+  const p1 = digits.slice(0, 3);
+  const p2 = digits.slice(3, 6);
+  const p3 = digits.slice(6, 9);
+  const p4 = digits.slice(9, 11);
+  let out = p1;
+  if (p2) out += `.${p2}`;
+  if (p3) out += `.${p3}`;
+  if (p4) out += `-${p4}`;
+  return out;
+}
+function toXml2(obj, nodeName, indent = 0) {
+  const pad = "  ".repeat(indent);
+  if (obj === null || obj === void 0) return `${pad}<${nodeName}></${nodeName}>`;
+  if (typeof obj !== "object") return `${pad}<${nodeName}>${String(obj || "")}</${nodeName}>`;
+  if (Array.isArray(obj)) return obj.map((item) => toXml2(item, nodeName, indent)).join("\n");
+  const children = Object.keys(obj).map((key) => toXml2(obj[key], key, indent + 1)).join("\n");
+  return `${pad}<${nodeName}>
+${children}
+${pad}</${nodeName}>`;
+}
+function updateDebug2(data) {
+  var _a, _b, _c, _d, _e;
+  const cns = ((_a = document.querySelector('input[data-bind="certidao.cartorio_cns"]')) == null ? void 0 : _a.value) || "";
+  const ano = (((_b = document.getElementById("data-reg")) == null ? void 0 : _b.value) || "").slice(-4);
+  const livro = ((_c = document.getElementById("matricula-livro")) == null ? void 0 : _c.value) || "";
+  const folha = ((_d = document.getElementById("matricula-folha")) == null ? void 0 : _d.value) || "";
+  const termo = ((_e = document.getElementById("matricula-termo")) == null ? void 0 : _e.value) || "";
+  const base = buildMatriculaBase30({ cns6: cns, ano, tipoAto: "1", acervo: "01", servico: "55", livro, folha, termo });
+  const dv = base ? calcDv2Digits(base) : "";
+  const final = base && dv ? base + dv : buildMatriculaFinal({ cns6: cns, ano, tipoAto: "1", livro, folha, termo });
+  const baseEl = document.getElementById("debug-matricula-base");
+  if (baseEl) baseEl.value = base || "";
+  const dvEl = document.getElementById("debug-matricula-dv");
+  if (dvEl) dvEl.value = dv || "";
+  const finalEl = document.getElementById("debug-matricula-final");
+  if (finalEl) finalEl.value = final || "";
+  const invalids = collectInvalidFields(document);
+  const invalidEl = document.getElementById("debug-invalid");
+  if (invalidEl) invalidEl.value = invalids.join("\n");
+}
+function updateOutputs2() {
+  const data = mapperHtmlToJson(document);
+  const jsonEl = document.getElementById("json-output");
+  if (jsonEl) jsonEl.value = JSON.stringify(data, null, 2);
+  const xmlEl = document.getElementById("xml-output");
+  if (xmlEl) xmlEl.value = toXml2(data, "certidao_nascimento", 0);
+  updateDebug2(data);
+}
+function canProceed() {
+  const invalids = collectInvalidFields(document);
+  if (!invalids || invalids.length === 0) return true;
+  setStatus2(`${invalids.length} campo(s) inv\xE1lido(s). Corrija antes de prosseguir.`, true);
+  showToast2("Existem campos inv\xE1lidos \u2014 corrija antes de prosseguir");
+  const invalidEl = document.getElementById("debug-invalid");
+  if (invalidEl) invalidEl.value = invalids.join("\n");
+  return false;
+}
+function updateActionButtons() {
+  const invalids = collectInvalidFields(document);
+  const disabled = !!(invalids && invalids.length > 0);
+  const btnJson = document.getElementById("btn-json");
+  if (btnJson) btnJson.disabled = disabled;
+  const btnXml = document.getElementById("btn-xml");
+  if (btnXml) btnXml.disabled = disabled;
+  const btnSave = document.getElementById("btn-save");
+  if (btnSave) btnSave.disabled = disabled;
+  const statusEl = document.getElementById("statusText");
+  if (statusEl && !disabled) statusEl.textContent = "Pronto";
+  let summary = document.getElementById("form-error-summary");
+  if (!summary) {
+    summary = document.createElement("div");
+    summary.id = "form-error-summary";
+    summary.style.margin = "6px 0 0 0";
+    summary.style.padding = "6px 8px";
+    summary.style.borderRadius = "6px";
+    summary.style.background = "transparent";
+    summary.style.border = "none";
+    summary.style.color = "#6b7280";
+    summary.style.fontSize = "12px";
+    summary.style.opacity = "0.85";
+    const container = document.querySelector(".container");
+    if (container) container.appendChild(summary);
+  }
+  if (disabled) {
+    summary.textContent = `Campos inv\xE1lidos: ${invalids.join(", ")}`;
+    summary.style.display = "block";
+  } else if (summary) {
+    summary.style.display = "none";
+  }
+  let aria = document.getElementById("aria-live-errors");
+  if (!aria) {
+    aria = document.createElement("div");
+    aria.id = "aria-live-errors";
+    aria.className = "sr-only";
+    aria.setAttribute("aria-live", "assertive");
+    aria.setAttribute("role", "status");
+    document.body.appendChild(aria);
+  }
+  aria.textContent = disabled ? `Existem ${invalids.length} campos inv\xE1lidos: ${invalids.join(", ")}` : "";
+}
+function generateJson() {
+  if (!canProceed()) return;
+  const data = mapperHtmlToJson(document);
+  const json = JSON.stringify(data, null, 2);
+  const out = document.getElementById("json-output");
+  if (out) out.value = json;
+  const name = `NASCIMENTO_${(/* @__PURE__ */ new Date()).toISOString().slice(0, 19).replace(/[:T]/g, "")}.json`;
+  try {
+    const blob = new Blob([json], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = name;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+    setStatus2(`JSON baixado: ${name}`);
+  } catch {
+    setStatus2("Falha ao gerar JSON", true);
+  }
+}
+function generateXml() {
+  if (!canProceed()) return;
+  const data = mapperHtmlToJson(document);
+  const xml = toXml2(data, "certidao_nascimento", 0);
+  const out = document.getElementById("xml-output");
+  if (out) out.value = xml;
+  const name = `NASCIMENTO_${(/* @__PURE__ */ new Date()).toISOString().slice(0, 19).replace(/[:T]/g, "")}.xml`;
+  try {
+    const blob = new Blob([xml], { type: "application/xml" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = name;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+    setStatus2(`XML baixado: ${name}`);
+  } catch {
+    setStatus2("Falha ao gerar XML", true);
+  }
+}
+function setupValidation() {
+  document.querySelectorAll("input.w-date").forEach((input) => {
+    const field = resolveField(input);
+    const required = input.hasAttribute("data-required") || input.classList.contains("required");
+    const onInput = () => {
+      applyDateMask(input);
+      clearFieldHint2(field);
+      const normalized = normalizeDate(input.value);
+      const isValid2 = !input.value || !!normalized;
+      const state2 = getFieldState({ required, value: input.value, isValid: isValid2 });
+      applyFieldState(field, state2);
+    };
+    const onBlur = () => {
+      applyDateMask(input);
+      const raw = input.value || "";
+      const res = validateDateDetailed(raw);
+      const isValid2 = res.ok;
+      const state2 = getFieldState({ required, value: raw, isValid: isValid2 });
+      applyFieldState(field, state2);
+      if (!isValid2 && raw) setFieldHint(field, res.message || "Data inv\xE1lida");
+      else clearFieldHint2(field);
+    };
+    input.addEventListener("input", onInput);
+    input.addEventListener("blur", onBlur);
+    onInput();
+  });
+  document.querySelectorAll("input.w-time").forEach((input) => {
+    const field = resolveField(input);
+    const required = input.hasAttribute("data-required");
+    const handler = () => {
+      applyTimeMask(input);
+      const normalized = normalizeTime(input.value);
+      const isValid2 = !input.value || !!normalized;
+      const state2 = getFieldState({ required, value: input.value, isValid: isValid2 });
+      applyFieldState(field, state2);
+    };
+    input.addEventListener("input", handler);
+    input.addEventListener("blur", handler);
+    handler();
+  });
+  const cpfInput = document.getElementById("cpf");
+  if (cpfInput) {
+    const field = resolveField(cpfInput);
+    const handler = () => {
+      cpfInput.value = formatCpfInput(cpfInput.value);
+      const digits = normalizeCpf(cpfInput.value);
+      const isValid2 = !digits || isValidCpf(digits);
+      const state2 = getFieldState({ required: false, value: digits ? cpfInput.value : "", isValid: isValid2 });
+      applyFieldState(field, state2);
+    };
+    cpfInput.addEventListener("input", handler);
+    cpfInput.addEventListener("blur", () => {
+      handler();
+      const digits = normalizeCpf(cpfInput.value);
+      if (cpfInput.value && (!digits || !isValidCpf(digits))) setFieldHint(field, "CPF inv\xE1lido");
+      else clearFieldHint2(field);
+    });
+    handler();
+  }
+  const enableName = localStorage.getItem("ui.enableNameValidation") !== "false";
+  if (enableName) {
+    document.querySelectorAll("[data-name-validate]").forEach((input) => {
+      const field = resolveField(input);
+      const required = input.hasAttribute("data-required");
+      const handler = () => {
+        const res = validateName(input.value || "", { minWords: 2 });
+        const state2 = getFieldState({ required, value: input.value, isValid: !res.invalid, warn: res.warn });
+        applyFieldState(field, state2);
+      };
+      input.addEventListener("input", handler);
+      input.addEventListener("blur", handler);
+      handler();
+    });
+  }
+}
+function setupLiveOutputs() {
+  const form = document.querySelector(".container");
+  const handler = () => updateOutputs2();
+  document.addEventListener("input", handler);
+  document.addEventListener("change", handler);
+  updateOutputs2();
+}
+function setup() {
+  var _a, _b, _c;
+  (_a = document.getElementById("btn-json")) == null ? void 0 : _a.addEventListener("click", (e) => {
+    e.preventDefault();
+    generateJson();
+  });
+  (_b = document.getElementById("btn-xml")) == null ? void 0 : _b.addEventListener("click", (e) => {
+    e.preventDefault();
+    generateXml();
+  });
+  function buildNascimentoPrintHtml(data, srcDoc = document) {
+    var _a2, _b2, _c2;
+    const reg = (data == null ? void 0 : data.registro) || {};
+    const cert = (data == null ? void 0 : data.certidao) || {};
+    const name = reg.nome_completo || "";
+    const matricula = reg.matricula || "";
+    const dataRegistro = reg.data_registro || "";
+    const dataNascimento = reg.data_nascimento || "";
+    const sexo = reg.sexo || "";
+    const mae = (reg.filiacao || "").split(";")[1] || "";
+    const pai = (reg.filiacao || "").split(";")[0] || "";
+    const cartorio = cert.cartorio_cns || "";
+    const livro = ((_a2 = document.getElementById("matricula-livro")) == null ? void 0 : _a2.value) || "";
+    const folha = ((_b2 = document.getElementById("matricula-folha")) == null ? void 0 : _b2.value) || "";
+    const termo = ((_c2 = document.getElementById("matricula-termo")) == null ? void 0 : _c2.value) || "";
+    const cpf2 = reg.cpf || "";
+    const dnv = reg.numero_dnv || "";
+    const candidate = srcDoc.querySelector("center") || srcDoc.querySelector(".certidao") || srcDoc.querySelector(".container-certidao");
+    if (candidate && /CERTIDÃO|CERTIDAO|CERTID/iu.test(candidate.textContent || "")) {
+      const links = Array.from(srcDoc.querySelectorAll('link[rel="stylesheet"]')).map((l) => `<link rel="stylesheet" href="${l.href}">`).join("\n");
+      const styles = Array.from(srcDoc.querySelectorAll("style")).map((s) => s.innerHTML ? `<style>${s.innerHTML}</style>` : "").join("\n");
+      const cloned = candidate.cloneNode(true);
+      cloned.querySelectorAll('script, .nao-imprimir, button, [role="button"]').forEach((el) => el.remove());
+      Array.from(cloned.querySelectorAll("*")).forEach((el) => {
+        try {
+          const st = el.getAttribute && el.getAttribute("style") || "";
+          if (/position\s*:\s*fixed/iu.test(st)) el.remove();
+        } catch (e) {
+        }
+      });
+      return `<!doctype html><html><head><meta charset="utf-8"><title>Certid\xE3o Nascimento</title>${links}${styles}</head><body>${cloned.outerHTML}
+				<script>
+				(function(){
+					function runHtml2Pdf(){
+						try{
+							const opt = {
+								margin: 10,
+								filename: 'NASCIMENTO_'+(new Date()).toISOString().slice(0,19).replace(/[:T]/g,'')+'.pdf',
+								image: { type: 'jpeg', quality: 0.98 },
+								html2canvas: { scale: 2, useCORS: true },
+								jsPDF: { unit: 'pt', format: 'a4', orientation: 'portrait' }
+							};
+							// cleanup: remove any scripts/buttons/fixed UI elements
+							(function cleanup(){
+								try{
+									document.querySelectorAll('script, button, .nao-imprimir, [role="button"]').forEach(e=>e.remove());
+									Array.from(document.querySelectorAll('*')).forEach((el:any)=>{
+										try{ const pos = window.getComputedStyle(el).position; if (pos === 'fixed') el.remove(); }catch(e){}
+									});
+								}catch(e){/* ignore */}
+							})();
+							const el = document.body.querySelector('center') || document.body.firstElementChild;
+							if (window.html2pdf) {
+								window.html2pdf().set(opt).from(el).save();
+							} else { console.warn('html2pdf not loaded'); window.print(); }
+						} catch(e){ console.error(e); window.print(); }
+					}
+					if (window.html2pdf) runHtml2Pdf();
+					else {
+						var s = document.createElement('script');
+						s.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.9.2/html2pdf.bundle.min.js';
+						s.onload = runHtml2Pdf; s.onerror = function(){ window.print(); };
+						document.head.appendChild(s);
+					}
+				})();
+				<\/script>
+				</body></html>`;
+    }
+    return `<!doctype html><html><head><meta charset="utf-8"><title>Certid\xE3o Nascimento</title>
+			<style>body{font-family:Arial,Helvetica,sans-serif;padding:12px;color:#111} .h{font-size:14pt;font-weight:700;margin-bottom:6px} .label{font-size:9pt;color:#444} .val{font-weight:700;font-size:11pt;margin-bottom:8px} table{width:100%;margin-top:6px} td{vertical-align:top;padding:6px}</style>
+		</head><body>
+		<div class="h">CERTID\xC3O DE NASCIMENTO - 2\xAA VIA</div>
+		<div><span class="label">Nome:</span><div class="val">${escapeHtml(name)}</div></div>
+		<table><tr><td><span class="label">Data de registro</span><div class="val">${escapeHtml(dataRegistro)}</div></td>
+		<td><span class="label">Data de nascimento</span><div class="val">${escapeHtml(dataNascimento)}</div></td>
+		<td><span class="label">Sexo</span><div class="val">${escapeHtml(sexo)}</div></td></tr>
+		<tr><td><span class="label">Pai</span><div class="val">${escapeHtml(pai)}</div></td>
+		<td><span class="label">M\xE3e</span><div class="val">${escapeHtml(mae)}</div></td>
+		<td><span class="label">CPF</span><div class="val">${escapeHtml(cpf2)}</div></td></tr>
+		<tr><td colspan="3"><span class="label">Cart\xF3rio/Matricula</span>
+			<div class="val">Cart\xF3rio CNS: ${escapeHtml(cartorio)} &nbsp; Livro: ${escapeHtml(livro)} &nbsp; Folha: ${escapeHtml(folha)} &nbsp; Termo: ${escapeHtml(termo)}<br/>Matr\xEDcula: ${escapeHtml(matricula)}</div>
+		</td></tr>
+		<tr><td><span class="label">DNV</span><div class="val">${escapeHtml(dnv)}</div></td></tr>
+		</table>
+		<!-- load html2pdf and trigger download -->
+		<script>
+			(function(){
+				function runHtml2Pdf(){
+					try{
+						const opt = {
+							margin: 10,
+							filename: 'NASCIMENTO_'+(new Date()).toISOString().slice(0,19).replace(/[:T]/g,'')+'.pdf',
+							image: { type: 'jpeg', quality: 0.98 },
+							html2canvas: { scale: 2 },
+							jsPDF: { unit: 'pt', format: 'a4', orientation: 'portrait' }
+						};
+						// cleanup interactive UI before printing
+						try{
+							document.querySelectorAll('script, button, .nao-imprimir, [role="button"]').forEach(e=>e.remove());
+							Array.from(document.querySelectorAll('*')).forEach((el:any)=>{
+								try{ const pos = window.getComputedStyle(el).position; if (pos === 'fixed') el.remove(); }catch(e){}
+							});
+						}catch(e){}
+						if (window.html2pdf) {
+							window.html2pdf().set(opt).from(document.body).save();
+						} else {
+							console.warn('html2pdf not loaded'); window.print();
+						}
+					} catch(e){ console.error(e); window.print(); }
+				}
+				if (window.html2pdf) runHtml2Pdf();
+				else {
+					var s = document.createElement('script');
+					s.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.9.2/html2pdf.bundle.min.js';
+					s.onload = runHtml2Pdf; s.onerror = function(){ window.print(); };
+					document.head.appendChild(s);
+				}
+			})();
+		<\/script>
+		</body></html>`;
+  }
+  function escapeHtml(s) {
+    return String(s || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+  }
+  (_c = document.getElementById("btn-print")) == null ? void 0 : _c.addEventListener("click", (e) => {
+    e.preventDefault();
+    const data = window.mapperHtmlToJson ? window.mapperHtmlToJson(document) : typeof mapperHtmlToJson === "function" ? mapperHtmlToJson(document) : null;
+    if (!data) {
+      showToast2("Falha ao coletar dados para impress\xE3o");
+      return;
+    }
+    const html = buildNascimentoPrintHtml(data);
+    const w = window.open("", "_blank", "width=900,height=1100");
+    if (!w) {
+      showToast2("Permita popups para imprimir");
+      return;
+    }
+    w.document.open();
+    w.document.write(html);
+    w.document.close();
+  });
+  setupValidation();
+  setupFocusEmphasis();
+  setupAdminPanel();
+  setupSettingsPanel();
+  setupNameCopy('input[data-bind="ui.mae_nome"]', 'input[data-bind="ui.pai_nome"]');
+  setupAutoNationality('input[name="nacionalidadeNoivo"]', "BRASILEIRO");
+  setupLiveOutputs();
+  updateActionButtons();
+  document.addEventListener("input", updateActionButtons);
+  document.addEventListener("change", updateActionButtons);
+}
+function setupSettingsPanel() {
+  const select = document.getElementById("settings-drawer-position");
+  const cbCpf = document.getElementById("settings-enable-cpf");
+  const cbName = document.getElementById("settings-enable-name");
+  const saveBtn = document.getElementById("settings-save");
+  const applyBtn = document.getElementById("settings-apply");
+  const pos = localStorage.getItem(DRAWER_POS_KEY) || "bottom-right";
+  const enableCpf = localStorage.getItem(ENABLE_CPF_KEY) !== "false";
+  const enableName = localStorage.getItem(ENABLE_NAME_KEY) !== "false";
+  const panelInlineStored = localStorage.getItem(PANEL_INLINE_KEY);
+  const panelInline = panelInlineStored === null ? false : panelInlineStored === "true";
+  if (select) select.value = pos;
+  if (cbCpf) cbCpf.checked = !!enableCpf;
+  if (cbName) cbName.checked = !!enableName;
+  const cbInline = document.getElementById("settings-panel-inline");
+  if (cbInline) cbInline.checked = !!panelInline;
+  applyBtn == null ? void 0 : applyBtn.addEventListener("click", () => {
+    const newPos = (select == null ? void 0 : select.value) || "bottom-right";
+    const drawer = document.getElementById("drawer");
+    if (drawer) {
+      drawer.classList.remove("position-top", "position-bottom-right", "position-side");
+      if (newPos === "top") drawer.classList.add("position-top");
+      else if (newPos === "side") drawer.classList.add("position-side");
+      else drawer.classList.add("position-bottom-right");
+    }
+    setStatus2("Posi\xE7\xE3o aplicada (n\xE3o salva)", false);
+  });
+  saveBtn == null ? void 0 : saveBtn.addEventListener("click", () => {
+    var _a;
+    const newPos = (select == null ? void 0 : select.value) || "bottom-right";
+    const newCpf = (cbCpf == null ? void 0 : cbCpf.checked) ? "true" : "false";
+    const newName = (cbName == null ? void 0 : cbName.checked) ? "true" : "false";
+    const newInline = ((_a = document.getElementById("settings-panel-inline")) == null ? void 0 : _a.checked) ? "true" : "false";
+    localStorage.setItem(DRAWER_POS_KEY, newPos);
+    localStorage.setItem(ENABLE_CPF_KEY, newCpf);
+    localStorage.setItem(ENABLE_NAME_KEY, newName);
+    localStorage.setItem(PANEL_INLINE_KEY, newInline);
+    setStatus2("Prefer\xEAncias salvas. Atualizando...", false);
+    setTimeout(() => window.location.reload(), 300);
+  });
+}
+setup();
 /*! Bundled license information:
 
 papaparse/papaparse.min.js:

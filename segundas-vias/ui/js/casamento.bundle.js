@@ -440,33 +440,764 @@ var require_papaparse_min = __commonJS({
   }
 });
 
-// ui/ts/dom.ts
-function byId(id) {
-  return document.getElementById(id);
+// ui/ts/shared/validators/date.ts
+function pad2(value) {
+  return String(value).padStart(2, "0");
 }
-function qs(selector, root = document) {
-  return root.querySelector(selector);
+function toYear(yearRaw) {
+  const y = Number(yearRaw);
+  if (yearRaw.length === 2) {
+    return y <= 29 ? 2e3 + y : 1900 + y;
+  }
+  return y;
 }
-function qsa(selector, root = document) {
-  return Array.from(root.querySelectorAll(selector));
+function normalizeDate(raw) {
+  const input = String(raw || "").trim();
+  if (!input) return "";
+  const m = /^(\d{1,2})[\/-](\d{1,2})[\/-](\d{2,4})$/.exec(input);
+  let day = "";
+  let month = "";
+  let year = "";
+  if (m) {
+    day = m[1];
+    month = m[2];
+    year = m[3];
+  } else {
+    const digits = input.replace(/\D/g, "");
+    if (digits.length === 8) {
+      day = digits.slice(0, 2);
+      month = digits.slice(2, 4);
+      year = digits.slice(4, 8);
+    } else if (digits.length === 6) {
+      day = digits.slice(0, 2);
+      month = digits.slice(2, 4);
+      year = digits.slice(4, 6);
+    }
+  }
+  if (!day || !month || !year) return "";
+  const yyyy = toYear(year);
+  const dd = Number(day);
+  const mm = Number(month);
+  if (!isValidDateParts(dd, mm, yyyy)) return "";
+  return `${pad2(dd)}/${pad2(mm)}/${yyyy}`;
 }
-function debounce(fn, waitMs) {
-  let timer = null;
-  return (...args) => {
-    if (timer) clearTimeout(timer);
-    timer = setTimeout(() => fn(...args), waitMs);
+function validateDateDetailed(raw) {
+  const input = String(raw || "").trim();
+  if (!input) return { ok: false, code: "EMPTY", message: "Campo vazio" };
+  const m = /^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})$/.exec(input);
+  let day = "";
+  let month = "";
+  let year = "";
+  if (m) {
+    day = m[1];
+    month = m[2];
+    year = m[3];
+  } else {
+    const digits = input.replace(/\D/g, "");
+    if (digits.length === 8) {
+      day = digits.slice(0, 2);
+      month = digits.slice(2, 4);
+      year = digits.slice(4, 8);
+    } else if (digits.length === 6) {
+      day = digits.slice(0, 2);
+      month = digits.slice(2, 4);
+      year = digits.slice(4, 6);
+    } else {
+      return { ok: false, code: "FORMAT", message: "Formato inv\xE1lido \u2014 use DD/MM/AAAA (ex.: 31/12/2024)" };
+    }
+  }
+  const dd = Number(day);
+  const mm = Number(month);
+  const yyyy = toYear(year);
+  if (isNaN(mm) || mm < 1 || mm > 12) return { ok: false, code: "MONTH", message: "M\xEAs inv\xE1lido (01\u201312)" };
+  if (isNaN(dd) || dd < 1 || dd > 31) return { ok: false, code: "DAY", message: "Dia inv\xE1lido (1\u201331)" };
+  const d = new Date(yyyy, mm - 1, dd);
+  if (!(d.getFullYear() === yyyy && d.getMonth() === mm - 1 && d.getDate() === dd)) {
+    return { ok: false, code: "NONEXISTENT", message: "Data inexistente \u2014 verifique dia e m\xEAs (ex.: 31/02/2024 n\xE3o existe)" };
+  }
+  return { ok: true, code: "OK", message: `${String(dd).padStart(2, "0")}/${String(mm).padStart(2, "0")}/${yyyy}` };
+}
+function isValidDateParts(day, month, year) {
+  if (month < 1 || month > 12) return false;
+  if (day < 1 || day > 31) return false;
+  const d = new Date(year, month - 1, day);
+  return d.getFullYear() === year && d.getMonth() === month - 1 && d.getDate() === day;
+}
+
+// node_modules/cpf-cnpj-validator/dist/cpf-cnpj-validator.es.js
+var BLACKLIST = [
+  "00000000000",
+  "11111111111",
+  "22222222222",
+  "33333333333",
+  "44444444444",
+  "55555555555",
+  "66666666666",
+  "77777777777",
+  "88888888888",
+  "99999999999",
+  "12345678909"
+];
+var STRICT_STRIP_REGEX = /[.-]/g;
+var LOOSE_STRIP_REGEX = /[^\d]/g;
+var verifierDigit = (digits) => {
+  const numbers = digits.split("").map((number) => {
+    return parseInt(number, 10);
+  });
+  const modulus = numbers.length + 1;
+  const multiplied = numbers.map((number, index) => number * (modulus - index));
+  const mod = multiplied.reduce((buffer, number) => buffer + number) % 11;
+  return mod < 2 ? 0 : 11 - mod;
+};
+var strip = (number, strict) => {
+  const regex = strict ? STRICT_STRIP_REGEX : LOOSE_STRIP_REGEX;
+  return (number || "").replace(regex, "");
+};
+var format = (number) => {
+  return strip(number).replace(/^(\d{3})(\d{3})(\d{3})(\d{2})$/, "$1.$2.$3-$4");
+};
+var isValid = (number, strict) => {
+  const stripped = strip(number, strict);
+  if (!stripped) {
+    return false;
+  }
+  if (stripped.length !== 11) {
+    return false;
+  }
+  if (BLACKLIST.includes(stripped)) {
+    return false;
+  }
+  let numbers = stripped.substr(0, 9);
+  numbers += verifierDigit(numbers);
+  numbers += verifierDigit(numbers);
+  return numbers.substr(-2) === stripped.substr(-2);
+};
+var generate = (formatted) => {
+  let numbers = "";
+  for (let i = 0; i < 9; i += 1) {
+    numbers += Math.floor(Math.random() * 9);
+  }
+  numbers += verifierDigit(numbers);
+  numbers += verifierDigit(numbers);
+  return formatted ? format(numbers) : numbers;
+};
+var cpf = {
+  verifierDigit,
+  strip,
+  format,
+  isValid,
+  generate
+};
+
+// ui/ts/shared/validators/cpf.ts
+function normalizeCpf(raw) {
+  return String(raw || "").replace(/\D/g, "");
+}
+function formatCpf(digits) {
+  const v = normalizeCpf(digits);
+  if (v.length !== 11) return "";
+  return `${v.slice(0, 3)}.${v.slice(3, 6)}.${v.slice(6, 9)}-${v.slice(9)}`;
+}
+function isValidCpf(raw) {
+  const digits = normalizeCpf(raw);
+  return cpf.isValid(digits);
+}
+
+// ui/ts/shared/formatters/text.ts
+function normalizeText(raw) {
+  return String(raw || "").replace(/\u00A0/g, " ").replace(/\s+/g, " ").trim();
+}
+
+// ui/ts/shared/location/uf.ts
+var UF_LIST = /* @__PURE__ */ new Set([
+  "AC",
+  "AL",
+  "AP",
+  "AM",
+  "BA",
+  "BR",
+  "CE",
+  "DF",
+  "ES",
+  "ET",
+  "GO",
+  "MA",
+  "MT",
+  "MS",
+  "MG",
+  "PA",
+  "PB",
+  "PR",
+  "PE",
+  "PI",
+  "RJ",
+  "RN",
+  "RS",
+  "RO",
+  "RR",
+  "SC",
+  "SP",
+  "SE",
+  "TO",
+  "IG"
+]);
+function normalizeUf(raw, opts = {}) {
+  const forceIg = !!opts.forceIg;
+  const allowIg = opts.allowIg !== false;
+  const value = String(raw || "").trim().toUpperCase();
+  if (!value) return forceIg ? "IG" : "";
+  if (UF_LIST.has(value)) return value;
+  if (allowIg && value === "IG") return "IG";
+  return forceIg ? "IG" : "";
+}
+
+// ui/ts/shared/location/municipio.ts
+function normalizeMunicipio(raw) {
+  return String(raw || "").replace(/\u00A0/g, " ").replace(/\s+/g, " ").trim();
+}
+
+// ui/ts/acts/casamento/mapperHtmlToJson.ts
+function getInputValue(name, root = document) {
+  const el = root.querySelector(`[name="${name}"]`);
+  if (!el) return "";
+  if (el.tagName === "TEXTAREA") return el.value || "";
+  return el.value || "";
+}
+function getSelectValue(name, root = document) {
+  const el = root.querySelector(`select[name="${name}"]`);
+  if (!el) return "";
+  return el.value || "";
+}
+function getSelectText(name, root = document) {
+  const el = root.querySelector(`select[name="${name}"]`);
+  if (!el) return "";
+  const opt = el.selectedOptions && el.selectedOptions[0];
+  return opt ? opt.textContent.trim() : "";
+}
+function getCheckboxValue(name, root = document) {
+  const el = root.querySelector(`[name="${name}"]`);
+  if (!el) return false;
+  return !!el.checked;
+}
+function mapRegimeBens(value) {
+  const map = {
+    L: "Separacao legal de bens",
+    C: "Separacao convencional de bens",
+    B: "Comunhao de bens",
+    P: "Comunhao parcial de bens",
+    U: "Comunhao universal de bens",
+    A: "Participacao final de bens nos aquestos",
+    I: "Ignorado"
+  };
+  return map[value] || "";
+}
+function mapEstadoCivil(value) {
+  const map = {
+    SJ: "Separado(a) judicialmente",
+    DE: "Desquitado(a)",
+    DI: "Divorciado(a)",
+    SO: "Solteiro(a)",
+    VI: "Viuvo(a)",
+    IG: "Ignorado"
+  };
+  return map[value] || "";
+}
+function buildGenitores(pai, mae) {
+  const p = normalizeText(pai);
+  const m = normalizeText(mae);
+  if (!p && !m) return "";
+  return `${p};${m}`;
+}
+function normalizeCpfFields(raw) {
+  const digits = normalizeCpf(raw);
+  if (!digits) return { cpf: "", cpf_sem_inscricao: true };
+  if (!isValidCpf(digits)) return { cpf: "", cpf_sem_inscricao: true };
+  return { cpf: formatCpf(digits), cpf_sem_inscricao: false };
+}
+function extractSelo(text) {
+  const obs = String(text || "");
+  const seloMatch = /SELO[^0-9]*([0-9]+)/i.exec(obs);
+  const codMatch = /(COD|CODIGO|C[OÓ]DIGO)[^0-9]*([0-9]+)/i.exec(obs);
+  return {
+    selo: seloMatch ? seloMatch[1] : "",
+    cod_selo: codMatch ? codMatch[2] : ""
   };
 }
-function setText(el, text) {
-  if (!el) return;
-  el.textContent = text;
+function buildRgItem(numero, data, orgao) {
+  const doc = normalizeText(numero);
+  if (!doc) return null;
+  return {
+    tipo: "RG",
+    documento: doc,
+    orgao_emissor: normalizeText(orgao),
+    uf_emissao: "IG",
+    data_emissao: normalizeDate(data)
+  };
 }
+function mapperHtmlToJson(root = document) {
+  const observacao = getInputValue("observacao", root);
+  const seloInfo = extractSelo(observacao);
+  const seloInput = normalizeText(getInputValue("certidao.selo", root));
+  const codInput = normalizeText(getInputValue("certidao.cod_selo", root));
+  const plataformaId = normalizeText(getInputValue("certidao.plataformaId", root));
+  const tipoCertidao = normalizeText(getSelectValue("certidao.tipo_certidao", root));
+  const modalidade = normalizeText(getSelectValue("certidao.modalidade", root));
+  const cartorioCns = normalizeText(getInputValue("certidao.cartorio_cns", root));
+  const cotaEmolumentos = normalizeText(getInputValue("certidao.cota_emolumentos", root));
+  const transcricao = getCheckboxValue("certidao.transcricao", root);
+  const noivoCpf = normalizeCpfFields(getInputValue("CPFNoivo", root));
+  const noivaCpf = normalizeCpfFields(getInputValue("CPFNoiva", root));
+  const noivoRg = buildRgItem(
+    getInputValue("numeroRGNoivo", root),
+    getInputValue("dataExpedicaoRGNoivo", root),
+    getSelectText("idOrgaoExpedidorRGNoivo", root)
+  );
+  const noivaRg = buildRgItem(
+    getInputValue("numeroRGNoiva", root),
+    getInputValue("dataExpedicaoRGNoiva", root),
+    getSelectText("idOrgaoExpedidorRGNoiva", root)
+  );
+  const conjuges = [
+    {
+      nome_atual_habilitacao: normalizeText(getInputValue("nomeSolteiro", root)),
+      cpf_sem_inscricao: noivoCpf.cpf_sem_inscricao,
+      cpf: noivoCpf.cpf,
+      novo_nome: normalizeText(getInputValue("nomeSolteiro", root)),
+      nome_apos_casamento: normalizeText(getInputValue("nomeCasado", root)),
+      data_nascimento: normalizeDate(getInputValue("dataNascimentoNoivo", root)),
+      nacionalidade: normalizeText(getInputValue("nacionalidadeNoivo", root)),
+      estado_civil: mapEstadoCivil(getSelectValue("estadoCivilNoivo", root)),
+      municipio_naturalidade: normalizeMunicipio(getInputValue("cidadeNascimentoNoivo", root)),
+      uf_naturalidade: normalizeUf(getInputValue("ufNascimentoNoivo", root), { forceIg: true }),
+      genitores: buildGenitores(
+        getInputValue("nomePaiNoivo", root),
+        getInputValue("nomeMaeNoivo", root)
+      )
+    },
+    {
+      nome_atual_habilitacao: normalizeText(getInputValue("nomeSolteira", root)),
+      cpf_sem_inscricao: noivaCpf.cpf_sem_inscricao,
+      cpf: noivaCpf.cpf,
+      novo_nome: normalizeText(getInputValue("nomeSolteira", root)),
+      nome_apos_casamento: normalizeText(getInputValue("nomeCasada", root)),
+      data_nascimento: normalizeDate(getInputValue("dataNascimentoNoiva", root)),
+      nacionalidade: normalizeText(getInputValue("nacionalidadeNoiva", root)),
+      estado_civil: mapEstadoCivil(getSelectValue("estadoCivilNoiva", root)),
+      municipio_naturalidade: normalizeMunicipio(getInputValue("cidadeNascimentoNoiva", root)),
+      uf_naturalidade: normalizeUf(getInputValue("ufNascimentoNoiva", root), { forceIg: true }),
+      genitores: buildGenitores(
+        getInputValue("nomePaiNoiva", root),
+        getInputValue("nomeMaeNoiva", root)
+      )
+    }
+  ];
+  const anotacoes = {
+    primeiro_conjuge: [],
+    segundo_conjuge: []
+  };
+  if (noivoRg) anotacoes.primeiro_conjuge.push(noivoRg);
+  if (noivaRg) anotacoes.segundo_conjuge.push(noivaRg);
+  return {
+    certidao: {
+      plataformaId,
+      tipo_registro: "casamento",
+      tipo_certidao: tipoCertidao,
+      transcricao,
+      cartorio_cns: cartorioCns,
+      selo: seloInput || seloInfo.selo,
+      cod_selo: codInput || seloInfo.cod_selo,
+      modalidade,
+      cota_emolumentos: cotaEmolumentos,
+      cota_emolumentos_isento: false
+    },
+    registro: {
+      conjuges,
+      matricula: "",
+      data_celebracao: normalizeDate(getInputValue("dataCasamento", root)),
+      regime_bens: mapRegimeBens(getSelectValue("regimeBens", root)),
+      data_registro: normalizeDate(getInputValue("dataTermo", root)),
+      averbacao_anotacao: normalizeText(observacao),
+      anotacoes_cadastro: anotacoes
+    }
+  };
+}
+
+// ui/ts/shared/validators/name.ts
+var NAME_RE = /^[A-Za-zÀ-ÿ' -]+$/;
+function normalizeName(raw) {
+  return String(raw || "").replace(/\u00A0/g, " ").replace(/\s+/g, " ").trim();
+}
+function validateName(raw, opts = {}) {
+  const minWords = opts.minWords || 2;
+  const value = normalizeName(raw);
+  if (!value) return { value: "", invalid: false, warn: false };
+  if (!NAME_RE.test(value)) return { value, invalid: true, warn: false };
+  const words = value.split(" ").filter(Boolean);
+  const warn = words.length < minWords;
+  return { value, invalid: false, warn };
+}
+
+// ui/ts/shared/ui/fieldState.ts
+function getFieldState(args) {
+  const required = !!args.required;
+  const value = String(args.value || "").trim();
+  const isValid2 = args.isValid !== false;
+  const warn = !!args.warn;
+  if (!required && !value) return "valid";
+  if (required && !value) return "empty";
+  if (!isValid2) return "invalid";
+  if (warn) return "warn";
+  return value ? "valid" : "empty";
+}
+function applyFieldState(el, state2) {
+  if (!el) return;
+  el.classList.toggle("field--error", state2 === "empty" || state2 === "invalid");
+  el.classList.toggle("field--empty", state2 === "empty");
+  el.classList.toggle("field--invalid", state2 === "invalid");
+  el.classList.toggle("field--warn", state2 === "warn");
+}
+
+// ui/ts/shared/ui/mask.ts
+function digitsOnly(value) {
+  return String(value || "").replace(/\D/g, "");
+}
+function applyDateMask(input) {
+  if (!input) return;
+  const digits = digitsOnly(input.value).slice(0, 8);
+  let out = "";
+  if (digits.length >= 1) out += digits.slice(0, 2);
+  if (digits.length >= 3) out += "/" + digits.slice(2, 4);
+  else if (digits.length > 2) out += "/" + digits.slice(2);
+  if (digits.length >= 5) out += "/" + digits.slice(4, 8);
+  input.value = out;
+}
+
+// ui/ts/shared/ui/drawer.ts
+function setupDrawer(opts = {}) {
+  const drawer = document.getElementById("drawer");
+  const toggle = document.getElementById("drawer-toggle");
+  const close = document.getElementById("drawer-close");
+  if (!drawer) return { open: () => {
+  }, close: () => {
+  }, setTab: () => {
+  } };
+  const tabs = Array.from(drawer.querySelectorAll(".tab-btn"));
+  const panes = Array.from(drawer.querySelectorAll(".tab-pane"));
+  let activeTab = opts.defaultTab || tabs[0] && tabs[0].dataset.tab || "";
+  const setTab = (id) => {
+    if (!id) return;
+    activeTab = id;
+    tabs.forEach((btn) => btn.classList.toggle("active", btn.dataset.tab === id));
+    panes.forEach((pane) => pane.classList.toggle("active", pane.id === id));
+  };
+  tabs.forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const id = btn.dataset.tab || "";
+      setTab(id);
+      drawer.classList.add("open");
+    });
+  });
+  const open = (id) => {
+    if (id) setTab(id);
+    drawer.classList.add("open");
+  };
+  const hide = () => drawer.classList.remove("open");
+  toggle == null ? void 0 : toggle.addEventListener("click", () => open(activeTab));
+  close == null ? void 0 : close.addEventListener("click", hide);
+  if (activeTab) setTab(activeTab);
+  return { open, close: hide, setTab };
+}
+
+// ui/ts/shared/ui/debug.ts
+function getFieldLabel(input) {
+  var _a, _b, _c, _d, _e;
+  const field = ((_a = input == null ? void 0 : input.closest) == null ? void 0 : _a.call(input, ".field")) || ((_b = input == null ? void 0 : input.closest) == null ? void 0 : _b.call(input, ".campo"));
+  if (!field) return ((_c = input == null ? void 0 : input.getAttribute) == null ? void 0 : _c.call(input, "data-bind")) || (input == null ? void 0 : input.name) || (input == null ? void 0 : input.id) || "";
+  const label = field.querySelector("label");
+  const text = (_d = label == null ? void 0 : label.textContent) == null ? void 0 : _d.trim();
+  return text || ((_e = input == null ? void 0 : input.getAttribute) == null ? void 0 : _e.call(input, "data-bind")) || (input == null ? void 0 : input.name) || (input == null ? void 0 : input.id) || "";
+}
+function collectInvalidFields(root = document) {
+  const items = /* @__PURE__ */ new Set();
+  root.querySelectorAll(".invalid").forEach((el) => {
+    const label = getFieldLabel(el);
+    if (label) items.add(label);
+  });
+  root.querySelectorAll(".field.field--error, .campo.field--error").forEach((field) => {
+    var _a, _b;
+    const label = (_b = (_a = field.querySelector("label")) == null ? void 0 : _a.textContent) == null ? void 0 : _b.trim();
+    if (label) items.add(label);
+  });
+  return Array.from(items);
+}
+
+// ui/ts/shared/matricula/cnj.ts
+function digitsOnly2(value) {
+  return String(value || "").replace(/\D/g, "");
+}
+function padLeft(value, size) {
+  const digits = digitsOnly2(value);
+  if (!digits) return "";
+  return digits.padStart(size, "0").slice(-size);
+}
+function buildMatriculaBase30(args) {
+  const cns = digitsOnly2(args.cns6 || "");
+  const ano = digitsOnly2(args.ano || "");
+  const tipoAto = digitsOnly2(args.tipoAto || "");
+  const acervo = digitsOnly2(args.acervo || "01").padStart(2, "0");
+  const servico = digitsOnly2(args.servico || "55").padStart(2, "0");
+  const livro = padLeft(args.livro, 5);
+  const folha = padLeft(args.folha, 3);
+  const termo = padLeft(args.termo, 7);
+  if (cns.length !== 6 || ano.length !== 4 || !tipoAto || !livro || !folha || !termo) return "";
+  const base = `${cns}${acervo}${servico}${ano}${tipoAto}${livro}${folha}${termo}`;
+  return base.length === 30 ? base : "";
+}
+function calcDv2Digits(base30) {
+  if (!base30 || base30.length !== 30) return "";
+  let s1 = 0;
+  for (let i = 0; i < 30; i++) s1 += Number(base30[i]) * (31 - i);
+  let d1 = 11 - s1 % 11;
+  d1 = d1 === 11 ? 0 : d1 === 10 ? 1 : d1;
+  const seq31 = base30 + String(d1);
+  let s2 = 0;
+  for (let i = 0; i < 31; i++) s2 += Number(seq31[i]) * (32 - i);
+  let d2 = 11 - s2 % 11;
+  d2 = d2 === 11 ? 0 : d2 === 10 ? 1 : d2;
+  return `${d1}${d2}`;
+}
+function buildMatriculaFinal(args) {
+  const base30 = buildMatriculaBase30(args);
+  if (!base30) return "";
+  const dv = calcDv2Digits(base30);
+  return dv ? base30 + dv : "";
+}
+
+// ui/ts/shared/productivity/index.ts
+function lockInput(input) {
+  if (!input) return;
+  input.readOnly = true;
+  input.tabIndex = -1;
+  input.classList.add("input-locked");
+}
+function unlockInput(input) {
+  if (!input) return;
+  input.readOnly = false;
+  input.tabIndex = 0;
+  input.classList.remove("input-locked");
+}
+function setupPrimaryShortcut(getPrimary) {
+  window.addEventListener("keydown", (e) => {
+    if (e.ctrlKey && e.code === "Space") {
+      e.preventDefault();
+      const target = typeof getPrimary === "function" ? getPrimary() : null;
+      target == null ? void 0 : target.click();
+    }
+  });
+}
+function setupNameCopy(sourceSelector, targetSelector) {
+  const source = document.querySelector(sourceSelector);
+  const target = document.querySelector(targetSelector);
+  if (!source || !target) return;
+  let lastAuto = "";
+  const applyCopy = () => {
+    const value = String(source.value || "").trim();
+    if (!value) return;
+    if (!target.value || target.value === lastAuto) {
+      target.value = value;
+      lastAuto = value;
+      target.dispatchEvent(new Event("input", { bubbles: true }));
+    }
+  };
+  source.addEventListener("blur", applyCopy);
+  source.addEventListener("keydown", (e) => {
+    if (e.key === "Tab" && !e.shiftKey) {
+      applyCopy();
+    }
+  });
+}
+function setupAutoNationality(selector, value) {
+  const input = document.querySelector(selector);
+  if (!input) return;
+  if (String(input.value || "").trim()) return;
+  input.value = value;
+  lockInput(input);
+  input.dispatchEvent(new Event("input", { bubbles: true }));
+}
+function setupCasamentoDates(opts = {}) {
+  const dataTermo = document.querySelector(opts.dataTermoSelector || 'input[name="dataTermo"]');
+  const tipo = document.querySelector(opts.tipoSelector || 'select[name="tipoCasamento"]');
+  const dataCasamento = document.querySelector(opts.dataCasamentoSelector || 'input[name="dataCasamento"]');
+  const regime = document.querySelector(opts.regimeSelector || 'select[name="regimeBens"]');
+  if (!dataTermo || !tipo || !dataCasamento || !regime) return;
+  const lock = () => {
+    dataCasamento.value = dataTermo.value;
+    lockInput(dataCasamento);
+    dataCasamento.dispatchEvent(new Event("input", { bubbles: true }));
+  };
+  const unlock = () => {
+    unlockInput(dataCasamento);
+    if (!dataCasamento.value) dataCasamento.focus();
+  };
+  const apply = () => {
+    if (tipo.value === "R") {
+      unlock();
+    } else {
+      lock();
+      tipo.focus();
+    }
+  };
+  dataTermo.addEventListener("input", () => {
+    if (dataTermo.value) lock();
+  });
+  tipo.addEventListener("change", apply);
+  dataTermo.addEventListener("keydown", (e) => {
+    if (e.key === "Tab" && !e.shiftKey) {
+      e.preventDefault();
+      tipo.focus();
+    }
+  });
+  dataCasamento.addEventListener("keydown", (e) => {
+    if (e.key === "Tab" && !e.shiftKey) {
+      e.preventDefault();
+      regime.focus();
+    }
+  });
+  apply();
+}
+
+// ui/ts/shared/ui/admin.ts
+var SIGNERS_KEY = "ui.admin.signers";
+function loadSigners() {
+  try {
+    const raw = localStorage.getItem(SIGNERS_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter((item) => typeof item === "string" && item.trim()).map((item) => item.trim());
+  } catch {
+    return [];
+  }
+}
+function saveSigners(list) {
+  localStorage.setItem(SIGNERS_KEY, JSON.stringify(list));
+}
+function buildSignerOption(name) {
+  const opt = document.createElement("option");
+  opt.value = name;
+  opt.textContent = name;
+  opt.dataset.localSigner = "1";
+  return opt;
+}
+function syncSignerSelects(signers) {
+  const selects = document.querySelectorAll('select[data-signer-select], select[name="idAssinante"]');
+  selects.forEach((select) => {
+    Array.from(select.options).forEach((opt) => {
+      if (opt.dataset && opt.dataset.localSigner === "1") opt.remove();
+    });
+    signers.forEach((name) => {
+      const exists = Array.from(select.options).some((opt) => opt.value === name);
+      if (!exists) select.appendChild(buildSignerOption(name));
+    });
+  });
+}
+function renderList(container, signers) {
+  if (!container) return;
+  container.innerHTML = "";
+  if (!signers.length) {
+    const empty = document.createElement("div");
+    empty.className = "muted";
+    empty.textContent = "Nenhum assinante cadastrado.";
+    container.appendChild(empty);
+    return;
+  }
+  signers.forEach((name, index) => {
+    const row = document.createElement("div");
+    row.className = "admin-row";
+    const label = document.createElement("span");
+    label.textContent = name;
+    const remove = document.createElement("button");
+    remove.type = "button";
+    remove.className = "btn tiny secondary";
+    remove.textContent = "Remover";
+    remove.addEventListener("click", () => {
+      const next = loadSigners().filter((item) => item !== name);
+      saveSigners(next);
+      renderList(container, next);
+      syncSignerSelects(next);
+    });
+    row.appendChild(label);
+    row.appendChild(remove);
+    container.appendChild(row);
+  });
+}
+function setupAdminPanel() {
+  const input = document.getElementById("admin-signer-name");
+  const addBtn = document.getElementById("admin-signer-add");
+  const list = document.getElementById("admin-signer-list");
+  if (!input || !addBtn || !list) {
+    syncSignerSelects(loadSigners());
+    return;
+  }
+  const render = () => {
+    const signers = loadSigners();
+    renderList(list, signers);
+    syncSignerSelects(signers);
+  };
+  addBtn.addEventListener("click", () => {
+    const value = String(input.value || "").trim();
+    if (!value) return;
+    const signers = loadSigners();
+    if (!signers.includes(value)) {
+      signers.push(value);
+      saveSigners(signers);
+    }
+    input.value = "";
+    render();
+  });
+  render();
+}
+function setupEditableDefaults() {
+  document.querySelectorAll("[data-default]").forEach((el) => {
+    const input = el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement || el instanceof HTMLSelectElement ? el : null;
+    if (!input) return;
+    const def = String(input.getAttribute("data-default") || "").trim();
+    if (!input.value) {
+      input.value = def;
+      input.classList.add("input-locked");
+      input.setAttribute("data-locked", "1");
+    }
+    input.addEventListener("click", () => {
+      if (input.getAttribute("data-locked") === "1") {
+        input.removeAttribute("data-locked");
+        input.classList.add("editing");
+        input.classList.remove("input-locked");
+        input.focus();
+      }
+    });
+    input.addEventListener("blur", () => {
+      if (!String(input.value || "").trim()) {
+        input.value = def;
+        input.setAttribute("data-locked", "1");
+        input.classList.remove("editing");
+        input.classList.add("input-locked");
+      }
+    });
+  });
+}
+try {
+  setTimeout(() => setupEditableDefaults(), 50);
+} catch (e) {
+}
+
+// ui/ts/nameValidator.ts
+var import_papaparse = __toESM(require_papaparse_min());
 
 // ui/ts/placeAutofill/normalize.ts
 function stripAccents(value) {
   return (value || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 }
-function normalizeText(value) {
+function normalizeText2(value) {
   return stripAccents(value || "").toLowerCase().replace(/[^a-z0-9]+/g, " ").replace(/\s+/g, " ").trim();
 }
 var STOPWORDS = /* @__PURE__ */ new Set([
@@ -493,6 +1224,248 @@ function stripCityUfSuffix(value) {
   const raw = (value || "").trim();
   if (!raw) return "";
   return raw.replace(/\s*[,;]\s*[\p{L}][\p{L}\s.'-]{1,}\s*(?:\/|-|\s)\s*[A-Za-z]{2}\s*$/u, "").trim();
+}
+
+// ui/ts/nameValidator.ts
+var DEFAULT_NAMES = [
+  "ana",
+  "antonio",
+  "beatriz",
+  "bruno",
+  "carlos",
+  "carla",
+  "cassio",
+  "celia",
+  "daniel",
+  "elisa",
+  "fernanda",
+  "gabriel",
+  "helena",
+  "joao",
+  "jose",
+  "juliana",
+  "larissa",
+  "lucas",
+  "luiz",
+  "maria",
+  "marcos",
+  "patricia",
+  "paulo",
+  "rafael",
+  "roberto",
+  "silvia",
+  "thiago"
+];
+var NAME_PARTICLES = /* @__PURE__ */ new Set(["da", "de", "do", "das", "dos", "e"]);
+function normalizeName2(value) {
+  return stripAccents(String(value || "")).toLowerCase().replace(/[^a-z\s]+/g, " ").replace(/\s+/g, " ").trim();
+}
+function tokenizeName(value) {
+  return normalizeName2(value).split(" ").map((t) => t.trim()).filter((t) => t && !NAME_PARTICLES.has(t));
+}
+function levenshtein(a, b) {
+  const alen = a.length;
+  const blen = b.length;
+  if (alen === 0) return blen;
+  if (blen === 0) return alen;
+  const dp = Array.from({ length: alen + 1 }, () => new Array(blen + 1).fill(0));
+  for (let i = 0; i <= alen; i++) dp[i][0] = i;
+  for (let j = 0; j <= blen; j++) dp[0][j] = j;
+  for (let i = 1; i <= alen; i++) {
+    for (let j = 1; j <= blen; j++) {
+      const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+      dp[i][j] = Math.min(
+        dp[i - 1][j] + 1,
+        dp[i][j - 1] + 1,
+        dp[i - 1][j - 1] + cost
+      );
+    }
+  }
+  return dp[alen][blen];
+}
+function similarity(a, b) {
+  if (!a || !b) return 0;
+  const maxLen = Math.max(a.length, b.length);
+  if (maxLen === 0) return 1;
+  const dist = levenshtein(a, b);
+  return 1 - dist / maxLen;
+}
+async function fetchCsvText(path) {
+  const res = await fetch(path);
+  if (!res.ok) throw new Error(`Falha ao baixar: ${path}`);
+  if (path.endsWith(".gz")) {
+    if (!res.body || typeof DecompressionStream === "undefined") {
+      throw new Error("Descompressao gzip indisponivel");
+    }
+    const stream = res.body.pipeThrough(new DecompressionStream("gzip"));
+    return await new Response(stream).text();
+  }
+  return await res.text();
+}
+async function loadCsvData() {
+  let nomesText = "";
+  let gruposText = "";
+  const nomesPaths = ["/data/nomes.csv.gz", "/public/data/nomes.csv.gz", "/data/nomes.csv", "/public/data/nomes.csv"];
+  const gruposPaths = ["/data/grupos.csv.gz", "/public/data/grupos.csv.gz", "/data/grupos.csv", "/public/data/grupos.csv"];
+  for (const p of nomesPaths) {
+    try {
+      nomesText = await fetchCsvText(p);
+      break;
+    } catch (e) {
+    }
+  }
+  for (const p of gruposPaths) {
+    try {
+      gruposText = await fetchCsvText(p);
+      break;
+    } catch (e) {
+    }
+  }
+  const nomes = import_papaparse.default.parse(nomesText, { header: true, skipEmptyLines: true }).data || [];
+  const grupos = import_papaparse.default.parse(gruposText, { header: true, skipEmptyLines: true }).data || [];
+  return { nomes, grupos };
+}
+function splitPipeList(value) {
+  return String(value || "").split("|").map((t) => t.trim()).filter(Boolean);
+}
+function buildNameList(data) {
+  const set = /* @__PURE__ */ new Set();
+  data.nomes.forEach((row) => {
+    if (row.first_name) set.add(row.first_name);
+    if (row.group_name) set.add(row.group_name);
+    splitPipeList(row.alternative_names).forEach((n) => set.add(n));
+  });
+  data.grupos.forEach((row) => {
+    if (row.name) set.add(row.name);
+    splitPipeList(row.names).forEach((n) => set.add(n));
+  });
+  return Array.from(set).map((n) => normalizeName2(n)).filter(Boolean);
+}
+var NameDictionaryRepository = class {
+  constructor(opts = {}) {
+    this.storageKey = opts.storageKey || "certidao.nameDictionary.v1";
+  }
+  load() {
+    try {
+      const raw = localStorage.getItem(this.storageKey);
+      if (!raw) return { schemaVersion: 1, entries: [] };
+      const parsed = JSON.parse(raw);
+      if (!parsed || parsed.schemaVersion !== 1 || !Array.isArray(parsed.entries)) {
+        return { schemaVersion: 1, entries: [] };
+      }
+      return parsed;
+    } catch {
+      return { schemaVersion: 1, entries: [] };
+    }
+  }
+  save(data) {
+    localStorage.setItem(this.storageKey, JSON.stringify(data));
+  }
+  addException(value) {
+    const normalized = normalizeName2(value);
+    if (!normalized) return;
+    const data = this.load();
+    if (data.entries.find((e) => e.normalized === normalized)) return;
+    data.entries.push({
+      value,
+      normalized,
+      addedAt: (/* @__PURE__ */ new Date()).toISOString(),
+      source: "user"
+    });
+    this.save(data);
+  }
+  has(value) {
+    const normalized = normalizeName2(value);
+    if (!normalized) return false;
+    const data = this.load();
+    return data.entries.some((e) => e.normalized === normalized);
+  }
+  list() {
+    return this.load().entries || [];
+  }
+};
+function createNameValidator(opts = {}) {
+  const threshold = opts.threshold || 0.82;
+  const minLength = opts.minLength || 3;
+  const repo = opts.repo || new NameDictionaryRepository();
+  let base = (opts.baseNames || DEFAULT_NAMES).map((n) => normalizeName2(n)).filter(Boolean);
+  let ready = false;
+  const readyPromise = loadCsvData().then((data) => {
+    base = buildNameList(data);
+    ready = true;
+  }).catch(() => {
+    ready = false;
+  });
+  function isReady() {
+    return ready;
+  }
+  function isKnown(token) {
+    if (!token) return false;
+    if (base.includes(token)) return true;
+    if (repo.has(token)) return true;
+    return false;
+  }
+  function bestScore(token) {
+    let best = 0;
+    for (const name of base) {
+      const score = similarity(token, name);
+      if (score > best) best = score;
+    }
+    return best;
+  }
+  function check(value) {
+    const tokens = tokenizeName(value);
+    if (!tokens.length) return { suspicious: false, token: "" };
+    let unknown = 0;
+    let known = 0;
+    let firstUnknown = "";
+    for (const token of tokens) {
+      if (token.length < minLength) continue;
+      if (isKnown(token)) {
+        known += 1;
+        continue;
+      }
+      unknown += 1;
+      if (!firstUnknown) firstUnknown = token;
+    }
+    if (unknown === 0) return { suspicious: false, token: "" };
+    if (tokens.length === 1) {
+      const token = firstUnknown || tokens[0];
+      const score = bestScore(token);
+      let effectiveThreshold = threshold;
+      if (token.length <= 3) effectiveThreshold = 0.55;
+      else if (token.length <= 5) effectiveThreshold = 0.7;
+      else if (token.length <= 7) effectiveThreshold = 0.78;
+      if (score < effectiveThreshold) return { suspicious: true, token };
+      return { suspicious: false, token: "" };
+    }
+    if (known === 0) return { suspicious: true, token: firstUnknown };
+    if (unknown >= 3) return { suspicious: true, token: firstUnknown };
+    return { suspicious: false, token: "" };
+  }
+  return { check, repo, normalizeName: normalizeName2, ready: readyPromise, isReady };
+}
+
+// ui/ts/dom.ts
+function byId(id) {
+  return document.getElementById(id);
+}
+function qs(selector, root = document) {
+  return root.querySelector(selector);
+}
+function qsa(selector, root = document) {
+  return Array.from(root.querySelectorAll(selector));
+}
+function debounce(fn, waitMs) {
+  let timer = null;
+  return (...args) => {
+    if (timer) clearTimeout(timer);
+    timer = setTimeout(() => fn(...args), waitMs);
+  };
+}
+function setText(el, text) {
+  if (!el) return;
+  el.textContent = text;
 }
 
 // ui/ts/state.ts
@@ -580,7 +1553,7 @@ function syncInputsFromState() {
       return;
     }
     if (path === "registro.cpf") {
-      el.value = formatCpf(val);
+      el.value = formatCpf2(val);
       return;
     }
     if (path === "registro.data_registro" || path === "registro.data_nascimento") {
@@ -620,7 +1593,7 @@ function bindDataBindInputs(onPathChange2) {
       if (path === "registro.cpf") {
         const digits = normalizeCpfValue(el.value);
         setByPath(state, path, digits);
-        el.value = formatCpf(digits);
+        el.value = formatCpf2(digits);
         if (onPathChange2) onPathChange2(path);
         return;
       }
@@ -634,11 +1607,11 @@ function bindDataBindInputs(onPathChange2) {
 function trimValue(value) {
   return String(value || "").trim();
 }
-function digitsOnly(value) {
+function digitsOnly3(value) {
   return String(value || "").replace(/\D/g, "");
 }
 function formatDateInput(value) {
-  const digits = digitsOnly(value).slice(0, 8);
+  const digits = digitsOnly3(value).slice(0, 8);
   let out = "";
   if (digits.length >= 1) out += digits.slice(0, 2);
   if (digits.length >= 3) out += "/" + digits.slice(2, 4);
@@ -647,7 +1620,7 @@ function formatDateInput(value) {
   return out;
 }
 function formatTimeInput(value) {
-  const digits = digitsOnly(value).slice(0, 4);
+  const digits = digitsOnly3(value).slice(0, 4);
   let out = "";
   if (digits.length >= 1) out += digits.slice(0, 2);
   if (digits.length > 2) out += ":" + digits.slice(2, 4);
@@ -656,7 +1629,7 @@ function formatTimeInput(value) {
 function normalizeDateValue(value) {
   const raw = trimValue(value);
   if (!raw) return "";
-  const digits = digitsOnly(raw);
+  const digits = digitsOnly3(raw);
   if (digits.length === 8) {
     return `${digits.slice(0, 2)}/${digits.slice(2, 4)}/${digits.slice(4, 8)}`;
   }
@@ -666,7 +1639,7 @@ function normalizeDateValue(value) {
 function normalizeTimeValue(value) {
   const raw = trimValue(value);
   if (!raw) return "";
-  const digits = digitsOnly(raw);
+  const digits = digitsOnly3(raw);
   if (digits.length === 4) {
     return `${digits.slice(0, 2)}:${digits.slice(2, 4)}`;
   }
@@ -674,9 +1647,9 @@ function normalizeTimeValue(value) {
   return raw;
 }
 function normalizeCpfValue(value) {
-  return digitsOnly(value).slice(0, 11);
+  return digitsOnly3(value).slice(0, 11);
 }
-function formatCpf(value) {
+function formatCpf2(value) {
   const digits = normalizeCpfValue(value);
   if (!digits) return "";
   const p1 = digits.slice(0, 3);
@@ -815,71 +1788,6 @@ function buildFileName(data, ext) {
   return `${tipo}_${nome}_${cpfPart}_${stamp}.${ext}`;
 }
 
-// node_modules/cpf-cnpj-validator/dist/cpf-cnpj-validator.es.js
-var BLACKLIST = [
-  "00000000000",
-  "11111111111",
-  "22222222222",
-  "33333333333",
-  "44444444444",
-  "55555555555",
-  "66666666666",
-  "77777777777",
-  "88888888888",
-  "99999999999",
-  "12345678909"
-];
-var STRICT_STRIP_REGEX = /[.-]/g;
-var LOOSE_STRIP_REGEX = /[^\d]/g;
-var verifierDigit = (digits) => {
-  const numbers = digits.split("").map((number) => {
-    return parseInt(number, 10);
-  });
-  const modulus = numbers.length + 1;
-  const multiplied = numbers.map((number, index) => number * (modulus - index));
-  const mod = multiplied.reduce((buffer, number) => buffer + number) % 11;
-  return mod < 2 ? 0 : 11 - mod;
-};
-var strip = (number, strict) => {
-  const regex = strict ? STRICT_STRIP_REGEX : LOOSE_STRIP_REGEX;
-  return (number || "").replace(regex, "");
-};
-var format = (number) => {
-  return strip(number).replace(/^(\d{3})(\d{3})(\d{3})(\d{2})$/, "$1.$2.$3-$4");
-};
-var isValid = (number, strict) => {
-  const stripped = strip(number, strict);
-  if (!stripped) {
-    return false;
-  }
-  if (stripped.length !== 11) {
-    return false;
-  }
-  if (BLACKLIST.includes(stripped)) {
-    return false;
-  }
-  let numbers = stripped.substr(0, 9);
-  numbers += verifierDigit(numbers);
-  numbers += verifierDigit(numbers);
-  return numbers.substr(-2) === stripped.substr(-2);
-};
-var generate = (formatted) => {
-  let numbers = "";
-  for (let i = 0; i < 9; i += 1) {
-    numbers += Math.floor(Math.random() * 9);
-  }
-  numbers += verifierDigit(numbers);
-  numbers += verifierDigit(numbers);
-  return formatted ? format(numbers) : numbers;
-};
-var cpf = {
-  verifierDigit,
-  strip,
-  format,
-  isValid,
-  generate
-};
-
 // ui/ts/validators.ts
 function clearInvalid() {
   qsa(".invalid").forEach((el) => el.classList.remove("invalid"));
@@ -904,7 +1812,7 @@ function isValidTime(value) {
   if (!normalized) return true;
   return /^([01]\d|2[0-3]):([0-5]\d)$/.test(normalized);
 }
-function validateData(data, setStatus2, context = {}) {
+function validateData(data, setStatus3, context = {}) {
   var _a;
   clearInvalid();
   let ok = true;
@@ -965,7 +1873,7 @@ function validateData(data, setStatus2, context = {}) {
     markInvalid("ui.cartorio_oficio");
     ok = false;
   }
-  if (!ok && setStatus2) setStatus2("Campos obrigatorios pendentes", true);
+  if (!ok && setStatus3) setStatus3("Campos obrigatorios pendentes", true);
   return ok;
 }
 function maskDate(el) {
@@ -988,212 +1896,6 @@ function setupMasks() {
   attachMask(qs('[data-bind="registro.data_registro"]'), "date");
   attachMask(byId("dn"), "date");
   attachMask(byId("hn"), "time");
-}
-
-// ui/ts/nameValidator.ts
-var import_papaparse = __toESM(require_papaparse_min());
-var DEFAULT_NAMES = [
-  "ana",
-  "antonio",
-  "beatriz",
-  "bruno",
-  "carlos",
-  "carla",
-  "cassio",
-  "celia",
-  "daniel",
-  "elisa",
-  "fernanda",
-  "gabriel",
-  "helena",
-  "joao",
-  "jose",
-  "juliana",
-  "larissa",
-  "lucas",
-  "luiz",
-  "maria",
-  "marcos",
-  "patricia",
-  "paulo",
-  "rafael",
-  "roberto",
-  "silvia",
-  "thiago"
-];
-var NAME_PARTICLES = /* @__PURE__ */ new Set(["da", "de", "do", "das", "dos", "e"]);
-function normalizeName(value) {
-  return stripAccents(String(value || "")).toLowerCase().replace(/[^a-z\s]+/g, " ").replace(/\s+/g, " ").trim();
-}
-function tokenizeName(value) {
-  return normalizeName(value).split(" ").map((t) => t.trim()).filter((t) => t && !NAME_PARTICLES.has(t));
-}
-function levenshtein(a, b) {
-  const alen = a.length;
-  const blen = b.length;
-  if (alen === 0) return blen;
-  if (blen === 0) return alen;
-  const dp = Array.from({ length: alen + 1 }, () => new Array(blen + 1).fill(0));
-  for (let i = 0; i <= alen; i++) dp[i][0] = i;
-  for (let j = 0; j <= blen; j++) dp[0][j] = j;
-  for (let i = 1; i <= alen; i++) {
-    for (let j = 1; j <= blen; j++) {
-      const cost = a[i - 1] === b[j - 1] ? 0 : 1;
-      dp[i][j] = Math.min(
-        dp[i - 1][j] + 1,
-        dp[i][j - 1] + 1,
-        dp[i - 1][j - 1] + cost
-      );
-    }
-  }
-  return dp[alen][blen];
-}
-function similarity(a, b) {
-  if (!a || !b) return 0;
-  const maxLen = Math.max(a.length, b.length);
-  if (maxLen === 0) return 1;
-  const dist = levenshtein(a, b);
-  return 1 - dist / maxLen;
-}
-async function fetchCsvText(path) {
-  const res = await fetch(path);
-  if (!res.ok) throw new Error(`Falha ao baixar: ${path}`);
-  if (path.endsWith(".gz")) {
-    if (!res.body || typeof DecompressionStream === "undefined") {
-      throw new Error("Descompressao gzip indisponivel");
-    }
-    const stream = res.body.pipeThrough(new DecompressionStream("gzip"));
-    return await new Response(stream).text();
-  }
-  return await res.text();
-}
-async function loadCsvData() {
-  let nomesText = "";
-  let gruposText = "";
-  try {
-    nomesText = await fetchCsvText("/data/nomes.csv.gz");
-  } catch {
-    nomesText = await fetchCsvText("/data/nomes.csv");
-  }
-  try {
-    gruposText = await fetchCsvText("/data/grupos.csv.gz");
-  } catch {
-    gruposText = await fetchCsvText("/data/grupos.csv");
-  }
-  const nomes = import_papaparse.default.parse(nomesText, { header: true, skipEmptyLines: true }).data || [];
-  const grupos = import_papaparse.default.parse(gruposText, { header: true, skipEmptyLines: true }).data || [];
-  return { nomes, grupos };
-}
-function splitPipeList(value) {
-  return String(value || "").split("|").map((t) => t.trim()).filter(Boolean);
-}
-function buildNameList(data) {
-  const set = /* @__PURE__ */ new Set();
-  data.nomes.forEach((row) => {
-    if (row.first_name) set.add(row.first_name);
-    if (row.group_name) set.add(row.group_name);
-    splitPipeList(row.alternative_names).forEach((n) => set.add(n));
-  });
-  data.grupos.forEach((row) => {
-    if (row.name) set.add(row.name);
-    splitPipeList(row.names).forEach((n) => set.add(n));
-  });
-  return Array.from(set).map((n) => normalizeName(n)).filter(Boolean);
-}
-var NameDictionaryRepository = class {
-  constructor(opts = {}) {
-    this.storageKey = opts.storageKey || "certidao.nameDictionary.v1";
-  }
-  load() {
-    try {
-      const raw = localStorage.getItem(this.storageKey);
-      if (!raw) return { schemaVersion: 1, entries: [] };
-      const parsed = JSON.parse(raw);
-      if (!parsed || parsed.schemaVersion !== 1 || !Array.isArray(parsed.entries)) {
-        return { schemaVersion: 1, entries: [] };
-      }
-      return parsed;
-    } catch {
-      return { schemaVersion: 1, entries: [] };
-    }
-  }
-  save(data) {
-    localStorage.setItem(this.storageKey, JSON.stringify(data));
-  }
-  addException(value) {
-    const normalized = normalizeName(value);
-    if (!normalized) return;
-    const data = this.load();
-    if (data.entries.find((e) => e.normalized === normalized)) return;
-    data.entries.push({
-      value,
-      normalized,
-      addedAt: (/* @__PURE__ */ new Date()).toISOString(),
-      source: "user"
-    });
-    this.save(data);
-  }
-  has(value) {
-    const normalized = normalizeName(value);
-    if (!normalized) return false;
-    const data = this.load();
-    return data.entries.some((e) => e.normalized === normalized);
-  }
-  list() {
-    return this.load().entries || [];
-  }
-};
-function createNameValidator(opts = {}) {
-  const threshold = opts.threshold || 0.82;
-  const minLength = opts.minLength || 3;
-  const repo = opts.repo || new NameDictionaryRepository();
-  let base = (opts.baseNames || DEFAULT_NAMES).map((n) => normalizeName(n)).filter(Boolean);
-  let ready = false;
-  const readyPromise = loadCsvData().then((data) => {
-    base = buildNameList(data);
-    ready = true;
-  }).catch(() => {
-    ready = false;
-  });
-  function isReady() {
-    return ready;
-  }
-  function isKnown(token) {
-    if (!token) return false;
-    if (base.includes(token)) return true;
-    if (repo.has(token)) return true;
-    return false;
-  }
-  function bestScore(token) {
-    let best = 0;
-    for (const name of base) {
-      const score = similarity(token, name);
-      if (score > best) best = score;
-    }
-    return best;
-  }
-  function check(value) {
-    const tokens = tokenizeName(value);
-    if (!tokens.length) return { suspicious: false, token: "" };
-    let unknown = 0;
-    let known = 0;
-    let firstUnknown = "";
-    for (const token of tokens) {
-      if (token.length < minLength) continue;
-      if (isKnown(token)) {
-        known += 1;
-        continue;
-      }
-      unknown += 1;
-      if (!firstUnknown) firstUnknown = token;
-    }
-    if (unknown === 0) return { suspicious: false, token: "" };
-    if (tokens.length === 1) return { suspicious: true, token: firstUnknown };
-    if (known === 0) return { suspicious: true, token: firstUnknown };
-    if (unknown >= 3) return { suspicious: true, token: firstUnknown };
-    return { suspicious: false, token: "" };
-  }
-  return { check, repo, normalizeName, ready: readyPromise, isReady };
 }
 
 // ui/ts/placeAutofill/extractCityUf.ts
@@ -1297,7 +1999,7 @@ var PlaceAutoFillCache = class {
     this.memoryData = { schemaVersion: 1, entries: [] };
   }
   normalize(text) {
-    return normalizeText(text);
+    return normalizeText2(text);
   }
   tokenize(normalizedText) {
     return tokenize(normalizedText);
@@ -1547,22 +2249,10 @@ function updateDirty() {
 }
 function updateTipoButtons() {
   const tipo = state.certidao.tipo_registro || "nascimento";
-  const btnN = byId("btn-nascimento");
-  const btnC = byId("btn-casamento");
-  const btnO = byId("btn-obito");
-  if (btnN) btnN.classList.toggle("active", tipo === "nascimento");
-  if (btnC) btnC.classList.toggle("active", tipo === "casamento");
-  if (btnO) btnO.classList.toggle("active", tipo === "obito");
   const input = qs('[data-bind="certidao.tipo_registro"]');
   if (input) input.value = tipo;
   const casamentoWrap = byId("casamento-tipo-wrap");
   if (casamentoWrap) casamentoWrap.style.display = tipo === "casamento" ? "flex" : "none";
-}
-function setTipoRegistro(tipo) {
-  state.certidao.tipo_registro = tipo;
-  updateTipoButtons();
-  updateMatricula();
-  updateDirty();
 }
 function updateSexoOutros() {
   const sexo = state.registro.sexo;
@@ -1661,7 +2351,7 @@ function updateCpfState() {
     if (cpfSemEl) cpfSemEl.checked = false;
   }
   const cpfEl = byId("cpf");
-  if (cpfEl) cpfEl.value = formatCpf(cpfDigits);
+  if (cpfEl) cpfEl.value = formatCpf2(cpfDigits);
 }
 function updateCpfFromToggle() {
   const cpfSem = !!state.registro.cpf_sem_inscricao;
@@ -1679,11 +2369,11 @@ var CNS_CARTORIOS = {
   "14": "110635",
   "15": "110072"
 };
-function digitsOnly2(value) {
+function digitsOnly4(value) {
   return (value || "").replace(/\D/g, "");
 }
 function padDigits(value, size) {
-  const digits = digitsOnly2(value);
+  const digits = digitsOnly4(value);
   if (!digits) return "";
   return digits.padStart(size, "0").slice(-size);
 }
@@ -1715,7 +2405,7 @@ function clearFieldHint(input) {
   hint.classList.remove("visible");
 }
 function validateDateInputValue(value) {
-  const digits = digitsOnly2(value);
+  const digits = digitsOnly4(value);
   if (!digits) return "";
   if (digits.length >= 2) {
     const day = Number(digits.slice(0, 2));
@@ -1729,7 +2419,7 @@ function validateDateInputValue(value) {
   return "";
 }
 function validateTimeInputValue(value) {
-  const digits = digitsOnly2(value);
+  const digits = digitsOnly4(value);
   if (!digits) return "";
   if (digits.length >= 2) {
     const hour = Number(digits.slice(0, 2));
@@ -1771,12 +2461,28 @@ function yearFromDate(value) {
   return match ? match[3] : "";
 }
 function tipoDigit() {
-  const registro = state.certidao.tipo_registro || "";
+  let registro = (state.certidao.tipo_registro || "").toString();
+  if (!registro) {
+    if (document.getElementById("form-casamento")) registro = "casamento";
+    else if (document.getElementById("form-obito")) registro = "obito";
+    else if (document.getElementById("form-nascimento")) registro = "nascimento";
+  }
   if (registro === "nascimento") return "1";
   if (registro === "casamento") {
-    const selected = digitsOnly2(state.ui.casamento_tipo || "").slice(0, 1);
+    const raw = String(state.ui.casamento_tipo || "").trim();
+    if (raw === "2") return "2";
+    if (raw === "3") return "3";
+    if (!raw) return "";
+    const first = raw[0].toUpperCase();
+    if (first === "2" || first === "3") return first;
+    if (first === "C") return "2";
+    if (first === "R") return "3";
+    if (raw.toLowerCase().startsWith("civil")) return "2";
+    if (raw.toLowerCase().startsWith("relig")) return "3";
+    const selected = digitsOnly4(raw).slice(0, 1);
     return selected || "";
   }
+  if (registro === "obito") return "4";
   return "";
 }
 function dvMatricula(base30) {
@@ -1791,24 +2497,26 @@ function dvMatricula(base30) {
   d2 = d2 === 11 ? 0 : d2 === 10 ? 1 : d2;
   return `${d1}${d2}`;
 }
-function buildMatricula() {
-  const cns = digitsOnly2(state.certidao.cartorio_cns || "");
+function buildMatriculaParts() {
+  const cns = digitsOnly4(state.certidao.cartorio_cns || "");
   const ano = yearFromDate(state.registro.data_registro || "");
   const tipo = tipoDigit();
   const livro = padDigits(state.ui.matricula_livro || "", 5);
   const folha = padDigits(state.ui.matricula_folha || "", 3);
   const termo = padDigits(state.ui.matricula_termo || "", 7);
-  if (cns.length !== 6 || !ano || !tipo || !livro || !folha || !termo) return "";
+  if (cns.length !== 6 || !ano || !tipo || !livro || !folha || !termo) {
+    return { base: "", dv: "", final: "" };
+  }
   const base30 = `${cns}0155${ano}${tipo}${livro}${folha}${termo}`;
-  if (base30.length !== 30) return "";
+  if (base30.length !== 30) return { base: "", dv: "", final: "" };
   const dv = dvMatricula(base30);
-  return base30 + dv;
+  return { base: base30, dv, final: dv ? base30 + dv : "" };
 }
 function updateMatricula() {
-  const value = buildMatricula();
-  state.registro.matricula = value || "";
+  const parts = buildMatriculaParts();
+  state.registro.matricula = parts.final || "";
   const matEl = byId("matricula");
-  if (matEl) matEl.value = value || "";
+  if (matEl) matEl.value = parts.final || "";
 }
 function applyCartorioChange() {
   const oficio = state.ui.cartorio_oficio || "";
@@ -1909,6 +2617,48 @@ async function generateFile(format2) {
     setStatus("Falha ao gerar arquivo", true);
   }
 }
+function dateToTime(value) {
+  const normalized = normalizeDateValue(value);
+  const m = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(normalized);
+  if (!m) return null;
+  const d = Number(m[1]);
+  const mo = Number(m[2]);
+  const y = Number(m[3]);
+  const dt = new Date(y, mo - 1, d);
+  if (dt.getFullYear() !== y || dt.getMonth() !== mo - 1 || dt.getDate() !== d) return null;
+  return dt.getTime();
+}
+function updateDebug(data) {
+  var _a, _b;
+  const parts = buildMatriculaParts();
+  const baseEl = byId("debug-matricula-base");
+  const dvEl = byId("debug-matricula-dv");
+  const finalEl = byId("debug-matricula-final");
+  if (baseEl) baseEl.value = parts.base || "";
+  if (dvEl) dvEl.value = parts.dv || "";
+  if (finalEl) finalEl.value = parts.final || "";
+  const invalidEl = byId("debug-invalid");
+  const invalids = collectInvalidFields(document);
+  if (invalidEl) invalidEl.value = invalids.join("\n");
+  const alerts = [];
+  const dr = dateToTime(((_a = data == null ? void 0 : data.registro) == null ? void 0 : _a.data_registro) || "");
+  const dn = dateToTime(((_b = data == null ? void 0 : data.registro) == null ? void 0 : _b.data_nascimento) || "");
+  if (dr && dn && dn > dr) alerts.push("Data de nascimento maior que data de registro.");
+  const alertsEl = byId("debug-alerts");
+  if (alertsEl) alertsEl.value = alerts.join("\n");
+}
+function updateOutputs() {
+  const jsonEl = byId("json-output");
+  const xmlEl = byId("xml-output");
+  if (!jsonEl && !xmlEl) return;
+  const data = normalizeData();
+  if (jsonEl) jsonEl.value = JSON.stringify(data, null, 2);
+  if (xmlEl) {
+    const root = `certidao_${data.certidao.tipo_registro || "registro"}`;
+    xmlEl.value = toXml(data, root, 0);
+  }
+  updateDebug(data);
+}
 function updateBadge() {
   const badge = byId("outputDirBadge");
   if (!badge) return;
@@ -1930,41 +2680,22 @@ async function refreshConfig() {
     setStatus("Falha ao ler config", true);
   }
 }
-function setupConfigModal() {
-  var _a, _b, _c, _d, _e;
-  const modal = byId("config-modal");
-  if (!modal) return;
-  const open = async () => {
-    await refreshConfig();
-    const radios = qsa('input[name="name-validation-mode"]');
-    radios.forEach((radio) => {
-      radio.checked = radio.value === nameValidationMode;
-    });
-    modal.classList.remove("hidden");
-  };
-  const close = () => modal.classList.add("hidden");
-  (_a = byId("btn-config")) == null ? void 0 : _a.addEventListener("click", open);
-  (_b = byId("config-close")) == null ? void 0 : _b.addEventListener("click", close);
-  (_c = byId("config-save")) == null ? void 0 : _c.addEventListener("click", () => {
+function setupConfigPanel() {
+  var _a, _b, _c;
+  refreshConfig();
+  const radios = qsa('input[name="name-validation-mode"]');
+  radios.forEach((radio) => {
+    radio.checked = radio.value === nameValidationMode;
+  });
+  (_a = byId("config-save")) == null ? void 0 : _a.addEventListener("click", () => {
     const selected = qs('input[name="name-validation-mode"]:checked');
     if (selected && selected.value) {
       nameValidationMode = selected.value;
       localStorage.setItem(NAME_MODE_KEY, nameValidationMode);
     }
     updateBadge();
-    close();
   });
-  modal.addEventListener("click", (e) => {
-    if (e.target === modal) close();
-  });
-  const tabs = qsa(".tab-btn");
-  const panes = qsa(".tab-pane");
-  const activateTab = (id) => {
-    tabs.forEach((btn) => btn.classList.toggle("active", btn.dataset.tab === id));
-    panes.forEach((pane) => pane.classList.toggle("active", pane.id === id));
-  };
-  tabs.forEach((btn) => btn.addEventListener("click", () => activateTab(btn.dataset.tab || "tab-pastas")));
-  (_d = byId("pick-json")) == null ? void 0 : _d.addEventListener("click", async () => {
+  (_b = byId("pick-json")) == null ? void 0 : _b.addEventListener("click", async () => {
     if (!window.api || !window.api.pickJsonDir) return;
     const dir = await window.api.pickJsonDir();
     const jsonEl = byId("json-dir");
@@ -1972,7 +2703,7 @@ function setupConfigModal() {
     currentDirs.jsonDir = dir;
     updateBadge();
   });
-  (_e = byId("pick-xml")) == null ? void 0 : _e.addEventListener("click", async () => {
+  (_c = byId("pick-xml")) == null ? void 0 : _c.addEventListener("click", async () => {
     if (!window.api || !window.api.pickXmlDir) return;
     const dir = await window.api.pickXmlDir();
     const xmlEl = byId("xml-dir");
@@ -1980,15 +2711,13 @@ function setupConfigModal() {
     currentDirs.xmlDir = dir;
     updateBadge();
   });
+  setupAdminPanel();
 }
 function setupActions() {
-  var _a, _b, _c, _d, _e, _f;
+  var _a, _b, _c;
   (_a = byId("btn-save")) == null ? void 0 : _a.addEventListener("click", saveDraft);
   (_b = byId("btn-json")) == null ? void 0 : _b.addEventListener("click", () => generateFile("json"));
   (_c = byId("btn-xml")) == null ? void 0 : _c.addEventListener("click", () => generateFile("xml"));
-  (_d = byId("btn-nascimento")) == null ? void 0 : _d.addEventListener("click", () => setTipoRegistro("nascimento"));
-  (_e = byId("btn-casamento")) == null ? void 0 : _e.addEventListener("click", () => setTipoRegistro("casamento"));
-  (_f = byId("btn-obito")) == null ? void 0 : _f.addEventListener("click", () => setTipoRegistro("obito"));
 }
 var placeAutofill = null;
 var placeCache = null;
@@ -2019,6 +2748,21 @@ function setupShortcuts() {
       e.preventDefault();
       saveDraft();
     }
+  });
+}
+function setupActSelect() {
+  const select = byId("ato-select");
+  if (!select) return;
+  select.value = "nascimento";
+  select.addEventListener("change", () => {
+    const value = select.value;
+    const map = {
+      nascimento: "./Nascimento2Via.html",
+      casamento: "./Casamento2Via.html",
+      obito: "./Obito2Via.html"
+    };
+    const next = map[value];
+    if (next) window.location.href = next;
   });
 }
 function setupCartorioTyping() {
@@ -2169,9 +2913,11 @@ function onPathChange(path) {
     const cpfEl = byId("cpf");
     if (cpfEl) validateLiveField("registro.cpf", cpfEl);
   }
+  updateOutputs();
   updateDirty();
 }
 async function bootstrap() {
+  state.certidao.tipo_registro = "nascimento";
   syncInputsFromState();
   updateTipoButtons();
   updateSexoOutros();
@@ -2182,7 +2928,9 @@ async function bootstrap() {
   bindDataBindInputs(onPathChange);
   setupMasks();
   setupActions();
-  setupConfigModal();
+  setupConfigPanel();
+  setupDrawer({ defaultTab: "tab-config" });
+  setupActSelect();
   placeAutofill = createPlaceAutofill({
     state,
     setBoundValue,
@@ -2195,15 +2943,738 @@ async function bootstrap() {
   placeAutofill.setupLocalAutofill();
   setupNaturalidadeToggle();
   setupShortcuts();
+  setupPrimaryShortcut(() => byId("btn-save") || byId("btn-json"));
   setupCartorioTyping();
   setupNameValidation();
   setupBeforeUnload();
-  await refreshConfig();
   validateLiveField("registro.cpf", byId("cpf"));
   validateLiveField("ui.cartorio_oficio", qs('[data-bind="ui.cartorio_oficio"]'));
   updateDirty();
+  updateOutputs();
 }
 bootstrap();
+
+// ui/ts/acts/casamento/casamento.ts
+var NAME_MODE_KEY2 = "ui.nameValidationMode";
+var nameValidationMode2 = localStorage.getItem(NAME_MODE_KEY2) || "input";
+var PANEL_INLINE_KEY = "ui.panelInline";
+function setupSettingsPanelCasamento() {
+  const select = document.getElementById("settings-drawer-position");
+  const cbCpf = document.getElementById("settings-enable-cpf");
+  const cbName = document.getElementById("settings-enable-name");
+  const saveBtn = document.getElementById("settings-save");
+  const applyBtn = document.getElementById("settings-apply");
+  const pos = localStorage.getItem("ui.drawerPosition") || "bottom-right";
+  const enableCpf = localStorage.getItem("ui.enableCpfValidation") !== "false";
+  const enableName = localStorage.getItem("ui.enableNameValidation") !== "false";
+  if (select) select.value = pos;
+  if (cbCpf) cbCpf.checked = !!enableCpf;
+  if (cbName) cbName.checked = !!enableName;
+  saveBtn == null ? void 0 : saveBtn.addEventListener("click", () => {
+    var _a;
+    const newPos = (select == null ? void 0 : select.value) || "bottom-right";
+    const newCpf = (cbCpf == null ? void 0 : cbCpf.checked) ? "true" : "false";
+    const newName = (cbName == null ? void 0 : cbName.checked) ? "true" : "false";
+    const newInline = ((_a = document.getElementById("settings-panel-inline")) == null ? void 0 : _a.checked) ? "true" : "false";
+    localStorage.setItem("ui.drawerPosition", newPos);
+    localStorage.setItem("ui.enableCpfValidation", newCpf);
+    localStorage.setItem("ui.enableNameValidation", newName);
+    localStorage.setItem(PANEL_INLINE_KEY, newInline);
+    setStatus2("Prefer\xEAncias salvas. Atualizando...", false);
+    setTimeout(() => window.location.reload(), 300);
+  });
+  applyBtn == null ? void 0 : applyBtn.addEventListener("click", () => {
+    const newPos = (select == null ? void 0 : select.value) || "bottom-right";
+    applyDrawerPosition(newPos);
+    setStatus2("Posi\xE7\xE3o aplicada (n\xE3o salva)", false);
+  });
+}
+function setStatus2(text, isError) {
+  const el = document.getElementById("statusText");
+  if (!el) return;
+  el.textContent = text;
+  el.style.color = isError ? "#dc2626" : "#64748b";
+  clearTimeout(el._timer);
+  el._timer = setTimeout(() => {
+    el.textContent = "Pronto";
+    el.style.color = "#64748b";
+  }, 2e3);
+}
+function formatCpfInput(value) {
+  const digits = normalizeCpf(value).slice(0, 11);
+  if (!digits) return "";
+  const p1 = digits.slice(0, 3);
+  const p2 = digits.slice(3, 6);
+  const p3 = digits.slice(6, 9);
+  const p4 = digits.slice(9, 11);
+  let out = p1;
+  if (p2) out += `.${p2}`;
+  if (p3) out += `.${p3}`;
+  if (p4) out += `-${p4}`;
+  return out;
+}
+function escapeXml2(str) {
+  return String(str || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&apos;");
+}
+function toXml2(obj, nodeName, indent = 0) {
+  const pad = "  ".repeat(indent);
+  if (obj === null || obj === void 0) return `${pad}<${nodeName}></${nodeName}>`;
+  if (typeof obj !== "object") return `${pad}<${nodeName}>${escapeXml2(obj)}</${nodeName}>`;
+  if (Array.isArray(obj)) return obj.map((item) => toXml2(item, nodeName, indent)).join("\n");
+  const children = Object.keys(obj).map((key) => toXml2(obj[key], key, indent + 1)).join("\n");
+  return `${pad}<${nodeName}>
+${children}
+${pad}</${nodeName}>`;
+}
+function downloadFile2(name, content, mime) {
+  try {
+    const blob = new Blob([content], { type: mime });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = name;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+    return true;
+  } catch {
+    return false;
+  }
+}
+function makeTimestamp2() {
+  const d = /* @__PURE__ */ new Date();
+  const pad = (n) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}_${pad(d.getHours())}${pad(d.getMinutes())}${pad(d.getSeconds())}`;
+}
+function buildFileName2(ext) {
+  return `CASAMENTO_${makeTimestamp2()}.${ext}`;
+}
+function generateJson() {
+  if (!canProceed()) return;
+  const data = mapperHtmlToJson(document);
+  const json = JSON.stringify(data, null, 2);
+  const out = document.getElementById("json-output");
+  if (out) out.value = json;
+  const name = buildFileName2("json");
+  if (downloadFile2(name, json, "application/json")) setStatus2(`JSON baixado: ${name}`);
+  else setStatus2("Falha ao gerar JSON", true);
+}
+function generateXml() {
+  if (!canProceed()) return;
+  const data = mapperHtmlToJson(document);
+  const xml = toXml2(data, "certidao_casamento", 0);
+  const name = buildFileName2("xml");
+  if (downloadFile2(name, xml, "application/xml")) setStatus2(`XML baixado: ${name}`);
+  else setStatus2("Falha ao gerar XML", true);
+}
+function showToast2(message) {
+  let container = document.getElementById("toast-container");
+  if (!container) {
+    container = document.createElement("div");
+    container.id = "toast-container";
+    document.body.appendChild(container);
+  }
+  const toast = document.createElement("div");
+  toast.className = "toast";
+  toast.textContent = message;
+  container.appendChild(toast);
+  setTimeout(() => {
+    toast.classList.add("show");
+  }, 10);
+  setTimeout(() => {
+    toast.classList.remove("show");
+    setTimeout(() => toast.remove(), 200);
+  }, 2e3);
+}
+function setupConfigPanel2() {
+  var _a;
+  const radios = document.querySelectorAll('input[name="name-validation-mode"]');
+  radios.forEach((radio) => {
+    radio.checked = radio.value === nameValidationMode2;
+  });
+  const cbInline = document.getElementById("settings-panel-inline");
+  const panelInlineStored = localStorage.getItem(PANEL_INLINE_KEY);
+  if (cbInline) cbInline.checked = panelInlineStored === null ? false : panelInlineStored === "true";
+  (_a = document.getElementById("config-save")) == null ? void 0 : _a.addEventListener("click", () => {
+    var _a2;
+    const selected = document.querySelector('input[name="name-validation-mode"]:checked');
+    if (selected && selected.value) {
+      nameValidationMode2 = selected.value;
+      localStorage.setItem(NAME_MODE_KEY2, nameValidationMode2);
+    }
+    const newInline = ((_a2 = document.getElementById("settings-panel-inline")) == null ? void 0 : _a2.checked) ? "true" : "false";
+    localStorage.setItem(PANEL_INLINE_KEY, newInline);
+  });
+  setupAdminPanel();
+}
+function setFieldHint(field, message) {
+  if (!field) return;
+  let hint = field.querySelector(".hint");
+  if (!hint) {
+    hint = document.createElement("div");
+    hint.className = "hint";
+    field.appendChild(hint);
+  }
+  if (message) {
+    hint.innerHTML = "";
+    const icon = document.createElement("span");
+    icon.className = "icon";
+    icon.textContent = "\u26A0";
+    icon.setAttribute("aria-hidden", "true");
+    hint.appendChild(icon);
+    const txt = document.createElement("span");
+    txt.className = "hint-text";
+    txt.textContent = message;
+    hint.appendChild(txt);
+    hint.classList.add("visible");
+    let aria = document.getElementById("aria-live-errors");
+    if (!aria) {
+      aria = document.createElement("div");
+      aria.id = "aria-live-errors";
+      aria.className = "sr-only";
+      aria.setAttribute("aria-live", "assertive");
+      aria.setAttribute("role", "status");
+      document.body.appendChild(aria);
+    }
+    aria.textContent = message;
+  } else {
+    hint.innerHTML = "";
+    hint.classList.remove("visible");
+  }
+}
+function clearFieldHint2(field) {
+  setFieldHint(field, "");
+}
+function setupFocusEmphasis() {
+  document.addEventListener("focusin", (e) => {
+    const el = e.target;
+    if (!(el instanceof HTMLElement)) return;
+    if (["INPUT", "SELECT", "TEXTAREA"].includes(el.tagName)) {
+      try {
+        el.scrollIntoView({ behavior: "smooth", block: "center" });
+      } catch {
+      }
+      el.classList.add("focus-emphasis");
+    }
+  });
+  document.addEventListener("focusout", (e) => {
+    const el = e.target;
+    if (!(el instanceof HTMLElement)) return;
+    if (["INPUT", "SELECT", "TEXTAREA"].includes(el.tagName)) el.classList.remove("focus-emphasis");
+  });
+}
+function setupActSelect2() {
+  const select = document.getElementById("ato-select");
+  if (!select) return;
+  select.value = "casamento";
+  select.addEventListener("change", () => {
+    const map = {
+      nascimento: "./Nascimento2Via.html",
+      casamento: "./Casamento2Via.html",
+      obito: "./Obito2Via.html"
+    };
+    const next = map[select.value];
+    if (next) window.location.href = next;
+  });
+}
+function yearFromDate2(value) {
+  const normalized = normalizeDate(value);
+  const match = (normalized || "").match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  return match ? match[3] : "";
+}
+function dateToTime2(value) {
+  const normalized = normalizeDate(value);
+  const m = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(normalized);
+  if (!m) return null;
+  const d = Number(m[1]);
+  const mo = Number(m[2]);
+  const y = Number(m[3]);
+  const dt = new Date(y, mo - 1, d);
+  if (dt.getFullYear() !== y || dt.getMonth() !== mo - 1 || dt.getDate() !== d) return null;
+  return dt.getTime();
+}
+function updateDebug2(data) {
+  var _a, _b, _c, _d, _e, _f, _g, _h;
+  const cns = ((_a = document.querySelector('input[name="certidao.cartorio_cns"]')) == null ? void 0 : _a.value) || "";
+  const ano = yearFromDate2(((_b = document.querySelector('input[name="dataTermo"]')) == null ? void 0 : _b.value) || "");
+  const tipo = ((_c = document.querySelector('select[name="tipoCasamento"]')) == null ? void 0 : _c.value) || "";
+  const tipoAto = tipo === "R" ? "3" : tipo === "C" ? "2" : "";
+  const livro = ((_d = document.querySelector('input[name="livro"]')) == null ? void 0 : _d.value) || "";
+  const folha = ((_e = document.querySelector('input[name="folha"]')) == null ? void 0 : _e.value) || "";
+  const termo = ((_f = document.querySelector('input[name="termo"]')) == null ? void 0 : _f.value) || "";
+  const base = buildMatriculaBase30({
+    cns6: cns,
+    ano,
+    tipoAto,
+    acervo: "01",
+    servico: "55",
+    livro,
+    folha,
+    termo
+  });
+  const dv = base ? calcDv2Digits(base) : "";
+  const final = base && dv ? base + dv : buildMatriculaFinal({ cns6: cns, ano, tipoAto, livro, folha, termo });
+  const baseEl = document.getElementById("debug-matricula-base");
+  if (baseEl) baseEl.value = base || "";
+  const dvEl = document.getElementById("debug-matricula-dv");
+  if (dvEl) dvEl.value = dv || "";
+  const finalEl = document.getElementById("debug-matricula-final");
+  if (finalEl) finalEl.value = final || "";
+  const invalids = collectInvalidFields(document);
+  const invalidEl = document.getElementById("debug-invalid");
+  if (invalidEl) invalidEl.value = invalids.join("\n");
+  const alerts = [];
+  const termoDate = dateToTime2(((_g = data == null ? void 0 : data.registro) == null ? void 0 : _g.data_registro) || "");
+  const casamentoDate = dateToTime2(((_h = data == null ? void 0 : data.registro) == null ? void 0 : _h.data_celebracao) || "");
+  if (termoDate && casamentoDate && termoDate < casamentoDate) {
+    alerts.push("Data do termo menor que data do casamento.");
+  }
+  const alertsEl = document.getElementById("debug-alerts");
+  if (alertsEl) alertsEl.value = alerts.join("\n");
+}
+function updateOutputs2() {
+  const data = mapperHtmlToJson(document);
+  const jsonEl = document.getElementById("json-output");
+  if (jsonEl) jsonEl.value = JSON.stringify(data, null, 2);
+  const xmlEl = document.getElementById("xml-output");
+  if (xmlEl) xmlEl.value = toXml2(data, "certidao_casamento", 0);
+  updateDebug2(data);
+}
+function setupLiveOutputs() {
+  const form = document.getElementById("form-casamento");
+  const drawer = document.getElementById("drawer");
+  const handler = () => updateOutputs2();
+  form == null ? void 0 : form.addEventListener("input", handler);
+  form == null ? void 0 : form.addEventListener("change", handler);
+  drawer == null ? void 0 : drawer.addEventListener("input", handler);
+  drawer == null ? void 0 : drawer.addEventListener("change", handler);
+  updateOutputs2();
+}
+function setupNameValidation2() {
+  const validator = createNameValidator();
+  const fields = document.querySelectorAll("[data-name-validate]");
+  const timers = /* @__PURE__ */ new Map();
+  fields.forEach((input) => {
+    const field = input.closest(".campo");
+    if (field) field.classList.add("name-field");
+    let hint = field ? field.querySelector(".name-suggest") : null;
+    if (field && !hint) {
+      hint = document.createElement("button");
+      hint.type = "button";
+      hint.className = "name-suggest";
+      hint.textContent = "Parece incorreto - adicionar ao dicionario?";
+      field.appendChild(hint);
+    }
+    if (hint) {
+      hint.addEventListener("click", (e) => {
+        e.preventDefault();
+        const value = input.value;
+        if (!value) return;
+        validator.repo.addException(value);
+        input.classList.remove("invalid");
+        if (field) field.classList.remove("name-suspect");
+        const t = timers.get(input);
+        if (t) clearInterval(t);
+        timers.delete(input);
+      });
+    }
+    const runCheck = () => {
+      const value = input.value || "";
+      const result = validator.check(value);
+      const suspect = !!result.suspicious;
+      input.classList.toggle("invalid", suspect);
+      if (field) field.classList.toggle("name-suspect", suspect);
+      if (suspect) {
+        showToast2("Nome possivelmente incorreto");
+        if (!timers.has(input)) {
+          const id = setInterval(() => {
+            if (input.classList.contains("invalid")) showToast2("Nome possivelmente incorreto");
+          }, 18e4);
+          timers.set(input, id);
+        }
+      } else {
+        const t = timers.get(input);
+        if (t) clearInterval(t);
+        timers.delete(input);
+      }
+    };
+    input.addEventListener("input", () => {
+      if (nameValidationMode2 === "input") runCheck();
+    });
+    input.addEventListener("blur", () => {
+      if (nameValidationMode2 === "blur" || nameValidationMode2 === "input") runCheck();
+    });
+  });
+  validator.ready.then(() => {
+    fields.forEach((input) => {
+      const field = input.closest(".campo");
+      if (field) field.classList.remove("name-suspect");
+      const value = input.value || "";
+      if (value) {
+        const result = validator.check(value);
+        const suspect = !!result.suspicious;
+        input.classList.toggle("invalid", suspect);
+        if (field) field.classList.toggle("name-suspect", suspect);
+      }
+    });
+  });
+}
+function setup() {
+  var _a, _b, _c, _d;
+  function triggerMatricula() {
+    try {
+      if (typeof window.updateMatricula === "function") window.updateMatricula();
+    } catch {
+    }
+  }
+  const elTipo = document.querySelector('select[name="tipoCasamento"]');
+  const elDataTermo = document.querySelector('input[name="dataTermo"]');
+  const elDataCasamento = document.querySelector('input[name="dataCasamento"]');
+  const elRegimeBens = document.querySelector('select[name="regimeBens"]');
+  function syncDataCasamentoState() {
+    if (!elTipo || !elDataTermo || !elDataCasamento) return;
+    if (elTipo.value === "3") {
+      elDataCasamento.removeAttribute("readonly");
+      elDataCasamento.style.background = "";
+      elDataCasamento.tabIndex = 0;
+      if (elDataCasamento.value === elDataTermo.value || elDataCasamento.hasAttribute("readonly")) {
+        elDataCasamento.value = "";
+        setTimeout(() => elDataCasamento.focus(), 10);
+      }
+      elDataCasamento.style.outline = "2px solid #22c55e";
+      elDataCasamento.title = "readonly: " + elDataCasamento.hasAttribute("readonly");
+    } else {
+      elDataCasamento.setAttribute("readonly", "readonly");
+      elDataCasamento.style.background = "#ddd";
+      elDataCasamento.tabIndex = -1;
+      elDataCasamento.value = elDataTermo.value;
+      elDataCasamento.style.outline = "";
+      elDataCasamento.title = "";
+      if (document.activeElement === elDataCasamento && elRegimeBens) elRegimeBens.focus();
+    }
+    triggerMatricula();
+  }
+  elTipo == null ? void 0 : elTipo.addEventListener("change", syncDataCasamentoState);
+  try {
+    if (elTipo) elTipo.required = true;
+  } catch (e) {
+  }
+  elDataTermo == null ? void 0 : elDataTermo.addEventListener("input", () => {
+    if (elTipo.value !== "3") {
+      elDataCasamento.value = elDataTermo.value;
+      if (elTipo.value === "3") startEnforceUnlock();
+      else stopEnforceUnlock();
+      triggerMatricula();
+    }
+  });
+  elDataCasamento == null ? void 0 : elDataCasamento.addEventListener("input", () => {
+    if (elTipo.value === "3" && elDataCasamento.value.length === 10 && elRegimeBens) {
+      elRegimeBens.focus();
+    }
+    triggerMatricula();
+  });
+  let enforceInterval = null;
+  const dataCasamentoObserver = new MutationObserver((mutations) => {
+    const tipoVal = (elTipo == null ? void 0 : elTipo.value) || "";
+    if (tipoVal === "3") {
+      if (elDataCasamento.hasAttribute("readonly") || elDataCasamento.tabIndex === -1 || elDataCasamento.classList.contains("input-locked")) {
+        unlockDataCasamento();
+      }
+    } else {
+      if (!elDataCasamento.hasAttribute("readonly")) {
+        lockDataCasamento();
+      }
+    }
+  });
+  function startEnforceUnlock() {
+    if (enforceInterval != null) return;
+    enforceInterval = window.setInterval(() => {
+      if (elTipo.value === "3") {
+        unlockDataCasamento();
+      } else {
+        lockDataCasamento();
+      }
+    }, 350);
+  }
+  function stopEnforceUnlock() {
+    if (enforceInterval != null) {
+      clearInterval(enforceInterval);
+      enforceInterval = null;
+    }
+  }
+  function lockDataCasamento() {
+    try {
+      elDataCasamento.setAttribute("readonly", "readonly");
+      elDataCasamento.tabIndex = -1;
+      elDataCasamento.style.background = "#ddd";
+      if (!elDataCasamento.classList.contains("input-locked")) elDataCasamento.classList.add("input-locked");
+    } catch (e) {
+    }
+  }
+  function unlockDataCasamento() {
+    try {
+      elDataCasamento.removeAttribute("readonly");
+      elDataCasamento.tabIndex = 0;
+      elDataCasamento.style.background = "";
+      elDataCasamento.classList.remove("input-locked");
+    } catch (e) {
+    }
+  }
+  function findMatriculaFieldLocal() {
+    const byId2 = document.getElementById("matricula");
+    if (byId2) return byId2;
+    const byName = document.querySelector('input[name*="matricula"], input[id*="matricula"]');
+    if (byName) return byName;
+    const byDataBind = Array.from(document.querySelectorAll("input[data-bind]")).find((i) => (i.getAttribute("data-bind") || "").toLowerCase().includes("matricula")) || null;
+    return byDataBind;
+  }
+  function fixMatriculaField(mEl) {
+    if (!mEl) return;
+    const val = (mEl.value || "").trim();
+    if (!val || !/^\d+$/.test(val)) return;
+    if (val.length <= 14) return;
+    const tipo = (elTipo == null ? void 0 : elTipo.value) || "";
+    const desired = tipo === "3" ? "3" : tipo === "2" ? "2" : null;
+    if (!desired) return;
+    if (val[14] === desired) return;
+    const newVal = val.slice(0, 14) + desired + val.slice(15);
+    mEl.value = newVal;
+    try {
+      mEl.dispatchEvent(new Event("input", { bubbles: true }));
+      mEl.dispatchEvent(new Event("change", { bubbles: true }));
+    } catch (e) {
+    }
+  }
+  function observeMatricula() {
+    const mEl = findMatriculaFieldLocal();
+    if (!mEl) return;
+    mEl.addEventListener("input", () => fixMatriculaField(mEl));
+    mEl.addEventListener("change", () => fixMatriculaField(mEl));
+    try {
+      const mo = new MutationObserver(() => fixMatriculaField(mEl));
+      mo.observe(mEl, { attributes: true, attributeFilter: ["value"] });
+    } catch (e) {
+    }
+    let last = mEl.value;
+    let blockInterval = null;
+    function startBlockingUntilTipo() {
+      if (blockInterval != null) return;
+      blockInterval = window.setInterval(() => {
+        if (((elTipo == null ? void 0 : elTipo.value) || "").trim() === "") {
+          if (mEl.value) {
+            mEl.value = "";
+            try {
+              mEl.dispatchEvent(new Event("input", { bubbles: true }));
+            } catch (e) {
+            }
+          }
+          mEl.setAttribute("readonly", "readonly");
+          mEl.placeholder = "Selecione o tipo antes";
+        } else {
+          if (blockInterval != null) {
+            clearInterval(blockInterval);
+            blockInterval = null;
+          }
+          try {
+            mEl.removeAttribute("readonly");
+          } catch (e) {
+          }
+          mEl.placeholder = "";
+          fixMatriculaField(mEl);
+        }
+      }, 300);
+    }
+    if (((elTipo == null ? void 0 : elTipo.value) || "").trim() === "") startBlockingUntilTipo();
+    setInterval(() => {
+      if (mEl.value !== last) {
+        last = mEl.value;
+        fixMatriculaField(mEl);
+      }
+    }, 500);
+  }
+  ["cartorio-oficio", "matricula-livro", "matricula-folha", "matricula-termo"].forEach((id) => {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener("input", triggerMatricula);
+    if (el) el.addEventListener("change", triggerMatricula);
+  });
+  setTimeout(() => {
+    syncDataCasamentoState();
+    try {
+      dataCasamentoObserver.observe(elDataCasamento, { attributes: true, attributeFilter: ["readonly", "class", "tabindex", "disabled", "style"] });
+    } catch (e) {
+    }
+    observeMatricula();
+  }, 50);
+  (_a = document.getElementById("btn-json")) == null ? void 0 : _a.addEventListener("click", (e) => {
+    e.preventDefault();
+    generateJson();
+  });
+  (_b = document.getElementById("btn-xml")) == null ? void 0 : _b.addEventListener("click", (e) => {
+    e.preventDefault();
+    generateXml();
+  });
+  setupValidation();
+  setupNameValidation2();
+  setupConfigPanel2();
+  setupDrawer({ defaultTab: "tab-config" });
+  setupSettingsPanelCasamento();
+  (function() {
+    const panelInlineStored = localStorage.getItem(PANEL_INLINE_KEY);
+    const useInline = panelInlineStored === null ? false : panelInlineStored === "true";
+    const inline = document.getElementById("panel-inline");
+    const drawer = document.getElementById("drawer");
+    const body = drawer == null ? void 0 : drawer.querySelector(".drawer-body");
+    if (!inline) return;
+    if (useInline) {
+      if (body) while (body.firstChild) inline.appendChild(body.firstChild);
+      const toggle = document.getElementById("drawer-toggle");
+      if (toggle) toggle.style.display = "none";
+    } else {
+      const toggle = document.getElementById("drawer-toggle");
+      if (toggle) toggle.style.display = "inline-flex";
+    }
+    const btn = document.getElementById("drawer-toggle");
+    if (btn) btn.addEventListener("click", () => {
+      const d = document.getElementById("drawer");
+      if (!d) return;
+      d.classList.toggle("open");
+    });
+  })();
+  setupActSelect2();
+  setupPrimaryShortcut(() => document.getElementById("btn-json") || document.getElementById("btn-xml"));
+  setupNameCopy('input[name="nomeSolteiro"]', 'input[name="nomeCasado"]');
+  setupNameCopy('input[name="nomeSolteira"]', 'input[name="nomeCasada"]');
+  setupAutoNationality('input[name="nacionalidadeNoivo"]', "BRASILEIRO");
+  setupAutoNationality('input[name="nacionalidadeNoiva"]', "BRASILEIRA");
+  setupCasamentoDates();
+  setupFocusEmphasis();
+  setupLiveOutputs();
+  updateActionButtons();
+  (_c = document.getElementById("form-casamento")) == null ? void 0 : _c.addEventListener("input", updateActionButtons);
+  (_d = document.getElementById("form-casamento")) == null ? void 0 : _d.addEventListener("change", updateActionButtons);
+}
+function setupValidation() {
+  document.querySelectorAll("input[data-date]").forEach((input) => {
+    const field = input.closest(".campo");
+    const required = input.hasAttribute("data-required");
+    const onInput = () => {
+      applyDateMask(input);
+      clearFieldHint2(field);
+      const normalized = normalizeDate(input.value);
+      const isValid2 = !input.value || !!normalized;
+      const state2 = getFieldState({ required, value: input.value, isValid: isValid2 });
+      applyFieldState(field, state2);
+    };
+    const onBlur = () => {
+      applyDateMask(input);
+      const raw = input.value || "";
+      const res = validateDateDetailed(raw);
+      const isValid2 = res.ok;
+      const state2 = getFieldState({ required, value: raw, isValid: isValid2 });
+      applyFieldState(field, state2);
+      if (!isValid2 && raw) setFieldHint(field, res.message || "Data inv\xE1lida");
+      else clearFieldHint2(field);
+    };
+    input.addEventListener("input", onInput);
+    input.addEventListener("blur", onBlur);
+    onInput();
+  });
+  document.querySelectorAll("[data-name-validate]").forEach((input) => {
+    const field = input.closest(".campo");
+    const required = input.hasAttribute("data-required");
+    const handler = () => {
+      const res = validateName(input.value, { minWords: 2 });
+      const state2 = getFieldState({
+        required,
+        value: input.value,
+        isValid: !res.invalid,
+        warn: res.warn
+      });
+      applyFieldState(field, state2);
+    };
+    input.addEventListener("input", handler);
+    input.addEventListener("blur", handler);
+    handler();
+  });
+  document.querySelectorAll("input[data-cpf]").forEach((input) => {
+    const field = input.closest(".campo");
+    const required = input.hasAttribute("data-required");
+    const handler = () => {
+      input.value = formatCpfInput(input.value);
+      const digits = normalizeCpf(input.value);
+      const isValid2 = !digits || isValidCpf(digits);
+      const state2 = getFieldState({ required, value: digits ? input.value : "", isValid: isValid2 });
+      applyFieldState(field, state2);
+    };
+    input.addEventListener("input", handler);
+    input.addEventListener("blur", () => {
+      handler();
+      const digits = normalizeCpf(input.value);
+      if (input.value && (!digits || !isValidCpf(digits))) setFieldHint(field, "CPF inv\xE1lido");
+      else clearFieldHint2(field);
+    });
+    handler();
+  });
+}
+function canProceed() {
+  const invalids = collectInvalidFields(document);
+  if (!invalids || invalids.length === 0) return true;
+  setStatus2(`${invalids.length} campo(s) inv\xE1lido(s). Corrija antes de prosseguir.`, true);
+  showToast2("Existem campos inv\xE1lidos \u2014 corrija antes de prosseguir");
+  const invalidEl = document.getElementById("debug-invalid");
+  if (invalidEl) invalidEl.value = invalids.join("\n");
+  return false;
+}
+function updateActionButtons() {
+  const invalids = collectInvalidFields(document);
+  const disabled = !!(invalids && invalids.length > 0);
+  const btnJson = document.getElementById("btn-json");
+  if (btnJson) btnJson.disabled = disabled;
+  const btnXml = document.getElementById("btn-xml");
+  if (btnXml) btnXml.disabled = disabled;
+  const statusEl = document.getElementById("statusText");
+  if (statusEl && !disabled) statusEl.textContent = "Pronto";
+  let summary = document.getElementById("form-error-summary");
+  if (!summary) {
+    summary = document.createElement("div");
+    summary.id = "form-error-summary";
+    summary.style.margin = "6px 0 0 0";
+    summary.style.padding = "6px 8px";
+    summary.style.borderRadius = "6px";
+    summary.style.background = "transparent";
+    summary.style.border = "none";
+    summary.style.color = "#6b7280";
+    summary.style.fontSize = "12px";
+    summary.style.opacity = "0.85";
+    const container = document.querySelector(".container");
+    if (container) container.appendChild(summary);
+  }
+  if (disabled) {
+    summary.textContent = `Campos inv\xE1lidos: ${invalids.join(", ")}`;
+    summary.style.display = "block";
+  } else if (summary) {
+    summary.style.display = "none";
+  }
+  let aria = document.getElementById("aria-live-errors");
+  if (!aria) {
+    aria = document.createElement("div");
+    aria.id = "aria-live-errors";
+    aria.className = "sr-only";
+    aria.setAttribute("aria-live", "assertive");
+    aria.setAttribute("role", "status");
+    document.body.appendChild(aria);
+  }
+  aria.textContent = disabled ? `Existem ${invalids.length} campos inv\xE1lidos: ${invalids.join(", ")}` : "";
+}
+var tipoSelect = document.querySelector('select[name="tipoCasamento"]');
+if (tipoSelect) {
+  tipoSelect.addEventListener("change", () => {
+    updateOutputs2();
+  });
+}
+window.updateMatricula = updateMatricula;
+setup();
 /*! Bundled license information:
 
 papaparse/papaparse.min.js:

@@ -172,7 +172,7 @@ function createMainWindow() {
         }
     });
 
-    const uiPath = path.join(__dirname, '..', 'src', 'ui.html');
+    const uiPath = path.join(__dirname, '..', 'ui', 'pages', 'Nascimento2Via.html');
     win.loadFile(uiPath).catch((err: any) => console.error('[segundas-vias] erro ao carregar UI:', err));
     try { win.center(); } catch {}
     win.on('ready-to-show', () => {

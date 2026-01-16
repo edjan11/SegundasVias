@@ -67,15 +67,13 @@ async function fetchCsvText(path) {
 async function loadCsvData() {
   let nomesText = '';
   let gruposText = '';
-  try {
-    nomesText = await fetchCsvText('/data/nomes.csv.gz');
-  } catch {
-    nomesText = await fetchCsvText('/data/nomes.csv');
+  const nomesPaths = ['/data/nomes.csv.gz', '/public/data/nomes.csv.gz', '/data/nomes.csv', '/public/data/nomes.csv'];
+  const gruposPaths = ['/data/grupos.csv.gz', '/public/data/grupos.csv.gz', '/data/grupos.csv', '/public/data/grupos.csv'];
+  for (const p of nomesPaths) {
+    try { nomesText = await fetchCsvText(p); break; } catch (e) {}
   }
-  try {
-    gruposText = await fetchCsvText('/data/grupos.csv.gz');
-  } catch {
-    gruposText = await fetchCsvText('/data/grupos.csv');
+  for (const p of gruposPaths) {
+    try { gruposText = await fetchCsvText(p); break; } catch (e) {}
   }
   const nomes = Papa.parse(nomesText, { header: true, skipEmptyLines: true }).data || [];
   const grupos = Papa.parse(gruposText, { header: true, skipEmptyLines: true }).data || [];
@@ -204,7 +202,18 @@ export function createNameValidator(opts = {}) {
       if (!firstUnknown) firstUnknown = token;
     }
     if (unknown === 0) return { suspicious: false, token: '' };
-    if (tokens.length === 1) return { suspicious: true, token: firstUnknown };
+    // single-token names: use similarity score to avoid over-eager false positives
+    if (tokens.length === 1) {
+      const token = firstUnknown || tokens[0];
+      const score = bestScore(token);
+      // dynamic threshold: be more lenient for short names
+      let effectiveThreshold = threshold;
+      if (token.length <= 3) effectiveThreshold = 0.55;
+      else if (token.length <= 5) effectiveThreshold = 0.70;
+      else if (token.length <= 7) effectiveThreshold = 0.78;
+      if (score < effectiveThreshold) return { suspicious: true, token };
+      return { suspicious: false, token: '' };
+    }
     if (known === 0) return { suspicious: true, token: firstUnknown };
     if (unknown >= 3) return { suspicious: true, token: firstUnknown };
     return { suspicious: false, token: '' };

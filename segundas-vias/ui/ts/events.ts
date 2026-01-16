@@ -20,6 +20,10 @@ import { createNameValidator } from './nameValidator.js';
 import { cpf as cpfValidator } from 'cpf-cnpj-validator';
 import { createKeyValueStore } from './placeAutofill/cache.js';
 import { createPlaceAutofill } from './placeAutofill/index.js';
+import { setupDrawer } from './shared/ui/drawer.js';
+import { collectInvalidFields } from './shared/ui/debug.js';
+import { setupPrimaryShortcut } from './shared/productivity/index.js';
+import { setupAdminPanel } from './shared/ui/admin.js';
 
 let lastSavedSnapshot = '';
 let lastSavedId = '';
@@ -54,12 +58,6 @@ function updateDirty() {
 
 function updateTipoButtons() {
   const tipo = state.certidao.tipo_registro || 'nascimento';
-  const btnN = byId('btn-nascimento');
-  const btnC = byId('btn-casamento');
-  const btnO = byId('btn-obito');
-  if (btnN) btnN.classList.toggle('active', tipo === 'nascimento');
-  if (btnC) btnC.classList.toggle('active', tipo === 'casamento');
-  if (btnO) btnO.classList.toggle('active', tipo === 'obito');
   const input = qs('[data-bind="certidao.tipo_registro"]');
   if (input) input.value = tipo;
   const casamentoWrap = byId('casamento-tipo-wrap');
@@ -299,12 +297,32 @@ function yearFromDate(value) {
 }
 
 function tipoDigit() {
-  const registro = state.certidao.tipo_registro || '';
+  // Determine current registro: prefer explicit state, fallback to DOM cues
+  let registro = (state.certidao.tipo_registro || '').toString();
+  if (!registro) {
+    if (document.getElementById('form-casamento')) registro = 'casamento';
+    else if (document.getElementById('form-obito')) registro = 'obito';
+    else if (document.getElementById('form-nascimento')) registro = 'nascimento';
+  }
+
   if (registro === 'nascimento') return '1';
   if (registro === 'casamento') {
-    const selected = digitsOnly(state.ui.casamento_tipo || '').slice(0, 1);
+    // Garante que o valor do select é usado corretamente
+    const raw = String(state.ui.casamento_tipo || '').trim();
+    if (raw === '2') return '2';
+    if (raw === '3') return '3';
+    if (!raw) return '';
+    // fallback para casos antigos
+    const first = raw[0].toUpperCase();
+    if (first === '2' || first === '3') return first;
+    if (first === 'C') return '2';
+    if (first === 'R') return '3';
+    if (raw.toLowerCase().startsWith('civil')) return '2';
+    if (raw.toLowerCase().startsWith('relig')) return '3';
+    const selected = digitsOnly(raw).slice(0, 1);
     return selected || '';
   }
+  if (registro === 'obito') return '4';
   return '';
 }
 
@@ -322,7 +340,7 @@ function dvMatricula(base30) {
   return `${d1}${d2}`;
 }
 
-function buildMatricula() {
+function buildMatriculaParts() {
   const cns = digitsOnly(state.certidao.cartorio_cns || '');
   const ano = yearFromDate(state.registro.data_registro || '');
   const tipo = tipoDigit();
@@ -330,18 +348,24 @@ function buildMatricula() {
   const folha = padDigits(state.ui.matricula_folha || '', 3);
   const termo = padDigits(state.ui.matricula_termo || '', 7);
 
-  if (cns.length !== 6 || !ano || !tipo || !livro || !folha || !termo) return '';
+  if (cns.length !== 6 || !ano || !tipo || !livro || !folha || !termo) {
+    return { base: '', dv: '', final: '' };
+  }
   const base30 = `${cns}01` + `55${ano}${tipo}${livro}${folha}${termo}`;
-  if (base30.length !== 30) return '';
+  if (base30.length !== 30) return { base: '', dv: '', final: '' };
   const dv = dvMatricula(base30);
-  return base30 + dv;
+  return { base: base30, dv, final: dv ? base30 + dv : '' };
 }
 
-function updateMatricula() {
-  const value = buildMatricula();
-  state.registro.matricula = value || '';
+function buildMatricula() {
+  return buildMatriculaParts().final;
+}
+
+export function updateMatricula() {
+  const parts = buildMatriculaParts();
+  state.registro.matricula = parts.final || '';
   const matEl = byId('matricula');
-  if (matEl) matEl.value = value || '';
+  if (matEl) matEl.value = parts.final || '';
 }
 
 function applyCartorioChange() {
@@ -453,6 +477,52 @@ async function generateFile(format) {
   }
 }
 
+function dateToTime(value) {
+  const normalized = normalizeDateValue(value);
+  const m = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(normalized);
+  if (!m) return null;
+  const d = Number(m[1]);
+  const mo = Number(m[2]);
+  const y = Number(m[3]);
+  const dt = new Date(y, mo - 1, d);
+  if (dt.getFullYear() !== y || dt.getMonth() !== mo - 1 || dt.getDate() !== d) return null;
+  return dt.getTime();
+}
+
+function updateDebug(data) {
+  const parts = buildMatriculaParts();
+  const baseEl = byId('debug-matricula-base');
+  const dvEl = byId('debug-matricula-dv');
+  const finalEl = byId('debug-matricula-final');
+  if (baseEl) baseEl.value = parts.base || '';
+  if (dvEl) dvEl.value = parts.dv || '';
+  if (finalEl) finalEl.value = parts.final || '';
+
+  const invalidEl = byId('debug-invalid');
+  const invalids = collectInvalidFields(document);
+  if (invalidEl) invalidEl.value = invalids.join('\n');
+
+  const alerts = [];
+  const dr = dateToTime(data?.registro?.data_registro || '');
+  const dn = dateToTime(data?.registro?.data_nascimento || '');
+  if (dr && dn && dn > dr) alerts.push('Data de nascimento maior que data de registro.');
+  const alertsEl = byId('debug-alerts');
+  if (alertsEl) alertsEl.value = alerts.join('\n');
+}
+
+function updateOutputs() {
+  const jsonEl = byId('json-output');
+  const xmlEl = byId('xml-output');
+  if (!jsonEl && !xmlEl) return;
+  const data = normalizeData();
+  if (jsonEl) jsonEl.value = JSON.stringify(data, null, 2);
+  if (xmlEl) {
+    const root = `certidao_${data.certidao.tipo_registro || 'registro'}`;
+    xmlEl.value = toXml(data, root, 0);
+  }
+  updateDebug(data);
+}
+
 function updateBadge() {
   const badge = byId('outputDirBadge');
   if (!badge) return;
@@ -476,21 +546,13 @@ async function refreshConfig() {
   }
 }
 
-function setupConfigModal() {
-  const modal = byId('config-modal');
-  if (!modal) return;
-  const open = async () => {
-    await refreshConfig();
-    const radios = qsa('input[name="name-validation-mode"]');
-    radios.forEach((radio) => {
-      radio.checked = radio.value === nameValidationMode;
-    });
-    modal.classList.remove('hidden');
-  };
-  const close = () => modal.classList.add('hidden');
+function setupConfigPanel() {
+  refreshConfig();
+  const radios = qsa('input[name="name-validation-mode"]');
+  radios.forEach((radio) => {
+    radio.checked = radio.value === nameValidationMode;
+  });
 
-  byId('btn-config')?.addEventListener('click', open);
-  byId('config-close')?.addEventListener('click', close);
   byId('config-save')?.addEventListener('click', () => {
     const selected = qs('input[name="name-validation-mode"]:checked');
     if (selected && selected.value) {
@@ -498,17 +560,7 @@ function setupConfigModal() {
       localStorage.setItem(NAME_MODE_KEY, nameValidationMode);
     }
     updateBadge();
-    close();
   });
-  modal.addEventListener('click', (e) => { if (e.target === modal) close(); });
-
-  const tabs = qsa('.tab-btn');
-  const panes = qsa('.tab-pane');
-  const activateTab = (id) => {
-    tabs.forEach(btn => btn.classList.toggle('active', btn.dataset.tab === id));
-    panes.forEach(pane => pane.classList.toggle('active', pane.id === id));
-  };
-  tabs.forEach(btn => btn.addEventListener('click', () => activateTab(btn.dataset.tab || 'tab-pastas')));
 
   byId('pick-json')?.addEventListener('click', async () => {
     if (!window.api || !window.api.pickJsonDir) return;
@@ -526,15 +578,13 @@ function setupConfigModal() {
     currentDirs.xmlDir = dir;
     updateBadge();
   });
+  setupAdminPanel();
 }
 
 function setupActions() {
   byId('btn-save')?.addEventListener('click', saveDraft);
   byId('btn-json')?.addEventListener('click', () => generateFile('json'));
   byId('btn-xml')?.addEventListener('click', () => generateFile('xml'));
-  byId('btn-nascimento')?.addEventListener('click', () => setTipoRegistro('nascimento'));
-  byId('btn-casamento')?.addEventListener('click', () => setTipoRegistro('casamento'));
-  byId('btn-obito')?.addEventListener('click', () => setTipoRegistro('obito'));
 }
 
 let placeAutofill = null;
@@ -569,6 +619,22 @@ function setupShortcuts() {
       e.preventDefault();
       saveDraft();
     }
+  });
+}
+
+function setupActSelect() {
+  const select = byId('ato-select');
+  if (!select) return;
+  select.value = 'nascimento';
+  select.addEventListener('change', () => {
+    const value = select.value;
+    const map = {
+      nascimento: './Nascimento2Via.html',
+      casamento: './Casamento2Via.html',
+      obito: './Obito2Via.html'
+    };
+    const next = map[value];
+    if (next) window.location.href = next;
   });
 }
 
@@ -727,10 +793,12 @@ function onPathChange(path) {
     const cpfEl = byId('cpf');
     if (cpfEl) validateLiveField('registro.cpf', cpfEl);
   }
+  updateOutputs();
   updateDirty();
 }
 
 async function bootstrap() {
+  state.certidao.tipo_registro = 'nascimento';
   syncInputsFromState();
   updateTipoButtons();
   updateSexoOutros();
@@ -742,7 +810,9 @@ async function bootstrap() {
   bindDataBindInputs(onPathChange);
   setupMasks();
   setupActions();
-  setupConfigModal();
+  setupConfigPanel();
+  setupDrawer({ defaultTab: 'tab-config' });
+  setupActSelect();
 
   placeAutofill = createPlaceAutofill({
     state,
@@ -757,15 +827,15 @@ async function bootstrap() {
 
   setupNaturalidadeToggle();
   setupShortcuts();
+  setupPrimaryShortcut(() => byId('btn-save') || byId('btn-json'));
   setupCartorioTyping();
   setupNameValidation();
   setupBeforeUnload();
-  await refreshConfig();
-
   validateLiveField('registro.cpf', byId('cpf'));
   validateLiveField('ui.cartorio_oficio', qs('[data-bind="ui.cartorio_oficio"]'));
 
   updateDirty();
+  updateOutputs();
 }
 
 bootstrap();
