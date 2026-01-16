@@ -42,6 +42,7 @@ const state = {
         matricula_livro: '',
         matricula_folha: '',
         matricula_termo: '',
+        naturalidade_diferente: false,
         mae_nome: '',
         mae_uf: '',
         mae_cidade: '',
@@ -90,14 +91,28 @@ function syncInputsFromState() {
         const path = el.getAttribute('data-bind') || '';
         const val = getByPath(state, path);
         const input = el;
-        if (input.type === 'checkbox')
+        if (input.type === 'checkbox') {
             input.checked = !!val;
-        else
-            input.value = val !== undefined && val !== null ? String(val) : '';
+            return;
+        }
+        if (path === 'registro.cpf') {
+            input.value = formatCpf(val);
+            return;
+        }
+        if (path === 'registro.data_registro' || path === 'registro.data_nascimento') {
+            input.value = normalizeDateValue(val);
+            return;
+        }
+        if (path === 'registro.hora_nascimento') {
+            input.value = normalizeTimeValue(val);
+            return;
+        }
+        input.value = val !== undefined && val !== null ? String(val) : '';
     });
     updateTipoButtons();
     updateSexoOutros();
     updateIgnoreFields();
+    updateNaturalidadeVisibility(false);
     updateCpfState();
     updateMatricula();
 }
@@ -106,8 +121,27 @@ function bindInputs() {
         const path = el.getAttribute('data-bind') || '';
         const handler = () => {
             const input = el;
-            const val = input.type === 'checkbox' ? input.checked : input.value;
-            setByPath(state, path, val);
+            if (input.type === 'checkbox') {
+                setByPath(state, path, input.checked);
+            }
+            else if (path === 'registro.cpf') {
+                const digits = normalizeCpfValue(input.value);
+                setByPath(state, path, digits);
+                input.value = formatCpf(digits);
+            }
+            else if (path === 'registro.data_registro' || path === 'registro.data_nascimento') {
+                const formatted = formatDateInput(input.value);
+                setByPath(state, path, formatted);
+                input.value = formatted;
+            }
+            else if (path === 'registro.hora_nascimento') {
+                const formatted = formatTimeInput(input.value);
+                setByPath(state, path, formatted);
+                input.value = formatted;
+            }
+            else {
+                setByPath(state, path, input.value);
+            }
             if (path === 'registro.sexo')
                 updateSexoOutros();
             if (path === 'registro.data_nascimento_ignorada' || path === 'registro.hora_nascimento_ignorada') {
@@ -124,6 +158,15 @@ function bindInputs() {
             if (path === 'ui.casamento_tipo' || path === 'ui.matricula_livro' || path === 'ui.matricula_folha' || path === 'ui.matricula_termo') {
                 updateMatricula();
             }
+            if (path === 'ui.naturalidade_diferente')
+                updateNaturalidadeVisibility(true);
+            if (path === 'registro.municipio_naturalidade' || path === 'registro.uf_naturalidade') {
+                rememberNaturalidadeEdit();
+            }
+            if (path === 'registro.municipio_nascimento' || path === 'registro.uf_nascimento') {
+                syncNaturalidadeLockedToBirth();
+            }
+            validateLiveField(path, input);
             updateDirty();
         };
         el.addEventListener('input', handler);
@@ -187,13 +230,112 @@ function updateIgnoreFields() {
         }
     }
 }
+let naturalidadeMemo = { city: '', uf: '' };
+let naturalidadeEdited = false;
+function setBoundValue(path, value) {
+    setByPath(state, path, value);
+    const el = document.querySelector(`[data-bind="${path}"]`);
+    if (!el)
+        return;
+    if (el.type === 'checkbox')
+        el.checked = !!value;
+    else
+        el.value = value !== undefined && value !== null ? String(value) : '';
+}
+function rememberNaturalidadeEdit() {
+    if (!state.ui.naturalidade_diferente)
+        return;
+    naturalidadeEdited = true;
+    naturalidadeMemo = {
+        city: trimValue(state.registro.municipio_naturalidade),
+        uf: trimValue(state.registro.uf_naturalidade)
+    };
+}
+function copyBirthToNaturalidade() {
+    const city = trimValue(state.registro.municipio_nascimento);
+    const uf = trimValue(state.registro.uf_nascimento).toUpperCase();
+    setBoundValue('registro.municipio_naturalidade', city);
+    setBoundValue('registro.uf_naturalidade', uf);
+    naturalidadeMemo = { city, uf };
+    naturalidadeEdited = false;
+}
+function syncNaturalidadeLockedToBirth() {
+    if (state.ui.naturalidade_diferente)
+        return;
+    const city = trimValue(state.registro.municipio_nascimento);
+    const uf = trimValue(state.registro.uf_nascimento).toUpperCase();
+    setBoundValue('registro.municipio_naturalidade', city);
+    setBoundValue('registro.uf_naturalidade', uf);
+}
+function updateNaturalidadeVisibility(fromToggle) {
+    const isDifferent = !!state.ui.naturalidade_diferente;
+    const row = document.getElementById('naturalidade-extra');
+    if (row) {
+        row.classList.toggle('visible', isDifferent);
+        row.style.display = isDifferent ? 'flex' : 'none';
+        row.hidden = false;
+    }
+    const copyBtn = document.getElementById('copy-naturalidade');
+    if (copyBtn)
+        copyBtn.disabled = !isDifferent;
+    const labelCity = document.getElementById('label-municipio-principal');
+    const labelUf = document.getElementById('label-uf-principal');
+    if (labelCity) {
+        labelCity.textContent = isDifferent ? 'Municipio de nascimento' : 'Municipio (nascimento e naturalidade)';
+    }
+    if (labelUf) {
+        labelUf.textContent = isDifferent ? 'UF de nascimento' : 'UF (nascimento e naturalidade)';
+    }
+    if (!fromToggle)
+        return;
+    if (isDifferent) {
+        if (naturalidadeEdited && (naturalidadeMemo.city || naturalidadeMemo.uf)) {
+            setBoundValue('registro.municipio_naturalidade', naturalidadeMemo.city);
+            setBoundValue('registro.uf_naturalidade', naturalidadeMemo.uf);
+        }
+        else {
+            copyBirthToNaturalidade();
+        }
+    }
+    else {
+        naturalidadeMemo = {
+            city: trimValue(state.registro.municipio_naturalidade),
+            uf: trimValue(state.registro.uf_naturalidade)
+        };
+        syncNaturalidadeLockedToBirth();
+    }
+    updateDirty();
+}
+function applyBirthValues(city, uf, force) {
+    const cityTrim = trimValue(city);
+    const ufTrim = trimValue(uf).toUpperCase();
+    const currentCity = trimValue(state.registro.municipio_nascimento);
+    const currentUf = trimValue(state.registro.uf_nascimento);
+    let changed = false;
+    if (force || !currentCity) {
+        setBoundValue('registro.municipio_nascimento', cityTrim);
+        changed = true;
+    }
+    if (force || !currentUf) {
+        setBoundValue('registro.uf_nascimento', ufTrim);
+        changed = true;
+    }
+    if (changed)
+        syncNaturalidadeLockedToBirth();
+    return { changed, currentCity, currentUf };
+}
 function updateCpfState() {
-    const cpfRaw = (state.registro.cpf || '').trim();
-    const cpfSem = cpfRaw.length === 0;
-    state.registro.cpf_sem_inscricao = cpfSem;
-    const cpfSemEl = document.getElementById('cpf-sem');
-    if (cpfSemEl)
-        cpfSemEl.checked = cpfSem;
+    const cpfDigits = normalizeCpfValue(state.registro.cpf || '');
+    state.registro.cpf = cpfDigits;
+    if (cpfDigits.length > 0) {
+        state.registro.cpf_sem_inscricao = false;
+        const cpfSemEl = document.getElementById('cpf-sem');
+        if (cpfSemEl)
+            cpfSemEl.checked = false;
+    }
+    const cpfEl = document.getElementById('cpf');
+    if (cpfEl)
+        cpfEl.value = formatCpf(cpfDigits);
 }
 function updateCpfFromToggle() {
     const cpfSem = !!state.registro.cpf_sem_inscricao;
@@ -228,6 +370,72 @@ function dvMatricula(base30) {
 function digitsOnly(value) {
     return (value || '').replace(/\D/g, '');
 }
+function normalizeDateValue(value) {
+    const raw = trimValue(value);
+    if (!raw)
+        return '';
+    const digits = digitsOnly(raw);
+    if (digits.length === 8) {
+        return `${digits.slice(0, 2)}/${digits.slice(2, 4)}/${digits.slice(4, 8)}`;
+    }
+    if (/^\d{2}\/\d{2}\/\d{4}$/.test(raw))
+        return raw;
+    return raw;
+}
+function normalizeTimeValue(value) {
+    const raw = trimValue(value);
+    if (!raw)
+        return '';
+    const digits = digitsOnly(raw);
+    if (digits.length === 4) {
+        return `${digits.slice(0, 2)}:${digits.slice(2, 4)}`;
+    }
+    if (/^\d{2}:\d{2}$/.test(raw))
+        return raw;
+    return raw;
+}
+function formatDateInput(value) {
+    const digits = digitsOnly(value).slice(0, 8);
+    let out = '';
+    if (digits.length >= 1)
+        out += digits.slice(0, 2);
+    if (digits.length >= 3)
+        out += '/' + digits.slice(2, 4);
+    else if (digits.length > 2)
+        out += '/' + digits.slice(2);
+    if (digits.length >= 5)
+        out += '/' + digits.slice(4, 8);
+    return out;
+}
+function formatTimeInput(value) {
+    const digits = digitsOnly(value).slice(0, 4);
+    let out = '';
+    if (digits.length >= 1)
+        out += digits.slice(0, 2);
+    if (digits.length > 2)
+        out += ':' + digits.slice(2, 4);
+    return out;
+}
+function normalizeCpfValue(value) {
+    return digitsOnly(value).slice(0, 11);
+}
+function formatCpf(value) {
+    const digits = normalizeCpfValue(value);
+    if (!digits)
+        return '';
+    const p1 = digits.slice(0, 3);
+    const p2 = digits.slice(3, 6);
+    const p3 = digits.slice(6, 9);
+    const p4 = digits.slice(9, 11);
+    let out = p1;
+    if (p2)
+        out += `.${p2}`;
+    if (p3)
+        out += `.${p3}`;
+    if (p4)
+        out += `-${p4}`;
+    return out;
+}
 function padDigits(value, size) {
     const digits = digitsOnly(value);
     if (!digits)
@@ -235,7 +443,8 @@ function padDigits(value, size) {
     return digits.padStart(size, '0').slice(-size);
 }
 function yearFromDate(value) {
-    const match = (value || '').match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+    const normalized = normalizeDateValue(value);
+    const match = (normalized || '').match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
     return match ? match[3] : '';
 }
 function tipoDigit() {
@@ -275,11 +484,17 @@ function updateMatricula() {
 }
 function applyCartorioChange() {
     const oficio = state.ui.cartorio_oficio || '';
-    const cns = CNS_CARTORIOS[oficio] || '';
-    state.certidao.cartorio_cns = cns;
-    const cnsInput = document.querySelector('[data-bind="certidao.cartorio_cns"]');
-    if (cnsInput)
-        cnsInput.value = cns;
+    if (!oficio) {
+        updateMatricula();
+        return;
+    }
+    const cns = CNS_CARTORIOS[oficio];
+    if (cns) {
+        state.certidao.cartorio_cns = cns;
+        const cnsInput = document.querySelector('[data-bind="certidao.cartorio_cns"]');
+        if (cnsInput)
+            cnsInput.value = cns;
+    }
     updateMatricula();
 }
 function trimValue(value) {
@@ -330,12 +545,20 @@ function buildFiliacaoItem(nome, cidade, uf, avo1, avo2) {
 function normalizeData() {
     const cert = state.certidao;
     const reg = state.registro;
-    const cpfRaw = trimValue(reg.cpf);
-    const cpfDigits = cpfRaw.replace(/\D/g, '');
+    const cpfDigits = normalizeCpfValue(reg.cpf);
     const cpfExists = cpfDigits.length > 0;
-    const cpfSem = !!reg.cpf_sem_inscricao || !cpfExists;
+    const cpfSem = !!reg.cpf_sem_inscricao;
     const dataIgn = !!reg.data_nascimento_ignorada;
     const horaIgn = !!reg.hora_nascimento_ignorada;
+    const natDifferent = !!state.ui.naturalidade_diferente;
+    const municipioNascimento = trimValue(reg.municipio_nascimento);
+    const ufNascimento = trimValue(reg.uf_nascimento);
+    let municipioNaturalidade = trimValue(reg.municipio_naturalidade);
+    let ufNaturalidade = trimValue(reg.uf_naturalidade);
+    if (!natDifferent) {
+        municipioNaturalidade = municipioNascimento;
+        ufNaturalidade = ufNascimento;
+    }
     const certidao = {
         plataformaId: trimValue(cert.plataformaId),
         tipo_registro: trimValue(cert.tipo_registro),
@@ -355,21 +578,32 @@ function normalizeData() {
     const pai = buildFiliacaoItem(state.ui.pai_nome, state.ui.pai_cidade, state.ui.pai_uf, state.ui.pai_avo_paterna, state.ui.pai_avo_paterno);
     if (pai)
         filiacao.push(pai);
+    const matriculaFull = trimValue(reg.matricula);
+    const matriculaDv = matriculaFull.length >= 2 ? matriculaFull.slice(-2) : '';
+    const matriculaBase = matriculaFull.length > 2 ? matriculaFull.slice(0, -2) : '';
     const registro = {
         nome_completo: trimValue(reg.nome_completo),
         cpf_sem_inscricao: cpfSem,
-        cpf: cpfExists ? cpfRaw : '',
-        matricula: trimValue(reg.matricula),
-        data_registro: trimValue(reg.data_registro),
+        cpf: cpfExists ? cpfDigits : '',
+        matricula: matriculaFull,
+        matricula_base: matriculaBase,
+        matricula_dv: matriculaDv,
+        cartorio_oficio: trimValue(state.ui.cartorio_oficio),
+        cartorio_cns: trimValue(cert.cartorio_cns),
+        matricula_livro: trimValue(state.ui.matricula_livro),
+        matricula_folha: trimValue(state.ui.matricula_folha),
+        matricula_termo: trimValue(state.ui.matricula_termo),
+        casamento_tipo: trimValue(state.ui.casamento_tipo),
+        data_registro: normalizeDateValue(reg.data_registro),
         data_nascimento_ignorada: dataIgn,
-        data_nascimento: dataIgn ? '' : trimValue(reg.data_nascimento),
+        data_nascimento: dataIgn ? '' : normalizeDateValue(reg.data_nascimento),
         hora_nascimento_ignorada: horaIgn,
-        hora_nascimento: horaIgn ? '' : trimValue(reg.hora_nascimento),
-        municipio_naturalidade: trimValue(reg.municipio_naturalidade),
-        uf_naturalidade: trimValue(reg.uf_naturalidade),
+        hora_nascimento: horaIgn ? '' : normalizeTimeValue(reg.hora_nascimento),
+        municipio_naturalidade: municipioNaturalidade,
+        uf_naturalidade: ufNaturalidade,
         local_nascimento: trimValue(reg.local_nascimento),
-        municipio_nascimento: trimValue(reg.municipio_nascimento),
-        uf_nascimento: trimValue(reg.uf_nascimento),
+        municipio_nascimento: municipioNascimento,
+        uf_nascimento: ufNascimento,
         sexo: trimValue(reg.sexo),
         gemeos: {
             quantidade: trimValue(reg.gemeos.quantidade),
@@ -411,9 +645,10 @@ function markInvalid(path) {
         el.classList.add('invalid');
 }
 function isValidDate(value) {
-    if (!value)
+    const normalized = normalizeDateValue(value);
+    if (!normalized)
         return true;
-    const m = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(value);
+    const m = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(normalized);
     if (!m)
         return false;
     const day = Number(m[1]);
@@ -423,9 +658,10 @@ function isValidDate(value) {
     return d.getFullYear() === year && d.getMonth() === month - 1 && d.getDate() === day;
 }
 function isValidTime(value) {
-    if (!value)
+    const normalized = normalizeTimeValue(value);
+    if (!normalized)
         return true;
-    return /^([01]\d|2[0-3]):([0-5]\d)$/.test(value);
+    return /^([01]\d|2[0-3]):([0-5]\d)$/.test(normalized);
 }
 function validateData(data) {
     clearInvalid();
@@ -458,6 +694,15 @@ function validateData(data) {
         markInvalid('registro.sexo_outros');
         ok = false;
     }
+    const tipo = (data.certidao.tipo_registro || '').toLowerCase();
+    if ((tipo === 'nascimento' || tipo === 'casamento') && !normalizeDateValue(data.registro.data_registro)) {
+        markInvalid('registro.data_registro');
+        ok = false;
+    }
+    if (tipo === 'casamento' && !trimValue(state.ui.casamento_tipo)) {
+        markInvalid('ui.casamento_tipo');
+        ok = false;
+    }
     if (!isValidDate(data.registro.data_registro)) {
         markInvalid('registro.data_registro');
         ok = false;
@@ -473,6 +718,100 @@ function validateData(data) {
     if (!ok)
         setStatus('Campos obrigatorios pendentes', true);
     return ok;
+}
+function ensureHint(input) {
+    const field = input.closest('.field');
+    if (!field)
+        return null;
+    let hint = field.querySelector('.hint');
+    if (!hint) {
+        hint = document.createElement('div');
+        hint.className = 'hint';
+        field.appendChild(hint);
+    }
+    return hint;
+}
+function setFieldError(input, message) {
+    input.classList.toggle('invalid', !!message);
+    const hint = ensureHint(input);
+    if (!hint)
+        return;
+    hint.textContent = message || '';
+    hint.classList.toggle('visible', !!message);
+}
+function clearFieldHint(input) {
+    const field = input?.closest?.('.field');
+    if (!field)
+        return;
+    const hint = field.querySelector('.hint');
+    if (!hint)
+        return;
+    hint.textContent = '';
+    hint.classList.remove('visible');
+}
+function validateDateInputValue(value) {
+    const digits = digitsOnly(value);
+    if (!digits)
+        return '';
+    if (digits.length >= 2) {
+        const day = Number(digits.slice(0, 2));
+        if (day < 1 || day > 31)
+            return 'Dia invalido';
+    }
+    if (digits.length >= 4) {
+        const month = Number(digits.slice(2, 4));
+        if (month < 1 || month > 12)
+            return 'Mes invalido';
+    }
+    if (digits.length === 8 && !isValidDate(formatDateInput(value)))
+        return 'Data invalida';
+    return '';
+}
+function validateTimeInputValue(value) {
+    const digits = digitsOnly(value);
+    if (!digits)
+        return '';
+    if (digits.length >= 2) {
+        const hour = Number(digits.slice(0, 2));
+        if (hour > 23)
+            return 'Hora invalida';
+    }
+    if (digits.length >= 4) {
+        const minute = Number(digits.slice(2, 4));
+        if (minute > 59)
+            return 'Minutos invalidos';
+    }
+    if (digits.length === 4 && !isValidTime(formatTimeInput(value)))
+        return 'Hora invalida';
+    return '';
+}
+function validateLiveField(path, input) {
+    if (path === 'registro.data_registro' || path === 'registro.data_nascimento') {
+        setFieldError(input, validateDateInputValue(input.value));
+        return;
+    }
+    if (path === 'registro.hora_nascimento') {
+        setFieldError(input, validateTimeInputValue(input.value));
+        return;
+    }
+    if (path === 'registro.cpf') {
+        const digits = normalizeCpfValue(input.value);
+        const invalid = !state.registro.cpf_sem_inscricao && digits.length !== 11;
+        input.classList.toggle('invalid', invalid);
+        clearFieldHint(input);
+        return;
+    }
+    if (path === 'ui.cartorio_oficio') {
+        const invalid = !state.ui.cartorio_oficio;
+        input.classList.toggle('invalid', invalid);
+        clearFieldHint(input);
+        return;
+    }
+    if (path === 'registro.cpf_sem_inscricao') {
+        const cpfEl = document.getElementById('cpf');
+        if (cpfEl)
+            validateLiveField('registro.cpf', cpfEl);
+    }
 }
 function stripAccents(value) {
     return (value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '');
@@ -513,10 +852,28 @@ function toXml(obj, nodeName, indent) {
     const children = Object.keys(obj).map((key) => toXml(obj[key], key, (indent || 0) + 1)).join('\n');
     return `${pad}<${nodeName}>\n${children}\n${pad}</${nodeName}>`;
 }
+function downloadFile(name, content, mime) {
+    try {
+        const blob = new Blob([content], { type: mime });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = name;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
+        return true;
+    }
+    catch {
+        return false;
+    }
+}
 async function saveDraft() {
     const data = normalizeData();
     if (!validateData(data))
         return;
+    recordPlaceMappingFromState();
     try {
         if (window.api && window.api.dbSaveDraft) {
             const res = await window.api.dbSaveDraft({
@@ -563,7 +920,13 @@ async function generateFile(format) {
             setStatus(`JSON salvo: ${path || name}`);
         }
         else {
-            setStatus('API indisponivel', true);
+            const mime = format === 'xml' ? 'application/xml' : 'application/json';
+            if (downloadFile(name, content, mime)) {
+                setStatus(`${format.toUpperCase()} baixado: ${name}`);
+            }
+            else {
+                setStatus('API indisponivel', true);
+            }
         }
     }
     catch (err) {
@@ -647,86 +1010,394 @@ function setupActions() {
     document.getElementById('btn-casamento')?.addEventListener('click', () => setTipoRegistro('casamento'));
     document.getElementById('btn-obito')?.addEventListener('click', () => setTipoRegistro('obito'));
 }
-const cacheKey = 'cache_local_nasc_v1';
-function getCache() { try {
-    return JSON.parse(localStorage.getItem(cacheKey) || '') || {};
+function getSafeStorage() {
+    try {
+        const key = '__certidao_cache_test__';
+        window.localStorage.setItem(key, '1');
+        window.localStorage.removeItem(key);
+        return window.localStorage;
+    }
+    catch {
+        return null;
+    }
 }
-catch {
-    return {};
-} }
-function setCache(obj) { localStorage.setItem(cacheKey, JSON.stringify(obj)); }
-function applyCache(key) {
-    const cache = getCache();
-    const k = (key || '').trim().toUpperCase();
-    if (!k || !cache[k])
-        return false;
-    const entry = cache[k];
-    const map = [
-        ['registro.municipio_naturalidade', entry.naturalidade],
-        ['registro.municipio_nascimento', entry.cidade],
-        ['registro.uf_nascimento', entry.uf],
-        ['registro.local_nascimento', entry.local]
-    ];
-    map.forEach(([path, value]) => {
-        const el = document.querySelector(`[data-bind="${path}"]`);
-        if (!el)
-            return;
-        if (!el.value.trim()) {
-            el.value = value || '';
-            setByPath(state, path, el.value);
+class PlaceAutoFillCache {
+    constructor(opts = {}) {
+        this.storageKey = opts.storageKey || 'certidao.placeCache.v1';
+        this.maxEntries = opts.maxEntries || 200;
+        this.storage = getSafeStorage();
+        this.memoryData = { v: 1, entries: {} };
+    }
+    normalize(text) {
+        return stripAccents(text || '')
+            .toLowerCase()
+            .replace(/[^a-z0-9]+/g, ' ')
+            .replace(/\s+/g, ' ')
+            .trim();
+    }
+    extractCityUfFromText(text) {
+        const trimmed = (text || '').trim();
+        if (!trimmed)
+            return null;
+        const patterns = [
+            /(?:^|[,;])\s*([\p{L}][\p{L}\s.'-]{1,})\s*\/\s*([A-Za-z]{2})\s*$/u,
+            /(?:^|[,;])\s*([\p{L}][\p{L}\s.'-]{1,})\s*-\s*([A-Za-z]{2})\s*$/u,
+            /(?:^|[,;])\s*([\p{L}][\p{L}\s.'-]{1,})\s+([A-Za-z]{2})\s*$/u
+        ];
+        for (const re of patterns) {
+            const match = trimmed.match(re);
+            if (match) {
+                const city = match[1].replace(/\s+/g, ' ').trim();
+                const uf = match[2].toUpperCase();
+                return { city, uf };
+            }
         }
+        return null;
+    }
+    getSuggestions(input, limit = 6) {
+        const key = this.normalize(this.stripCityUfSuffix(input || ''));
+        if (!key)
+            return [];
+        const data = this.readData();
+        const queryTokens = this.tokenize(key);
+        return Object.values(data.entries)
+            .map((entry) => {
+            const entryKey = entry.key || '';
+            const contains = entryKey.includes(key) || key.includes(entryKey);
+            const intersect = queryTokens.filter((t) => entry.tokens.includes(t)).length;
+            const tokenScore = queryTokens.length ? intersect / Math.max(queryTokens.length, entry.tokens.length) : 0;
+            let score = tokenScore + (contains ? 0.6 : 0);
+            if (entryKey === key)
+                score += 0.4;
+            return { entry, score };
+        })
+            .filter((item) => item.score >= 0.35)
+            .sort((a, b) => b.score - a.score || b.entry.updatedAt - a.entry.updatedAt)
+            .slice(0, limit)
+            .map((item) => item.entry);
+    }
+    recordMapping(args) {
+        const placeText = trimValue(args.placeText);
+        const cityBirth = trimValue(args.cityBirth);
+        const ufBirth = trimValue(args.ufBirth).toUpperCase();
+        if (!placeText || !cityBirth || !ufBirth)
+            return;
+        const extracted = this.extractCityUfFromText(placeText);
+        const normalizedPlaceText = trimValue(args.normalizedPlaceText) || this.normalizePlaceText(placeText, extracted);
+        const keyBase = this.stripCityUfSuffix(placeText);
+        const key = this.normalize(keyBase || placeText);
+        if (!key)
+            return;
+        const entry = {
+            key,
+            normalizedPlaceText: normalizedPlaceText || placeText,
+            cityBirth,
+            ufBirth,
+            updatedAt: Date.now(),
+            tokens: this.tokenize(key)
+        };
+        const cityNatural = trimValue(args.cityNatural);
+        const ufNatural = trimValue(args.ufNatural).toUpperCase();
+        if (cityNatural)
+            entry.cityNatural = cityNatural;
+        if (ufNatural)
+            entry.ufNatural = ufNatural;
+        const data = this.readData();
+        data.entries[key] = entry;
+        this.prune(data);
+        this.writeData(data);
+    }
+    tokenize(text) {
+        return this.normalize(text).split(' ').filter(Boolean);
+    }
+    normalizePlaceText(placeText, extracted) {
+        const clean = (placeText || '').replace(/\s+/g, ' ').trim();
+        if (!extracted)
+            return clean;
+        const base = this.stripCityUfSuffix(clean);
+        const city = extracted.city.replace(/\s+/g, ' ').trim();
+        const uf = extracted.uf.toUpperCase();
+        if (!base)
+            return `${city}/${uf}`;
+        return `${base}, ${city}/${uf}`;
+    }
+    stripCityUfSuffix(text) {
+        const clean = (text || '').replace(/\s+/g, ' ').trim();
+        if (!clean)
+            return '';
+        const patterns = [
+            /\s*[,;]?\s*[\p{L}][\p{L}\s.'-]{1,}\s*\/\s*[A-Za-z]{2}\s*$/u,
+            /\s*[,;]?\s*[\p{L}][\p{L}\s.'-]{1,}\s*-\s*[A-Za-z]{2}\s*$/u,
+            /\s*[,;]?\s*[\p{L}][\p{L}\s.'-]{1,}\s+[A-Za-z]{2}\s*$/u
+        ];
+        for (const re of patterns) {
+            if (re.test(clean)) {
+                return clean.replace(re, '').replace(/[,;\s-]+$/, '').trim();
+            }
+        }
+        return clean;
+    }
+    prune(data) {
+        const keys = Object.keys(data.entries);
+        if (keys.length <= this.maxEntries)
+            return;
+        keys.sort((a, b) => data.entries[a].updatedAt - data.entries[b].updatedAt);
+        for (let i = 0; i < keys.length - this.maxEntries; i++) {
+            delete data.entries[keys[i]];
+        }
+    }
+    readData() {
+        if (!this.storage)
+            return this.memoryData;
+        try {
+            const raw = this.storage.getItem(this.storageKey);
+            if (!raw)
+                return { v: 1, entries: {} };
+            const parsed = JSON.parse(raw);
+            if (!parsed || parsed.v !== 1 || !parsed.entries)
+                return { v: 1, entries: {} };
+            return parsed;
+        }
+        catch {
+            return { v: 1, entries: {} };
+        }
+    }
+    writeData(data) {
+        if (this.storage) {
+            try {
+                this.storage.setItem(this.storageKey, JSON.stringify(data));
+                return;
+            }
+            catch {
+                this.memoryData = data;
+                return;
+            }
+        }
+        this.memoryData = data;
+    }
+}
+const placeCache = new PlaceAutoFillCache({ storageKey: 'certidao.placeCache.v1', maxEntries: 200 });
+function recordPlaceMappingFromState(placeTextOverride) {
+    const placeText = trimValue(placeTextOverride || state.registro.local_nascimento);
+    const cityBirth = trimValue(state.registro.municipio_nascimento);
+    const ufBirth = trimValue(state.registro.uf_nascimento).toUpperCase();
+    if (!placeText || !cityBirth || !ufBirth)
+        return;
+    const cityNatural = state.ui.naturalidade_diferente ? trimValue(state.registro.municipio_naturalidade) : '';
+    const ufNatural = state.ui.naturalidade_diferente ? trimValue(state.registro.uf_naturalidade).toUpperCase() : '';
+    placeCache.recordMapping({
+        placeText,
+        cityBirth,
+        ufBirth,
+        cityNatural,
+        ufNatural
     });
-    syncInputsFromState();
+}
+function applyPlaceEntry(entry, opts = {}) {
+    if (!entry)
+        return;
+    if (opts.setLocal && entry.normalizedPlaceText) {
+        setBoundValue('registro.local_nascimento', entry.normalizedPlaceText);
+    }
+    applyBirthValues(entry.cityBirth, entry.ufBirth, !!opts.force);
+    if (opts.allowNatural && state.ui.naturalidade_diferente) {
+        const cityNatural = trimValue(entry.cityNatural);
+        const ufNatural = trimValue(entry.ufNatural).toUpperCase();
+        if (cityNatural)
+            setBoundValue('registro.municipio_naturalidade', cityNatural);
+        if (ufNatural)
+            setBoundValue('registro.uf_naturalidade', ufNatural);
+        if (cityNatural || ufNatural) {
+            naturalidadeMemo = {
+                city: trimValue(state.registro.municipio_naturalidade),
+                uf: trimValue(state.registro.uf_naturalidade)
+            };
+            naturalidadeEdited = true;
+        }
+    }
     updateDirty();
-    return true;
 }
 function setupCache() {
     document.getElementById('cache-save')?.addEventListener('click', () => {
         const desc = document.getElementById('cache-desc')?.value.trim() || '';
-        if (!desc)
+        const local = document.getElementById('cache-local')?.value.trim() || '';
+        const cidade = document.getElementById('cache-cidade')?.value.trim() || '';
+        const uf = document.getElementById('cache-uf')?.value.trim() || '';
+        const naturalidade = document.getElementById('cache-nat')?.value.trim() || '';
+        const placeText = local || desc;
+        if (!placeText || !cidade || !uf)
             return;
-        const cache = getCache();
-        cache[desc.toUpperCase()] = {
-            naturalidade: document.getElementById('cache-nat')?.value || '',
-            cidade: document.getElementById('cache-cidade')?.value || '',
-            uf: document.getElementById('cache-uf')?.value || '',
-            local: document.getElementById('cache-local')?.value || ''
-        };
-        setCache(cache);
+        placeCache.recordMapping({
+            placeText,
+            normalizedPlaceText: local || placeText,
+            cityBirth: cidade,
+            ufBirth: uf,
+            cityNatural: naturalidade
+        });
         setStatus('Padrao salvo');
     });
     document.getElementById('cache-apply')?.addEventListener('click', () => {
-        const desc = document.getElementById('cache-desc')?.value || '';
-        if (applyCache(desc))
-            setStatus('Padrao aplicado');
+        const desc = document.getElementById('cache-desc')?.value.trim() || '';
+        if (!desc)
+            return;
+        const entry = placeCache.getSuggestions(desc, 1)[0];
+        if (!entry) {
+            setStatus('Padrao nao encontrado', true);
+            return;
+        }
+        applyPlaceEntry(entry, { force: true, setLocal: true, allowNatural: true });
+        setStatus('Padrao aplicado');
     });
+}
+function debounce(fn, delay) {
+    let timer;
+    return (...args) => {
+        if (timer)
+            window.clearTimeout(timer);
+        timer = window.setTimeout(() => fn(...args), delay);
+    };
 }
 function setupLocalAutofill() {
     const localEl = document.querySelector('[data-bind="registro.local_nascimento"]');
     const cityEl = document.querySelector('[data-bind="registro.municipio_nascimento"]');
     const ufEl = document.querySelector('[data-bind="registro.uf_nascimento"]');
+    const natCityEl = document.querySelector('[data-bind="registro.municipio_naturalidade"]');
+    const natUfEl = document.querySelector('[data-bind="registro.uf_naturalidade"]');
+    const suggestionWrap = document.getElementById('local-suggestion');
+    const suggestionText = document.getElementById('local-suggestion-text');
+    const suggestionApply = document.getElementById('local-suggestion-apply');
+    const dataList = document.getElementById('local-suggestions');
+    const copyBtn = document.getElementById('copy-naturalidade');
     if (!localEl || !cityEl || !ufEl)
         return;
-    const reCidadeUf = /,\s*([\p{L}\s.'-]+)\/([A-Z]{2})\s*$/u;
-    localEl.addEventListener('blur', () => {
-        const text = localEl.value.trim();
-        if (!text)
+    const suggestionMap = new Map();
+    let pendingSuggestion = null;
+    const recordDebounced = debounce(() => recordPlaceMappingFromState(), 650);
+    const suggestDebounced = debounce(() => runSuggest(false), 550);
+    function clearSuggestion() {
+        pendingSuggestion = null;
+        if (suggestionWrap)
+            suggestionWrap.classList.remove('visible');
+    }
+    function showSuggestion(city, uf) {
+        pendingSuggestion = { city, uf };
+        if (suggestionText)
+            suggestionText.textContent = `Sugestao: ${city}/${uf}`;
+        if (suggestionWrap)
+            suggestionWrap.classList.add('visible');
+    }
+    function applyPendingSuggestion() {
+        if (!pendingSuggestion)
             return;
-        const match = text.match(reCidadeUf);
-        if (!match)
-            return;
-        const cidade = match[1].trim();
-        const uf = match[2].trim();
-        if (!cityEl.value.trim()) {
-            cityEl.value = cidade;
-            state.registro.municipio_nascimento = cidade;
-        }
-        if (!ufEl.value.trim()) {
-            ufEl.value = uf;
-            state.registro.uf_nascimento = uf;
-        }
+        applyBirthValues(pendingSuggestion.city, pendingSuggestion.uf, true);
+        clearSuggestion();
         updateDirty();
+        recordPlaceMappingFromState();
+    }
+    function renderSuggestions(list) {
+        if (!dataList)
+            return;
+        dataList.innerHTML = '';
+        suggestionMap.clear();
+        list.forEach((entry) => {
+            const value = entry.normalizedPlaceText || entry.key;
+            if (!value)
+                return;
+            const option = document.createElement('option');
+            option.value = value;
+            dataList.appendChild(option);
+            suggestionMap.set(value.toLowerCase(), entry);
+        });
+    }
+    function applySelectedSuggestion() {
+        const entry = suggestionMap.get(localEl.value.trim().toLowerCase());
+        if (!entry)
+            return;
+        applyPlaceEntry(entry, { force: true, allowNatural: true });
+        recordPlaceMappingFromState(entry.normalizedPlaceText || localEl.value);
+        clearSuggestion();
+    }
+    function handleExtracted(city, uf) {
+        const currentCity = trimValue(state.registro.municipio_nascimento);
+        const currentUf = trimValue(state.registro.uf_nascimento);
+        const cityMatches = !currentCity || currentCity.toLowerCase() === city.toLowerCase();
+        const ufMatches = !currentUf || currentUf.toUpperCase() === uf.toUpperCase();
+        let applied = false;
+        if (!currentCity && ufMatches) {
+            setBoundValue('registro.municipio_nascimento', city);
+            applied = true;
+        }
+        if (!currentUf && cityMatches) {
+            setBoundValue('registro.uf_nascimento', uf);
+            applied = true;
+        }
+        if (applied) {
+            syncNaturalidadeLockedToBirth();
+            updateDirty();
+            recordPlaceMappingFromState();
+            clearSuggestion();
+            return;
+        }
+        if (!cityMatches || !ufMatches) {
+            showSuggestion(city, uf);
+        }
+        else {
+            clearSuggestion();
+            recordPlaceMappingFromState();
+        }
+    }
+    function runSuggest(fromBlur) {
+        const text = localEl.value.trim();
+        if (!text) {
+            clearSuggestion();
+            renderSuggestions([]);
+            return;
+        }
+        const extracted = placeCache.extractCityUfFromText(text);
+        if (extracted) {
+            renderSuggestions([]);
+            handleExtracted(extracted.city, extracted.uf);
+            return;
+        }
+        clearSuggestion();
+        const suggestions = placeCache.getSuggestions(text, 6);
+        renderSuggestions(suggestions);
+        if (fromBlur)
+            applySelectedSuggestion();
+    }
+    localEl.addEventListener('input', () => {
+        clearSuggestion();
+        suggestDebounced();
     });
+    localEl.addEventListener('blur', () => {
+        runSuggest(true);
+        recordPlaceMappingFromState();
+    });
+    localEl.addEventListener('change', () => {
+        runSuggest(true);
+        recordPlaceMappingFromState();
+    });
+    cityEl.addEventListener('input', recordDebounced);
+    ufEl.addEventListener('change', recordDebounced);
+    natCityEl?.addEventListener('input', recordDebounced);
+    natUfEl?.addEventListener('change', recordDebounced);
+    suggestionApply?.addEventListener('click', applyPendingSuggestion);
+    copyBtn?.addEventListener('click', () => {
+        copyBirthToNaturalidade();
+        updateDirty();
+        recordPlaceMappingFromState();
+    });
+}
+function setupNaturalidadeToggle() {
+    const toggle = document.getElementById('naturalidade-diferente');
+    if (!toggle)
+        return;
+    const handler = () => {
+        state.ui.naturalidade_diferente = !!toggle.checked;
+        updateNaturalidadeVisibility(true);
+        updateDirty();
+    };
+    toggle.addEventListener('change', handler);
 }
 function setupShortcuts() {
     window.addEventListener('keydown', (e) => {
@@ -736,52 +1407,46 @@ function setupShortcuts() {
         }
     });
 }
+function setupCartorioTyping() {
+    const select = document.getElementById('cartorio-oficio');
+    if (!select)
+        return;
+    let buffer = '';
+    let timer = null;
+    const clearBuffer = () => {
+        buffer = '';
+        if (timer)
+            window.clearTimeout(timer);
+        timer = null;
+    };
+    select.addEventListener('keydown', (e) => {
+        if (e.altKey || e.ctrlKey || e.metaKey)
+            return;
+        const key = e.key;
+        if (key >= '0' && key <= '9') {
+            e.preventDefault();
+            buffer += key;
+            if (timer)
+                window.clearTimeout(timer);
+            timer = window.setTimeout(() => { buffer = ''; }, 700);
+            const match = Array.from(select.options).find((opt) => opt.value === buffer);
+            if (match) {
+                select.value = buffer;
+                select.dispatchEvent(new Event('input', { bubbles: true }));
+                select.dispatchEvent(new Event('change', { bubbles: true }));
+                clearBuffer();
+            }
+            return;
+        }
+        if (key === 'Backspace') {
+            e.preventDefault();
+            buffer = buffer.slice(0, -1);
+            return;
+        }
+    });
+}
 // --- Máscaras simples de data e hora (só números) ---
 function digitsOnly(v) { return (v || '').replace(/\D/g, ''); }
-function maskDate(el) {
-    const d = digitsOnly(el.value).slice(0, 8); // ddmmyyyy
-    let out = '';
-    if (d.length >= 2)
-        out += d.slice(0, 2);
-    if (d.length >= 3)
-        out += '/' + d.slice(2, 4);
-    else if (d.length > 2)
-        out += '/' + d.slice(2);
-    if (d.length >= 5)
-        out += '/' + d.slice(4, 8);
-    el.value = out;
-}
-function maskTime(el) {
-    const t = digitsOnly(el.value).slice(0, 4); // hhmm
-    let out = '';
-    if (t.length >= 2)
-        out += t.slice(0, 2);
-    if (t.length > 2)
-        out += ':' + t.slice(2, 4);
-    el.value = out;
-}
-function attachMask(el, type) {
-    if (!el)
-        return;
-    const handler = (e) => {
-        const input = e.target;
-        const before = input.value;
-        if (type === 'date')
-            maskDate(input);
-        if (type === 'time')
-            maskTime(input);
-        if (input.value !== before) {
-            input.dispatchEvent(new Event('input', { bubbles: true }));
-        }
-    };
-    el.addEventListener('input', handler);
-    el.addEventListener('blur', handler);
-}
-function setupMasks() {
-    attachMask(document.querySelector('[data-bind="registro.data_registro"]'), 'date');
-    attachMask(document.getElementById('dn'), 'date');
-    attachMask(document.getElementById('hn'), 'time');
-}
 function setupBeforeUnload() {
     window.addEventListener('beforeunload', (e) => {
         if (!isDirty)
@@ -793,14 +1458,22 @@ function setupBeforeUnload() {
 async function bootstrap() {
     syncInputsFromState();
     bindInputs();
-    setupMasks();
+    //  setupMasks();
     setupActions();
     setupConfigModal();
     setupCache();
     setupLocalAutofill();
+    setupNaturalidadeToggle();
     setupShortcuts();
+    setupCartorioTyping();
     setupBeforeUnload();
     await refreshConfig();
+    const cpfEl = document.getElementById('cpf');
+    if (cpfEl)
+        validateLiveField('registro.cpf', cpfEl);
+    const cartorioEl = document.querySelector('[data-bind="ui.cartorio_oficio"]');
+    if (cartorioEl)
+        validateLiveField('ui.cartorio_oficio', cartorioEl);
     updateDirty();
 }
 bootstrap();
