@@ -641,5 +641,20 @@
   </div> <!-- /#panel-inline -->
 
   <script type="module" src="../js/obito.bundle.js"></script>
+  <script>
+    (function(){
+      try{
+        const sel = document.getElementById('ato-select');
+        if (!sel) return;
+        sel.addEventListener('change', ()=>{
+          try{
+            const map = { nascimento: './Nascimento2Via.html', casamento: './Casamento2Via.html', obito: './Obito2Via.html' };
+            const next = map[sel.value];
+            if (next) window.location.assign(next);
+          }catch(e){}
+        });
+      }catch(e){}
+    })();
+  </script>
 </body>
 </html>

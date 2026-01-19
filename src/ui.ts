@@ -1081,12 +1081,12 @@ async function refreshConfig() {
 }
 
 function setupConfigModal() {
-  const modal = (document.getElementById('config-modal') as HTMLElement | null) as HTMLElement;
+  const modal = (document.getElementById('config-modal') as HTMLElement | null);
   const open = async () => {
     await refreshConfig();
-    modal.classList.remove('hidden');
+    if (modal) modal.classList.remove('hidden');
   };
-  const close = () => modal.classList.add('hidden');
+  const close = () => { if (modal) modal.classList.add('hidden'); };
 
   (document.getElementById('btn-config') as HTMLElement | null)?.addEventListener('click', open);
   (document.getElementById('config-close') as HTMLElement | null)?.addEventListener('click', close);
@@ -1094,9 +1094,11 @@ function setupConfigModal() {
     updateBadge();
     close();
   });
-  modal.addEventListener('click', (e) => {
-    if (e.target === modal) close();
-  });
+  if (modal) {
+    modal.addEventListener('click', (e) => {
+      if (e.target === modal) close();
+    });
+  }
 
   const tabs = Array.from(document.querySelectorAll('.tab-btn')) as HTMLElement[];
   const panes = Array.from(document.querySelectorAll('.tab-pane')) as HTMLElement[];

@@ -21,6 +21,29 @@ export function setDirty(flag: boolean): void {
   } catch (e) { /* ignore */ }
 }
 
+// ensure drawer toggle works even if per-act setup skipped or button recreated
+try {
+  if (!(window as any)._drawerDelegated) {
+    (window as any)._drawerDelegated = true;
+    document.addEventListener('click', (e) => {
+      try {
+        const target = e.target as HTMLElement | null;
+        if (!target) return;
+        if (target.id === 'drawer-toggle' || target.closest?.('#drawer-toggle')) {
+          const d = document.getElementById('drawer');
+          if (!d) return;
+          d.classList.toggle('open');
+        }
+        if (target.id === 'drawer-close' || target.closest?.('#drawer-close')) {
+          const d = document.getElementById('drawer');
+          if (!d) return;
+          d.classList.remove('open');
+        }
+      } catch (err) { /* ignore */ }
+    }, true);
+  }
+} catch (e) { /* ignore */ }
+
 export function updateTipoButtons(state: any): void {
   const tipo = (state && state.certidao && state.certidao.tipo_registro) || 'nascimento';
   const input = document.querySelector('[data-bind="certidao.tipo_registro"]');
@@ -118,21 +141,115 @@ export function setupShortcuts(saveHandler?: () => void): void {
   });
 }
 
-export function setupActSelect(): void {
-  const select = document.getElementById('ato-select') as HTMLElement | null;
+export function setupActSelect(defaultValue?: string): void {
+  const select = document.getElementById('ato-select') as HTMLSelectElement | null;
   if (!select) return;
-  (select as any).value = (select as any).value || 'nascimento';
-  select.addEventListener('change', () => {
-    const value = (select as any).value;
-    const map: Record<string, string> = {
-      nascimento: './Nascimento2Via.html',
-      casamento: './Casamento2Via.html',
-      obito: './Obito2Via.html',
-    };
-    const next = map[value];
-    if (next) window.location.href = next;
-  });
+  try {
+    if (defaultValue) select.value = defaultValue;
+    else select.value = select.value || 'nascimento';
+  } catch (e) { /* ignore */ }
+
+  const goTo = (val: string) => {
+    try {
+      const map: Record<string, string> = {
+        nascimento: './Nascimento2Via.html',
+        casamento: './Casamento2Via.html',
+        obito: './Obito2Via.html',
+      };
+      const next = map[val];
+      if (next) {
+        // small debug log to help trace issues in browser console
+        try { console.debug('setupActSelect -> navigating to', next); } catch (e) { /* ignore */ }
+        window.location.href = next;
+      }
+    } catch (err) { /* ignore */ }
+  };
+
+  // attach after a tiny delay to avoid being overwritten by other setup code
+  setTimeout(() => {
+    select.addEventListener('change', () => goTo(select.value));
+    select.addEventListener('input', () => goTo(select.value));
+  }, 10);
+
+  // delegation fallback: listen at document level so replaced/recreated select still triggers
+  try {
+    if (!(window as any)._atoSelectDelegated) {
+      (window as any)._atoSelectDelegated = true;
+      document.addEventListener('change', (e) => {
+        try {
+          const target = e.target as HTMLElement | null;
+          if (!target) return;
+          if ((target.id && target.id === 'ato-select') || target.closest?.('#ato-select')) {
+            const val = ((document.getElementById('ato-select') as HTMLSelectElement | null)?.value) || '';
+            goTo(val);
+          }
+        } catch (err) { /* ignore */ }
+      }, true);
+      document.addEventListener('input', (e) => {
+        try {
+          const target = e.target as HTMLElement | null;
+          if (!target) return;
+          if ((target.id && target.id === 'ato-select') || target.closest?.('#ato-select')) {
+            const val = ((document.getElementById('ato-select') as HTMLSelectElement | null)?.value) || '';
+            goTo(val);
+          }
+        } catch (err) { /* ignore */ }
+      }, true);
+    }
+  } catch (e) { /* ignore */ }
 }
+
+  // Global settings save/apply fallback: persist validation prefs and panel inline/default
+  try {
+    if (!(window as any)._globalSettingsHandlers) {
+      (window as any)._globalSettingsHandlers = true;
+      // initialize checkbox states from localStorage when DOM is ready
+      const initSettings = () => {
+        try {
+          const cbCpf = document.getElementById('settings-enable-cpf') as HTMLInputElement | null;
+          const cbName = document.getElementById('settings-enable-name') as HTMLInputElement | null;
+          const cbInline = document.getElementById('settings-panel-inline') as HTMLInputElement | null;
+          const posSelect = document.getElementById('settings-drawer-position') as HTMLSelectElement | null;
+          const ENABLE_CPF = localStorage.getItem('ui.enableCpfValidation') !== 'false';
+          const ENABLE_NAME = localStorage.getItem('ui.enableNameValidation') !== 'false';
+          const PANEL_INLINE = localStorage.getItem('ui.panelInline') === 'true';
+          const POS = localStorage.getItem('ui.drawerPosition') || 'bottom-right';
+          if (cbCpf) cbCpf.checked = !!ENABLE_CPF;
+          if (cbName) cbName.checked = !!ENABLE_NAME;
+          if (cbInline) cbInline.checked = !!PANEL_INLINE;
+          if (posSelect) posSelect.value = POS;
+        } catch (e) { /* ignore */ }
+      };
+      if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', initSettings); else initSettings();
+
+      document.addEventListener('click', (e) => {
+        try {
+          const t = e.target as HTMLElement | null;
+          if (!t) return;
+          if (t.id === 'settings-save' || t.closest?.('#settings-save')) {
+            const pos = (document.getElementById('settings-drawer-position') as HTMLSelectElement | null)?.value || 'bottom-right';
+            const newCpf = (document.getElementById('settings-enable-cpf') as HTMLInputElement | null)?.checked ? 'true' : 'false';
+            const newName = (document.getElementById('settings-enable-name') as HTMLInputElement | null)?.checked ? 'true' : 'false';
+            const newInline = (document.getElementById('settings-panel-inline') as HTMLInputElement | null)?.checked ? 'true' : 'false';
+            localStorage.setItem('ui.drawerPosition', pos);
+            localStorage.setItem('ui.enableCpfValidation', newCpf);
+            localStorage.setItem('ui.enableNameValidation', newName);
+            localStorage.setItem('ui.panelInline', newInline);
+            try { console.debug('settings saved', { pos, newCpf, newName, newInline }); } catch (e) {}
+            setTimeout(() => window.location.reload(), 250);
+          }
+          if (t.id === 'settings-apply' || t.closest?.('#settings-apply')) {
+            const pos = (document.getElementById('settings-drawer-position') as HTMLSelectElement | null)?.value || 'bottom-right';
+            try { const drawer = document.getElementById('drawer'); if (drawer) {
+              drawer.classList.remove('position-top','position-bottom-right','position-side');
+              if (pos === 'top') drawer.classList.add('position-top'); else if (pos === 'side') drawer.classList.add('position-side'); else drawer.classList.add('position-bottom-right');
+            } } catch (e) {}
+            try { console.debug('settings applied', pos); } catch (e) {}
+          }
+        } catch (e) { /* ignore */ }
+      }, true);
+    }
+  } catch (e) { /* ignore */ }
 
 export function setupCartorioTyping(): void {
   const select = document.getElementById('cartorio-oficio') as HTMLElement | null;

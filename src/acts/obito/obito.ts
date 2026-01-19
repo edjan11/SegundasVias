@@ -15,6 +15,7 @@ import {
 } from '../../shared/matricula/cnj';
 import { setupPrimaryShortcut } from '../../shared/productivity/index';
 import { setupAdminPanel } from '../../shared/ui/admin';
+import { setupActSelect } from '../../ui/setup-ui';
 import { createNameValidator } from '../../shared/nameValidator';
 import { buildObitoPrintHtml } from './printTemplate';
 
@@ -509,20 +510,7 @@ function setupDrawerToggle() {
   });
 }
 
-function setupActSelect() {
-  const select = (document.getElementById('ato-select') as HTMLElement | null);
-  if (!select) return;
-  (select as any).value = 'obito';
-  select.addEventListener('change', () => {
-    const map = {
-      nascimento: './Nascimento2Via.html',
-      casamento: './Casamento2Via.html',
-      obito: './Obito2Via.html',
-    };
-    const next = map[(select as any).value];
-    if (next) window.location.href = next;
-  });
-}
+
 
 function populateOrgaoAndUf() {
   // opções de órgãos (copiado do template HTML)
@@ -1013,7 +1001,7 @@ function setup() {
   // arrange panel according to saved preference (inline vs floating)
   arrangePanel();
   setupDrawerToggle();
-  setupActSelect();
+  setupActSelect('obito');
   setupPrimaryShortcut(
     () => (document.getElementById('btn-json') as HTMLElement | null) || (document.getElementById('btn-xml') as HTMLElement | null),
   );

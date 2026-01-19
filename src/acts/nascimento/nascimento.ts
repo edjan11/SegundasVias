@@ -15,6 +15,7 @@ import {
 } from '../../shared/matricula/cnj';
 import { setupNameCopy, setupAutoNationality } from '../../shared/productivity/index';
 import { setupAdminPanel } from '../../shared/ui/admin';
+import { setupActSelect } from '../../ui/setup-ui';
 import { buildNascimentoPdfHtmlTJ } from "../../prints/nascimento/printNascimentoTj";
 import { openHtmlAndSavePdf } from "../../prints/shared/openAndSavePdf";
 
@@ -583,6 +584,8 @@ function setup() {
   setupNameCopy('input[data-bind="ui.mae_nome"]', 'input[data-bind="ui.pai_nome"]');
   setupAutoNationality('input[name="nacionalidade"]', 'BRASILEIRO');
   setupLiveOutputs();
+  // wire ato selector change to navigate between acts
+  setupActSelect('nascimento');
   // wire action button state
   updateActionButtons();
   document.addEventListener('input', updateActionButtons);
