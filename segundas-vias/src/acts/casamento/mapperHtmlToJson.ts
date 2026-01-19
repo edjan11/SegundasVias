@@ -1,0 +1,108 @@
+// @ts-nocheck
+import { normalizeDate } from '../../shared/validators/date.js';
+import { normalizeTime } from '../../shared/validators/time.js';
+import { normalizeCpf } from '../../shared/validators/cpf.js';
+
+export function mapperHtmlToJson(doc) {
+	const get = (sel) => doc.querySelector(sel)?.value || '';
+	const getText = (sel) => doc.querySelector(sel)?.textContent || '';
+	const getChecked = (sel) => !!doc.querySelector(sel)?.checked;
+	const getRadio = (name) => {
+		const el = doc.querySelector(`input[name="${name}"]:checked`);
+		return el ? el.value : '';
+	};
+	const getSelect = (sel) => {
+		const el = doc.querySelector(sel);
+		return el ? el.value : '';
+	};
+	const getAll = (sel) => Array.from(doc.querySelectorAll(sel)).map((el) => el.value || '');
+
+	return {
+		registro: {
+			nome_completo: get('input[name="nomeCompleto"]'),
+			sexo: getRadio('sexo'),
+			data_nascimento: normalizeDate(get('input[name="dataNascimento"]')),
+			data_casamento: normalizeDate(get('input[name="dataCasamento"]')),
+			hora_casamento: normalizeTime(get('input[name="horaCasamento"]')),
+			local_casamento: get('input[name="localCasamento"]'),
+			municipio_casamento: get('input[name="municipioCasamento"]'),
+			uf_municipio_casamento: getSelect('select[name="ufMunicipioCasamento"]'),
+			estado_civil: getRadio('estadoCivil'),
+			profissao: get('input[name="profissao"]'),
+			naturalidade: get('input[name="naturalidade"]'),
+			nacionalidade: get('input[name="nacionalidade"]'),
+			nome_pai: get('input[name="nomePai"]'),
+			nome_mae: get('input[name="nomeMae"]'),
+			cpf: normalizeCpf(get('input[name="cpf"]')),
+			rg: get('input[name="rg"]'),
+			orgao_expedidor_rg: get('input[name="orgaoExpedidorRG"]'),
+			titulo_eleitor: get('input[name="tituloEleitor"]'),
+			zona_eleitoral: get('input[name="zonaEleitoral"]'),
+			secao_eleitoral: get('input[name="secaoEleitoral"]'),
+			passaporte: get('input[name="passaporte"]'),
+			orgao_expedidor_passaporte: get('input[name="orgaoExpedidorPassaporte"]'),
+			pis: get('input[name="pis"]'),
+			orgao_expedidor_pis: get('input[name="orgaoExpedidorPIS"]'),
+			cns: get('input[name="cns"]'),
+			orgao_expedidor_cns: get('input[name="orgaoExpedidorCNS"]'),
+			certidao: get('input[name="certidao"]'),
+			livro: get('input[name="livro"]'),
+			folha: get('input[name="folha"]'),
+			termo: get('input[name="termo"]'),
+			data_termo: normalizeDate(get('input[name="dataTermo"]')),
+			cartorio_cns: get('input[name="certidao.cartorio_cns"]'),
+			matricula: get('input[name="matricula"]'),
+			observacoes: get('textarea[name="observacoes"]'),
+			data_registro: normalizeDate(get('input[name="dataRegistro"]')),
+			oficial: get('input[name="oficial"]'),
+			id_assinante: getSelect('select[name="idAssinante"]'),
+			nome_assinante: getText('select[name="idAssinante"] option:checked'),
+			titulo_livro: get('input[name="tituloLivro"]'),
+			municipio_cartorio: get('input[name="municipioCartorio"]'),
+			uf_cartorio: getSelect('select[name="ufCartorio"]'),
+			data_emissao: normalizeDate(get('input[name="dataEmissao"]')),
+			via: get('input[name="via"]'),
+			motivo: get('input[name="motivo"]'),
+			solicitante: get('input[name="solicitante"]'),
+			cpf_solicitante: normalizeCpf(get('input[name="cpfSolicitante"]')),
+			rg_solicitante: get('input[name="rgSolicitante"]'),
+			orgao_expedidor_rg_solicitante: get('input[name="orgaoExpedidorRGSolicitante"]'),
+			endereco_solicitante: get('input[name="enderecoSolicitante"]'),
+			telefone_solicitante: get('input[name="telefoneSolicitante"]'),
+			email_solicitante: get('input[name="emailSolicitante"]'),
+			observacoes_solicitante: get('textarea[name="observacoesSolicitante"]'),
+			data_solicitacao: normalizeDate(get('input[name="dataSolicitacao"]')),
+			protocolo: get('input[name="protocolo"]'),
+			status: get('input[name="status"]'),
+			data_status: normalizeDate(get('input[name="dataStatus"]')),
+			observacoes_status: get('textarea[name="observacoesStatus"]'),
+			data_entrega: normalizeDate(get('input[name="dataEntrega"]')),
+			responsavel_entrega: get('input[name="responsavelEntrega"]'),
+			observacoes_entrega: get('textarea[name="observacoesEntrega"]'),
+			data_cancelamento: normalizeDate(get('input[name="dataCancelamento"]')),
+			motivo_cancelamento: get('input[name="motivoCancelamento"]'),
+			observacoes_cancelamento: get('textarea[name="observacoesCancelamento"]'),
+			data_retorno: normalizeDate(get('input[name="dataRetorno"]')),
+			motivo_retorno: get('input[name="motivoRetorno"]'),
+			observacoes_retorno: get('textarea[name="observacoesRetorno"]'),
+			data_arquivamento: normalizeDate(get('input[name="dataArquivamento"]')),
+			motivo_arquivamento: get('input[name="motivoArquivamento"]'),
+			observacoes_arquivamento: get('textarea[name="observacoesArquivamento"]'),
+			data_exclusao: normalizeDate(get('input[name="dataExclusao"]')),
+			motivo_exclusao: get('input[name="motivoExclusao"]'),
+			observacoes_exclusao: get('textarea[name="observacoesExclusao"]'),
+			data_reabertura: normalizeDate(get('input[name="dataReabertura"]')),
+			motivo_reabertura: get('input[name="motivoReabertura"]'),
+			observacoes_reabertura: get('textarea[name="observacoesReabertura"]'),
+			data_transferencia: normalizeDate(get('input[name="dataTransferencia"]')),
+			motivo_transferencia: get('input[name="motivoTransferencia"]'),
+			observacoes_transferencia: get('textarea[name="observacoesTransferencia"]'),
+			data_averbacao: normalizeDate(get('input[name="dataAverbacao"]')),
+			motivo_averbacao: get('input[name="motivoAverbacao"]'),
+			observacoes_averbacao: get('textarea[name="observacoesAverbacao"]'),
+			data_anotacao: normalizeDate(get('input[name="dataAnotacao"]')),
+			motivo_anotacao: get('input[name="motivoAnotacao"]'),
+			observacoes_anotacao: get('textarea[name="observacoesAnotacao"]'),
+		}
+	};
+}
