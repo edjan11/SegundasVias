@@ -1,5 +1,5 @@
 
-import '../../events';
+import '../../core/events';
 import { mapperHtmlToJson } from './mapperHtmlToJson';
 import { normalizeDate, validateDateDetailed } from '../../shared/validators/date';
 import { normalizeTime } from '../../shared/validators/time';

@@ -20,7 +20,8 @@
     "prune": "npm run prune:root && npm run prune:ui",
     "depcheck": "depcheck",
     "bundle:analyze": "npx source-map-explorer ui/js/*.bundle.js",
-    "ci:quality": "npm run format && npm run lint:fix && npm run prune && npm run depcheck && npm run bundle:analyze"
+    "ci:quality": "npm run format && npm run lint:fix && npm run prune && npm run depcheck && npm run bundle:analyze",
+    "test": "echo \"no tests\""
   },
   "tools": {
     "import_names": "node tools/import_names.js",
