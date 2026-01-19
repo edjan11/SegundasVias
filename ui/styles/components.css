@@ -1,0 +1,709 @@
+.toolbar {
+  position: sticky;
+  top: 0;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 8px;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  justify-content: space-between;
+  z-index: 10;
+}
+.app-title {
+  font-weight: 800;
+  font-size: 13px;
+  letter-spacing: 0.2px;
+  color: #1f2937;
+}
+.ato-picker {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.ato-select {
+  height: 28px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 2px 8px;
+  font-size: 11px;
+  background: #fff;
+  color: var(--text);
+}
+.action-panel {
+  margin-top: 10px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 8px;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+}
+
+.drawer {
+  position: fixed;
+  right: 12px;
+  bottom: 12px;
+  width: min(560px, 94vw);
+  max-height: 78vh;
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.18);
+  display: flex;
+  flex-direction: column;
+  transform: translateY(110%);
+  opacity: 0;
+  pointer-events: none;
+  transition: transform 0.2s ease, opacity 0.2s ease;
+  z-index: 60;
+}
+.drawer.open {
+  transform: translateY(0);
+  opacity: 1;
+  pointer-events: auto;
+}
+.drawer-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--border);
+}
+.drawer-title {
+  font-weight: 700;
+  font-size: 12px;
+  color: #1f2937;
+}
+.drawer-body {
+  padding: 8px 10px;
+  overflow: auto;
+}
+.toolbar-left {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.toolbar-right {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 8px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--bg2);
+  font-size: 11px;
+  color: #334155;
+}
+.status {
+  font-size: 11px;
+  color: #64748b;
+}
+
+.btn {
+  border: 1px solid var(--border);
+  background: linear-gradient(180deg, #3b82f6, #2563eb);
+  color: #fff;
+  padding: 5px 8px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 700;
+  font-size: 10px;
+  transition: transform 0.08s ease;
+}
+a.btn {
+  text-decoration: none;
+}
+.btn.secondary {
+  background: #ffffff;
+  color: var(--text);
+}
+.btn.save {
+  background: var(--ok);
+  border-color: #15803d;
+}
+.btn.save.dirty {
+  background: var(--danger);
+  border-color: #b91c1c;
+}
+.btn:hover {
+  transform: translateY(-1px);
+}
+.btn.tiny {
+  padding: 3px 6px;
+  font-size: 10px;
+}
+/* disabled buttons */
+.btn[disabled] {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* hint error icon */
+.hint .icon {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  line-height: 14px;
+  text-align: center;
+  margin-right: 6px;
+  font-weight: 700;
+}
+
+/* screen-reader only (visually hidden but accessible) */
+.sr-only {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  padding: 0 !important;
+  margin: -1px !important;
+  overflow: hidden !important;
+  clip: rect(0, 0, 0, 0) !important;
+  white-space: nowrap !important;
+  border: 0 !important;
+}
+
+.type-group {
+  display: flex;
+  gap: 6px;
+}
+.type-btn {
+  border: 1px solid var(--border);
+  background: #fff;
+  color: var(--text);
+  padding: 5px 8px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 700;
+  font-size: 11px;
+}
+.type-btn.active {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent2);
+}
+a.type-btn {
+  text-decoration: none;
+}
+
+.field label {
+  font-size: var(--labelFont);
+  color: var(--label);
+  line-height: 1.1;
+}
+.campo {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.label {
+  font-size: var(--labelFont);
+  color: var(--label);
+  line-height: 1.1;
+}
+.subTitulo {
+  font-weight: 700;
+  font-size: 12px;
+  margin-bottom: 8px;
+  color: #334155;
+}
+.obrigatorio {
+  color: #ef4444;
+  font-weight: 800;
+  margin-left: 2px;
+}
+
+.field.name-field,
+.campo.name-field,
+.name-field {
+  position: relative;
+}
+
+.label-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.field input,
+.field select,
+.field textarea,
+.campo input,
+.campo select,
+.campo textarea {
+  height: var(--h);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 4px 8px;
+  font-size: var(--font);
+  outline: none;
+  width: 100%;
+  background: #fff;
+}
+.input-locked {
+  background: #f1f5f9 !important;
+  color: #94a3b8 !important;
+}
+.field textarea,
+.campo textarea {
+  height: auto;
+  min-height: 70px;
+  resize: vertical;
+}
+.field input.invalid,
+.field select.invalid,
+.field textarea.invalid,
+.campo input.invalid,
+.campo select.invalid,
+.campo textarea.invalid {
+  border-color: var(--danger);
+}
+.field--error input,
+.field--error select,
+.field--error textarea {
+  border-color: var(--danger);
+}
+.field--empty input,
+.field--empty select,
+.field--empty textarea {
+  border-color: #fca5a5;
+}
+.field--invalid input,
+.field--invalid select,
+.field--invalid textarea {
+  border-color: var(--danger);
+}
+.field--warn input,
+.field--warn select,
+.field--warn textarea {
+  border-color: #f59e0b;
+}
+.hint {
+  display: none;
+  font-size: 10px;
+  color: #b91c1c;
+  background: #fff5f5;
+  border: 1px solid #fecaca;
+  padding: 2px 6px;
+  border-radius: 6px;
+  margin-top: 3px;
+  align-self: flex-start;
+}
+.hint.visible {
+  display: inline-flex;
+}
+
+.name-suggest {
+  position: absolute;
+  right: 6px;
+  top: 100%;
+  transform: translateY(4px);
+  background: #fff5f5;
+  border: 1px solid #fecaca;
+  color: #b91c1c;
+  font-size: 10px;
+  padding: 2px 6px;
+  border-radius: 6px;
+  cursor: pointer;
+  display: none;
+  z-index: 5;
+}
+.name-field.name-suspect .name-suggest {
+  display: inline-flex;
+}
+
+#toast-container {
+  position: fixed;
+  right: 12px;
+  bottom: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  z-index: 999;
+}
+.toast {
+  background: rgba(15, 23, 42, 0.92);
+  color: #fff;
+  font-size: 11px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  opacity: 0;
+  transform: translateY(6px);
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+.toast.show {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.checkboxField {
+  display: inline-flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 6px;
+  padding-top: 16px;
+}
+.checkboxField input[type='checkbox'] {
+  width: 14px;
+  height: 14px;
+}
+
+.row .field.nat-toggle {
+  flex: 1 0 100%;
+  padding-top: 0;
+  margin-top: 2px;
+}
+
+.field.fixed {
+  align-items: flex-start;
+}
+
+/* trava checkbox contra regra global de input */
+#cpf-sem {
+  width: 14px !important;
+  height: 14px !important;
+  display: inline-block !important;
+  margin: 0 !important;
+}
+
+.inline-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+  font-size: 12px;
+  color: var(--label);
+}
+.inline-check input[type='checkbox'] {
+  width: 14px !important;
+  height: 14px !important;
+  display: inline-block !important;
+  margin: 0 !important;
+}
+
+.field-line {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.req {
+  color: #ef4444;
+  font-weight: 800;
+  margin-left: 2px;
+}
+
+.w-cpf {
+  max-width: 120px;
+}
+.w-date {
+  max-width: 90px;
+}
+.w-time {
+  max-width: 55px;
+}
+.w-uf {
+  max-width: 60px;
+}
+.w-sexo {
+  max-width: 110px;
+}
+.w-cartorio {
+  max-width: 60px;
+}
+.w-num {
+  max-width: 120px;
+}
+.w-livro {
+  max-width: 60px;
+}
+.w-folha {
+  max-width: 45px;
+}
+.w-termo {
+  max-width: 70px;
+}
+.w-matricula {
+  max-width: 240px;
+}
+.w-municipio {
+  max-width: 160px;
+}
+
+.filiacao-grid .w-uf {
+  max-width: none;
+}
+
+.link-btn {
+  border: 0;
+  background: none;
+  padding: 0;
+  font-size: 10px;
+  color: var(--accent);
+  cursor: pointer;
+  text-decoration: underline;
+}
+.link-btn:hover {
+  color: var(--accent2);
+}
+
+.suggestion-bar {
+  display: none;
+  align-items: center;
+  gap: 8px;
+  margin-top: 4px;
+  font-size: 11px;
+  color: #475569;
+}
+.suggestion-bar.visible {
+  display: flex;
+}
+.suggestion-text {
+  padding: 2px 6px;
+  border-radius: 6px;
+  border: 1px dashed var(--border);
+  background: var(--bg2);
+}
+
+.naturalidade-extra {
+  display: none;
+}
+.naturalidade-extra.visible {
+  display: flex;
+}
+
+#sexo-outros-wrap {
+  display: none;
+}
+
+details.collapse {
+  margin-top: 10px;
+  background: var(--bg2);
+  border: 1px dashed var(--border);
+  border-radius: var(--radius);
+  padding: 10px;
+}
+details.collapse summary {
+  cursor: pointer;
+  font-weight: 700;
+  font-size: 12px;
+  color: #334155;
+}
+
+.subcard {
+  margin-top: 10px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: #fff;
+  padding: 10px;
+}
+.subTitle {
+  font-weight: 700;
+  font-size: 12px;
+  margin-bottom: 8px;
+  color: #334155;
+}
+
+.modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 50;
+}
+.modal.hidden {
+  display: none;
+}
+.modal.hidden:target {
+  display: flex;
+}
+.modal-card {
+  width: min(560px, 92vw);
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 12px;
+}
+.modal-title {
+  font-size: 13px;
+  font-weight: 700;
+  margin-bottom: 8px;
+}
+.tabbar {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+.tab-btn {
+  border: 1px solid var(--border);
+  background: var(--bg2);
+  color: var(--text);
+  padding: 5px 8px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 700;
+}
+.tab-btn.active {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent2);
+}
+.tab-pane {
+  display: none;
+}
+.tab-pane.active {
+  display: block;
+}
+
+.muted {
+  color: #64748b;
+  font-size: 12px;
+}
+
+.admin-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 0;
+  border-bottom: 1px dashed #e2e8f0;
+}
+
+.admin-row:last-child {
+  border-bottom: none;
+}
+
+/* Card style more rounded for visual parity across atos */
+.card {
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 12px;
+  box-shadow: 0 6px 18px rgba(15, 23, 42, 0.06);
+}
+
+/* Make legacy table-based forms behave more like the grid-based forms
+   Convert label cells to stack above inputs and make inputs full-width. */
+.card table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 8px 6px;
+}
+.card table tr {
+  vertical-align: top;
+}
+.card table td {
+  padding: 2px 6px;
+  vertical-align: top;
+}
+.card table td .label,
+.card table td.label {
+  display: block;
+  margin-bottom: 6px;
+  color: var(--label);
+  font-size: 12px;
+}
+.card table input,
+.card table select,
+.card table textarea {
+  width: 100%;
+  box-sizing: border-box;
+  border-radius: 8px;
+  padding: 6px 8px;
+  font-size: 13px;
+}
+.card table textarea {
+  min-height: 70px;
+  resize: vertical;
+}
+.card table .obrigatorio {
+  margin-left: 6px;
+}
+
+/* make compact rows behave well on small screens */
+@media (max-width: 880px) {
+  .card table,
+  .card table tbody,
+  .card table tr {
+    display: block;
+    width: 100%;
+  }
+  .card table tr {
+    margin-bottom: 10px;
+  }
+  .card table td {
+    display: block;
+    width: 100%;
+  }
+}
+
+/* Drawer position variants */
+.drawer.position-top {
+  left: 50%;
+  transform: translate(-50%, 0);
+  top: 12px;
+  right: auto;
+  bottom: auto;
+  width: min(900px, 96vw);
+}
+.drawer.position-bottom-right {
+  right: 12px;
+  bottom: 12px;
+  left: auto;
+  top: auto;
+  transform: translateY(110%);
+}
+.drawer.position-side {
+  right: 12px;
+  top: 80px;
+  bottom: 12px;
+  width: min(520px, 38vw);
+  transform: translateX(0);
+}
+
+/* Editable default inputs look locked but clickable */
+.input-locked {
+  background: #f1f5f9 !important;
+  color: #94a3b8 !important;
+  cursor: pointer;
+}
+.input-locked.editing {
+  background: #fff !important;
+  color: var(--text) !important;
+  cursor: text;
+}
+
+/* Section / divider used to create a continuous flow between blocks (like Nascimento)
+   Use a thin, subtle line and modest spacing to avoid a 'heavy' look. */
+.section {
+  padding: 6px 0;
+}
+.section-divider {
+  height: 0; /* no extra height, only the border line */
+  border-bottom: 1px solid rgba(15, 23, 42, 0.06);
+  margin: 10px 0;
+}
+
+/* keyboard focus emphasis for accessible keyboard navigation */
+.focus-emphasis {
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.12) !important;
+  border-color: #2563eb !important;
+  outline: none !important;
+  transition: box-shadow 0.14s ease, border-color 0.14s ease;
+}

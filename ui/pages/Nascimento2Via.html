@@ -1,0 +1,549 @@
+﻿<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Certidao de Nascimento (TJ)</title>
+  <link rel="stylesheet" href="../styles/base.css" />
+  <link rel="stylesheet" href="../styles/layout.css" />
+  <link rel="stylesheet" href="../styles/components.css" />
+</head>
+<body>
+  <div class="container">
+    <div class="toolbar">
+      <div class="toolbar-left">
+        <div class="app-title">2ª Via de Certidão</div>
+        <div class="ato-picker">
+          <label class="label" for="ato-select">Ato</label>
+          <select id="ato-select" class="ato-select">
+            <option value="nascimento">Nascimento</option>
+            <option value="casamento">Casamento</option>
+            <option value="obito">Obito</option>
+          </select>
+        </div>
+      </div>
+      <div class="toolbar-right">
+        <button id="drawer-toggle" class="btn secondary">Painel</button>
+        <button id="btn-print" class="btn secondary" title="Imprimir PDF">Imprimir PDF</button>
+        <span id="statusText" class="status">Pronto</span>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="cardTitle">Registro</div>
+
+      <div class="section">
+        <div class="row">
+          <div class="field">
+            <label>Data de registro <span class="req">*</span></label>
+          <input
+            id="data-reg"
+            data-bind="registro.data_registro"
+            type="text"
+            placeholder="00/00/0000"
+            inputmode="tel"
+            maxlength="10"
+            autocomplete="off"
+            pattern="\\d{2}/\\d{2}/\\d{4}"
+            class="w-date"
+            data-required
+          />
+          </div>
+
+          <div class="field">
+            <label>Data de nascimento</label>
+            <div class="field-line">
+            <input
+              id="dn"
+              data-bind="registro.data_nascimento"
+              type="text"
+              placeholder="00/00/0000"
+              inputmode="tel"
+              maxlength="10"
+              autocomplete="off"
+              pattern="\\d{2}/\\d{2}/\\d{4}"
+              class="w-date"
+            />
+              <label class="inline-check" for="dn-ign">
+                <input type="checkbox" data-bind="registro.data_nascimento_ignorada" id="dn-ign" />
+                Ignorar
+              </label>
+            </div>
+          </div>
+
+          <div class="field">
+            <label>Hora do nascimento</label>
+            <div class="field-line">
+            <input
+              id="hn"
+              data-bind="registro.hora_nascimento"
+              type="text"
+              placeholder="00:00"
+              inputmode="tel"
+              maxlength="5"
+              autocomplete="off"
+              pattern="([01]\\d|2[0-3]):[0-5]\\d"
+              class="w-time"
+            />
+              <label class="inline-check" for="hn-ign">
+                <input type="checkbox" data-bind="registro.hora_nascimento_ignorada" id="hn-ign" />
+                Ignorar
+              </label>
+            </div>
+          </div>
+
+          <div class="field">
+            <label>DNV</label>
+            <input data-bind="registro.numero_dnv" class="w-num" placeholder="DNV" />
+          </div>
+        </div>
+      </div>
+
+      <div class="section-divider"></div>
+
+      <div class="section">
+        <div class="row">
+          <div class="field grow">
+            <label>Nome completo <span class="req">*</span></label>
+            <input data-bind="registro.nome_completo" data-required data-name-validate />
+          </div>
+
+          <div class="field">
+            <label>Sexo <span class="req">*</span></label>
+            <select data-bind="registro.sexo" id="sexo" class="w-sexo" data-required>
+              <option></option>
+              <option>masculino</option>
+              <option>feminino</option>
+              <option>ignorado</option>
+              <option>outros</option>
+            </select>
+          </div>
+
+          <div class="field" id="sexo-outros-wrap" style="width: 180px;">
+            <label>Sexo (outros) <span class="req">*</span></label>
+            <input data-bind="registro.sexo_outros" id="sexo-outros" placeholder="Descreva" />
+          </div>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="row row-place">
+          <div class="field w-local-wide">
+            <label>Local de nascimento <span class="req">*</span></label>
+            <input id="local-nascimento" data-bind="registro.local_nascimento" data-required placeholder="Ex: Na Clínica Santa Helena, Aracaju/SE" list="local-suggestions" autocomplete="off" />
+            <div id="local-suggestion" class="suggestion-bar">
+              <span id="local-suggestion-text" class="suggestion-text"></span>
+              <button type="button" class="btn secondary tiny" id="local-suggestion-apply">Aplicar sugestao</button>
+            </div>
+            <datalist id="local-suggestions"></datalist>
+          </div>
+        </div>
+
+        <div class="row row-place">
+          <div class="field grow">
+            <label><span id="label-municipio-principal">Municipio (nascimento e naturalidade)</span> <span class="req">*</span></label>
+            <input data-bind="registro.municipio_nascimento" data-required placeholder="Cidade" />
+          </div>
+
+          <div class="field" style="width: 130px;">
+            <label><span id="label-uf-principal">UF (nascimento e naturalidade)</span> <span class="req">*</span></label>
+            <select data-bind="registro.uf_nascimento" data-required class="w-uf">
+              <option></option>
+              <option>IG</option>
+          <option>AC</option><option>AL</option><option>AP</option><option>AM</option><option>BA</option><option>CE</option><option>DF</option><option>ES</option><option>GO</option><option>MA</option><option>MT</option><option>MS</option><option>MG</option><option>PA</option><option>PB</option><option>PR</option><option>PE</option><option>PI</option><option>RJ</option><option>RN</option><option>RS</option><option>RO</option><option>RR</option><option>SC</option><option>SP</option><option>SE</option><option>TO</option>
+            </select>
+          </div>
+
+          <div class="field checkboxField nat-toggle">
+            <input type="checkbox" data-bind="ui.naturalidade_diferente" id="naturalidade-diferente" />
+            <label for="naturalidade-diferente">Naturalidade diferente do nascimento</label>
+          </div>
+        </div>
+
+        <div class="row naturalidade-extra" id="naturalidade-extra">
+          <div class="field" style="width: 260px;">
+            <label class="label-row">
+              <span>Municipio de naturalidade</span>
+              <button type="button" class="link-btn" id="copy-naturalidade">Copiar nascimento</button>
+            </label>
+            <input data-bind="registro.municipio_naturalidade" placeholder="Cidade" />
+          </div>
+
+          <div class="field" style="width: 180px;">
+            <label>UF de naturalidade</label>
+            <select data-bind="registro.uf_naturalidade" class="w-uf">
+              <option></option>
+              <option>IG</option>
+          <option>AC</option><option>AL</option><option>AP</option><option>AM</option><option>BA</option><option>CE</option><option>DF</option><option>ES</option><option>GO</option><option>MA</option><option>MT</option><option>MS</option><option>MG</option><option>PA</option><option>PB</option><option>PR</option><option>PE</option><option>PI</option><option>RJ</option><option>RN</option><option>RS</option><option>RO</option><option>RR</option><option>SC</option><option>SP</option><option>SE</option><option>TO</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <div class="section-divider"></div>
+
+      <div class="section">
+        <div class="filiacao-grid">
+          <div class="field">
+            <label>Nome da mãe</label>
+            <input data-bind="ui.mae_nome" data-name-validate />
+          </div>
+
+          <div class="field">
+            <label>UF</label>
+            <select data-bind="ui.mae_uf" class="w-uf">
+              <option></option>
+              <option>IG</option>
+          <option>AC</option><option>AL</option><option>AP</option><option>AM</option><option>BA</option><option>CE</option><option>DF</option><option>ES</option><option>GO</option><option>MA</option><option>MT</option><option>MS</option><option>MG</option><option>PA</option><option>PB</option><option>PR</option><option>PE</option><option>PI</option><option>RJ</option><option>RN</option><option>RS</option><option>RO</option><option>RR</option><option>SC</option><option>SP</option><option>SE</option><option>TO</option>
+            </select>
+          </div>
+
+          <div class="field">
+            <label>Cidade</label>
+            <input data-bind="ui.mae_cidade" />
+          </div>
+        </div>
+
+        <div class="filiacao-avos">
+          <div class="field">
+            <label>Avó materna</label>
+            <input data-bind="ui.mae_avo_materna" />
+          </div>
+          <div class="field">
+            <label>Avô materno</label>
+            <input data-bind="ui.mae_avo_materno" />
+          </div>
+        </div>
+
+        <div class="filiacao-split"></div>
+
+        <div class="filiacao-grid">
+          <div class="field">
+            <label>Nome do pai</label>
+            <input data-bind="ui.pai_nome" data-name-validate />
+          </div>
+
+          <div class="field">
+            <label>UF</label>
+            <select data-bind="ui.pai_uf" class="w-uf">
+              <option></option>
+              <option>IG</option>
+          <option>AC</option><option>AL</option><option>AP</option><option>AM</option><option>BA</option><option>CE</option><option>DF</option><option>ES</option><option>GO</option><option>MA</option><option>MT</option><option>MS</option><option>MG</option><option>PA</option><option>PB</option><option>PR</option><option>PE</option><option>PI</option><option>RJ</option><option>RN</option><option>RS</option><option>RO</option><option>RR</option><option>SC</option><option>SP</option><option>SE</option><option>TO</option>
+            </select>
+          </div>
+
+          <div class="field">
+            <label>Cidade</label>
+            <input data-bind="ui.pai_cidade" />
+          </div>
+        </div>
+
+        <div class="filiacao-avos">
+          <div class="field">
+            <label>Avó paterna</label>
+            <input data-bind="ui.pai_avo_paterna" />
+          </div>
+          <div class="field">
+            <label>Avô paterno</label>
+            <input data-bind="ui.pai_avo_paterno" />
+          </div>
+        </div>
+      </div>
+
+      <div class="section-divider"></div>
+
+      <div class="section">
+        <div class="row">
+          <div class="field">
+            <label>Cartório (ofício)</label>
+            <select data-bind="ui.cartorio_oficio" id="cartorio-oficio" class="w-cartorio">
+              <option></option>
+              <option value="6">6</option>
+              <option value="9">9</option>
+              <option value="12">12</option>
+              <option value="13">13</option>
+              <option value="14">14</option>
+              <option value="15">15</option>
+            </select>
+          </div>
+
+          <div class="field">
+            <label>Livro</label>
+            <input data-bind="ui.matricula_livro" id="matricula-livro" class="w-livro" placeholder="00000" />
+          </div>
+
+          <div class="field">
+            <label>Folha</label>
+            <input data-bind="ui.matricula_folha" id="matricula-folha" class="w-folha" placeholder="000" />
+          </div>
+
+          <div class="field">
+            <label>Termo</label>
+            <input data-bind="ui.matricula_termo" id="matricula-termo" class="w-termo" placeholder="0000000" />
+          </div>
+
+          <div class="field" id="casamento-tipo-wrap" style="display:none;">
+            <label>Casamento</label>
+            <select data-bind="ui.casamento_tipo" id="casamento-tipo" class="w-cartorio">
+              <option></option>
+              <option value="2">Civil</option>
+              <option value="3">Religioso</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="row">
+          <div class="field" style="width: 340px;">
+            <label>Matricula (gerada)</label>
+            <input data-bind="registro.matricula" id="matricula" readonly />
+          </div>
+        </div>
+
+        <div class="row" style="margin-top:6px; opacity:0.9;">
+          <div class="field">
+            <label class="label-row">
+              <span>CPF</span>
+              <span class="inline-check">
+                <input type="checkbox" data-bind="registro.cpf_sem_inscricao" id="cpf-sem" />
+                Não inscrito
+              </span>
+            </label>
+            <input data-bind="registro.cpf" id="cpf" placeholder="000.000.000-00" class="w-cpf" inputmode="numeric" maxlength="14" />
+          </div>
+        </div>
+      </div>
+
+      <div class="section-divider"></div>
+
+      <div class="section">
+        <div class="row">
+          <div class="field grow">
+            <label>Averbação / Anotação</label>
+            <textarea data-bind="registro.averbacao_anotacao"></textarea>
+          </div>
+        </div>
+      </div>
+
+      <div class="section-divider"></div>
+
+      <details class="collapse">
+        <summary>Avancado</summary>
+
+        <div class="subcard">
+          <div class="subTitle">Gemeos</div>
+          <div class="grid">
+            <div class="field span-3">
+              <label>quantidade</label>
+              <input data-bind="registro.gemeos.quantidade" />
+            </div>
+            <div class="field span-9">
+              <label>irmao (nome|matricula por linha)</label>
+              <textarea data-bind="ui.gemeos_irmao_raw"></textarea>
+            </div>
+          </div>
+        </div>
+
+        <div class="subcard">
+          <div class="subTitle">Anotacoes cadastro (1 por linha)</div>
+          <div class="field">
+            <label>tipo|documento|orgao_emissor|uf_emissao|data_emissao</label>
+            <textarea data-bind="ui.anotacoes_raw"></textarea>
+          </div>
+        </div>
+      </details>
+
+  </div>
+
+  <div id="drawer" class="drawer">
+      <div class="drawer-header">
+        <div class="drawer-title">Painel</div>
+        <button id="drawer-close" class="btn tiny secondary" type="button">Fechar</button>
+      </div>
+      <div class="drawer-body">
+        <div class="tabbar">
+          <button class="tab-btn active" data-tab="tab-config">Configuracoes</button>
+          <button class="tab-btn" data-tab="tab-json">JSON</button>
+          <button class="tab-btn" data-tab="tab-xml">XML</button>
+          <button class="tab-btn" data-tab="tab-debug">Debug</button>
+        </div>
+
+        <div id="tab-config" class="tab-pane active">
+          <div class="card">
+            <div class="cardTitle">Certidao</div>
+            <div class="grid">
+              <div class="field span-3">
+                <label>plataformaId</label>
+                <input data-bind="certidao.plataformaId" readonly />
+              </div>
+              <div class="field span-3">
+                <label>tipo_registro</label>
+                <input data-bind="certidao.tipo_registro" readonly />
+              </div>
+              <div class="field span-3">
+                <label>tipo_certidao</label>
+                <select data-bind="certidao.tipo_certidao">
+                  <option></option><option>Breve relato</option><option>Inteiro teor</option>
+                </select>
+              </div>
+              <div class="field span-3">
+                <label>modalidade</label>
+                <select data-bind="certidao.modalidade">
+                  <option></option><option>eletronica</option><option>fisica</option>
+                </select>
+              </div>
+              <div class="field span-3">
+                <label>cartorio_cns</label>
+                <input data-bind="certidao.cartorio_cns" readonly />
+              </div>
+              <div class="field span-3">
+                <label>cota_emolumentos</label>
+                <input data-bind="certidao.cota_emolumentos" />
+              </div>
+              <div class="field checkboxField span-2">
+                <input type="checkbox" data-bind="certidao.transcricao" />
+                <label>transcricao</label>
+              </div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="cardTitle">Pastas</div>
+            <div class="grid">
+              <div class="field span-9">
+                <label>Pasta JSON</label>
+                <input id="json-dir" readonly />
+              </div>
+              <div class="field span-3">
+                <label>&nbsp;</label>
+                <button id="pick-json" class="btn secondary" type="button">Selecionar...</button>
+              </div>
+              <div class="field span-9">
+                <label>Pasta XML</label>
+                <input id="xml-dir" readonly />
+              </div>
+              <div class="field span-3">
+                <label>&nbsp;</label>
+                <button id="pick-xml" class="btn secondary" type="button">Selecionar...</button>
+              </div>
+              <div class="field span-12">
+                <span id="outputDirBadge" class="badge">JSON: ... | XML: ...</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="cardTitle">Automacoes</div>
+            <div class="grid">
+              <div class="field span-12">
+                <label>Corretor de nome</label>
+                <div class="field-line">
+                  <label class="inline-check">
+                    <input type="radio" name="name-validation-mode" value="blur" />
+                    Somente ao sair do input
+                  </label>
+                  <label class="inline-check">
+                    <input type="radio" name="name-validation-mode" value="input" />
+                    Durante a digitacao
+                  </label>
+                </div>
+              </div>
+            </div>
+            <div class="toolbar-left" style="margin-top: 10px;">
+              <button id="config-save" class="btn" type="button">Salvar configuracao</button>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="cardTitle">Settings</div>
+            <div class="grid">
+              <div class="field span-6">
+                <label>Posicionamento do painel (não usado em modo inline)</label>
+                <select id="settings-drawer-position" class="campo">
+                  <option value="bottom-right">Inferior direito</option>
+                  <option value="top">Topo central</option>
+                  <option value="side">Lateral</option>
+                </select>
+              </div>
+              <div class="field span-6">
+                <label>Preferencias</label>
+                <div class="field-line">
+                  <label class="inline-check"><input type="checkbox" id="settings-enable-cpf" /> Validar CPF</label>
+                  <label class="inline-check"><input type="checkbox" id="settings-enable-name" /> Validar Nomes</label>
+                </div>
+              </div>
+            </div>
+            <div style="margin-top:10px;" class="toolbar-left">
+              <button id="settings-save" class="btn" type="button">Salvar</button>
+              <button id="settings-apply" class="btn secondary" type="button">Aplicar sem salvar</button>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="cardTitle">Administracao</div>
+            <div class="grid">
+              <div class="field span-9">
+                <label>Assinante</label>
+                <input id="admin-signer-name" placeholder="Nome do assinante" />
+              </div>
+              <div class="field span-3">
+                <label>&nbsp;</label>
+                <button id="admin-signer-add" class="btn secondary" type="button">Adicionar</button>
+              </div>
+              <div class="field span-12">
+                <div id="admin-signer-list"></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="toolbar-left" style="margin-top: 8px;">
+            <button id="btn-save" class="btn save dirty" type="button">Salvar (Ctrl+B)</button>
+          </div>
+        </div>
+
+        <div id="tab-json" class="tab-pane">
+          <div class="field">
+            <label>JSON</label>
+            <textarea id="json-output" rows="10" readonly></textarea>
+          </div>
+          <button id="btn-json" class="btn" type="button">Gerar JSON</button>
+        </div>
+
+        <div id="tab-xml" class="tab-pane">
+          <div class="field">
+            <label>XML</label>
+            <textarea id="xml-output" rows="10" readonly></textarea>
+          </div>
+          <button id="btn-xml" class="btn" type="button">Gerar XML</button>
+        </div>
+
+        <div id="tab-debug" class="tab-pane">
+          <div class="grid">
+            <div class="field span-8">
+              <label>Base matricula</label>
+              <input id="debug-matricula-base" readonly />
+            </div>
+            <div class="field span-2">
+              <label>DV</label>
+              <input id="debug-matricula-dv" readonly />
+            </div>
+            <div class="field span-2">
+              <label>Final</label>
+              <input id="debug-matricula-final" readonly />
+            </div>
+            <div class="field span-12">
+              <label>Campos invalidos</label>
+              <textarea id="debug-invalid" rows="3" readonly></textarea>
+            </div>
+            <div class="field span-12">
+              <label>Alertas</label>
+              <textarea id="debug-alerts" rows="3" readonly></textarea>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  <script type="module" src="../js/nascimento.bundle.js"></script>
+</body>
+</html>
+

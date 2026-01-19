@@ -1,0 +1,3 @@
+export {};
+
+// ...restante do código do arquivo original...

@@ -1,0 +1,11 @@
+node_modules/
+*.log
+*.tmp
+*.temp
+.DS_Store
+Thumbs.db
+# Generated bundles and build
+ui/js/*.bundle.js
+ui/js/*.bundle.js.map
+dist-src/
+build.js

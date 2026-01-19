@@ -1,0 +1,170 @@
+ M segundas-vias/.gitignore
+ M segundas-vias/README-REFACTOR.md
+ M segundas-vias/README.md
+ M segundas-vias/build.js
+ M segundas-vias/dist-src/db.js
+ M segundas-vias/dist-src/main.js
+ M segundas-vias/dist-src/preload.js
+ M segundas-vias/dist-src/ui.js
+ M segundas-vias/package-lock.json
+ M segundas-vias/package.json
+ M segundas-vias/src/acts/casamento/casamento.ts
+ M segundas-vias/src/acts/casamento/mapperHtmlToJson.ts
+ M segundas-vias/src/acts/casamento/printTemplate.ts
+ M segundas-vias/src/acts/nascimento/mapperHtmlToJson.ts
+ M segundas-vias/src/acts/nascimento/nascimento.ts
+ M segundas-vias/src/acts/nascimento/printTemplate.ts
+ M segundas-vias/src/acts/obito/mapperHtmlToJson.ts
+ M segundas-vias/src/acts/obito/obito.ts
+ M segundas-vias/src/acts/obito/printTemplate.ts
+ M segundas-vias/src/app/mapperHtmlToJson.js
+ M segundas-vias/src/core/contracts/CertidaoBase.ts
+ M segundas-vias/src/core/contracts/CertidaoCasamento.ts
+ M segundas-vias/src/core/contracts/CertidaoNascimento.ts
+ M segundas-vias/src/core/contracts/CertidaoObito.ts
+ M segundas-vias/src/core/events.ts
+ M segundas-vias/src/core/mappers/domainToJsonCasamento.ts
+ M segundas-vias/src/core/mappers/domainToJsonNascimento.ts
+ M segundas-vias/src/core/mappers/domainToJsonObito.ts
+ M segundas-vias/src/core/mappers/mapFormToDomainCasamento.ts
+ M segundas-vias/src/core/mappers/mapFormToDomainNascimento.ts
+ M segundas-vias/src/core/mappers/mapFormToDomainObito.ts
+ M segundas-vias/src/core/schemas/CasamentoDomainSchema.ts
+ M segundas-vias/src/core/schemas/CasamentoFormInputSchema.ts
+ M segundas-vias/src/core/schemas/NascimentoDomainSchema.ts
+ M segundas-vias/src/core/schemas/NascimentoFormInputSchema.ts
+ M segundas-vias/src/core/schemas/ObitoDomainSchema.ts
+ M segundas-vias/src/core/schemas/ObitoFormInputSchema.ts
+ M segundas-vias/src/core/state.ts
+ M segundas-vias/src/core/validators.ts
+ M segundas-vias/src/core/version/contractVersion.ts
+ M segundas-vias/src/db.ts
+ M segundas-vias/src/main.ts
+ M segundas-vias/src/preload.ts
+ M segundas-vias/src/shared/formatters/text.ts
+ M segundas-vias/src/shared/location/municipio.ts
+ M segundas-vias/src/shared/location/uf.ts
+ M segundas-vias/src/shared/matricula.js
+ M segundas-vias/src/shared/matricula/cnj.ts
+ M segundas-vias/src/shared/nameValidator/index.ts
+ M segundas-vias/src/shared/placeAutofill/cache.ts
+ M segundas-vias/src/shared/placeAutofill/extractCityUf.ts
+ M segundas-vias/src/shared/placeAutofill/index.ts
+ M segundas-vias/src/shared/placeAutofill/normalize.ts
+ M segundas-vias/src/shared/productivity/index.ts
+ M segundas-vias/src/shared/ui/admin.ts
+ M segundas-vias/src/shared/ui/debug.ts
+ M segundas-vias/src/shared/ui/fieldState.ts
+ M segundas-vias/src/shared/ui/mask.js
+ M segundas-vias/src/shared/ui/mask.ts
+ M segundas-vias/src/shared/validators/cpf.js
+ M segundas-vias/src/shared/validators/cpf.ts
+ M segundas-vias/src/shared/validators/date.js
+ M segundas-vias/src/shared/validators/date.ts
+ M segundas-vias/src/shared/validators/name.js
+ M segundas-vias/src/shared/validators/name.ts
+ M segundas-vias/src/shared/validators/time.ts
+ M segundas-vias/src/state.js
+ M segundas-vias/src/ui.css
+ M segundas-vias/src/ui.js
+ M segundas-vias/src/ui.ts
+ M segundas-vias/src/ui/setup-ui.js
+ M segundas-vias/src/utils.js
+ M segundas-vias/tests/MANUAL-TESTS.md
+ M segundas-vias/tools/ensure_names_gz.js
+ M segundas-vias/tools/import_names.js
+ M segundas-vias/tsconfig.json
+ M segundas-vias/ui/index.html
+D  segundas-vias/ui/js/casamento.bundle.js
+D  segundas-vias/ui/js/nascimento.bundle.js
+D  segundas-vias/ui/js/obito.bundle.js
+ M segundas-vias/ui/pages/Base2ViaLayout.html
+ M segundas-vias/ui/styles/base.css
+ M segundas-vias/ui/styles/components.css
+ M segundas-vias/ui/styles/layout.css
+ M segundas-vias/ui/ts/acts/casamento/casamento.ts
+ M segundas-vias/ui/ts/acts/casamento/mapperHtmlToJson.ts
+ M segundas-vias/ui/ts/acts/nascimento/nascimento.ts
+ M segundas-vias/ui/ts/acts/obito/mapperHtmlToJson.ts
+ M segundas-vias/ui/ts/acts/obito/obito.ts
+ M segundas-vias/ui/ts/acts/obito/printTemplate.ts
+ M segundas-vias/ui/ts/dom.ts
+ M segundas-vias/ui/ts/events.ts
+ M segundas-vias/ui/ts/nameValidator.ts
+ M segundas-vias/ui/ts/placeAutofill/cache.ts
+ M segundas-vias/ui/ts/placeAutofill/extractCityUf.ts
+ M segundas-vias/ui/ts/placeAutofill/index.ts
+ M segundas-vias/ui/ts/placeAutofill/normalize.ts
+ M segundas-vias/ui/ts/placeAutofill/suggest.ts
+ M segundas-vias/ui/ts/shared/documents/normalizeDocumento.ts
+ M segundas-vias/ui/ts/shared/formatters/cpf.ts
+ M segundas-vias/ui/ts/shared/formatters/date.ts
+ M segundas-vias/ui/ts/shared/formatters/text.ts
+ M segundas-vias/ui/ts/shared/location/municipio.ts
+ M segundas-vias/ui/ts/shared/location/uf.ts
+ M segundas-vias/ui/ts/shared/matricula/cnj.ts
+ M segundas-vias/ui/ts/shared/productivity/index.ts
+ M segundas-vias/ui/ts/shared/ui/admin.ts
+ M segundas-vias/ui/ts/shared/ui/debug.ts
+ M segundas-vias/ui/ts/shared/ui/drawer.ts
+ M segundas-vias/ui/ts/shared/ui/fieldState.ts
+ M segundas-vias/ui/ts/shared/ui/mask.ts
+ M segundas-vias/ui/ts/shared/validators/cpf.ts
+ M segundas-vias/ui/ts/shared/validators/date.ts
+ M segundas-vias/ui/ts/shared/validators/name.ts
+ M segundas-vias/ui/ts/shared/validators/required.ts
+ M segundas-vias/ui/ts/shared/validators/time.ts
+ M segundas-vias/ui/ts/state.ts
+ M segundas-vias/ui/ts/validators.ts
+ M segundas-vias/ui/tsconfig.json
+ M temp-editor
+?? segundas-vias/.eslintignore
+?? segundas-vias/.eslintrc.json
+?? segundas-vias/.prettierrc
+?? segundas-vias/QUALITY-REPORT.md
+?? segundas-vias/git_diff.txt
+?? segundas-vias/git_saved_patch.diff
+?? segundas-vias/git_saved_status.txt
+?? segundas-vias/git_status.txt
+?? segundas-vias/tmp_diff.txt
+?? segundas-vias/tmp_status.txt
+?? segundas-vias/tools/auto_convert_any_unknown.js
+?? segundas-vias/tools/auto_fix_catch.js
+?? segundas-vias/tools/auto_fix_empty_blocks.js
+?? segundas-vias/tools/auto_fix_regex_escapes.js
+?? segundas-vias/tools/replace_requires.js
+?? segundas-vias/tools/replace_requires_fixed.js
+?? segundas-vias/ui/ts/acts/casamento/casamento.js
+?? segundas-vias/ui/ts/acts/casamento/mapperHtmlToJson.js
+?? segundas-vias/ui/ts/acts/nascimento/nascimento.js
+?? segundas-vias/ui/ts/acts/obito/mapperHtmlToJson.js
+?? segundas-vias/ui/ts/acts/obito/obito.js
+?? segundas-vias/ui/ts/acts/obito/printTemplate.js
+?? segundas-vias/ui/ts/dom.js
+?? segundas-vias/ui/ts/events.js
+?? segundas-vias/ui/ts/nameValidator.js
+?? segundas-vias/ui/ts/placeAutofill/cache.js
+?? segundas-vias/ui/ts/placeAutofill/extractCityUf.js
+?? segundas-vias/ui/ts/placeAutofill/index.js
+?? segundas-vias/ui/ts/placeAutofill/normalize.js
+?? segundas-vias/ui/ts/placeAutofill/suggest.js
+?? segundas-vias/ui/ts/shared/documents/normalizeDocumento.js
+?? segundas-vias/ui/ts/shared/formatters/cpf.js
+?? segundas-vias/ui/ts/shared/formatters/date.js
+?? segundas-vias/ui/ts/shared/formatters/text.js
+?? segundas-vias/ui/ts/shared/location/municipio.js
+?? segundas-vias/ui/ts/shared/location/uf.js
+?? segundas-vias/ui/ts/shared/matricula/cnj.js
+?? segundas-vias/ui/ts/shared/productivity/index.js
+?? segundas-vias/ui/ts/shared/ui/admin.js
+?? segundas-vias/ui/ts/shared/ui/debug.js
+?? segundas-vias/ui/ts/shared/ui/drawer.js
+?? segundas-vias/ui/ts/shared/ui/fieldState.js
+?? segundas-vias/ui/ts/shared/ui/mask.js
+?? segundas-vias/ui/ts/shared/validators/cpf.js
+?? segundas-vias/ui/ts/shared/validators/date.js
+?? segundas-vias/ui/ts/shared/validators/name.js
+?? segundas-vias/ui/ts/shared/validators/required.js
+?? segundas-vias/ui/ts/shared/validators/time.js
+?? segundas-vias/ui/ts/state.js
+?? segundas-vias/ui/ts/validators.js

@@ -1,0 +1,27 @@
+:root {
+  --gap: 8px;
+  --radius: 10px;
+  --border: #d6dde8;
+  --label: #637083;
+  --text: #1f2a37;
+  --bg: #ffffff;
+  --bg2: #f7f9fc;
+  --accent: #2563eb;
+  --accent2: #1d4ed8;
+  --danger: #dc2626;
+  --ok: #16a34a;
+  --h: 30px;
+  --font: 12px;
+  --labelFont: 11px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: #eef2f7;
+  color: var(--text);
+  font-family: 'Trebuchet MS', Tahoma, sans-serif;
+}

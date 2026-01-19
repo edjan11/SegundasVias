@@ -1,0 +1,191 @@
+warning: in the working copy of 'segundas-vias/README-REFACTOR.md', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'segundas-vias/README.md', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'segundas-vias/build.js', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'segundas-vias/dist-src/db.js', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'segundas-vias/dist-src/main.js', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'segundas-vias/dist-src/preload.js', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'segundas-vias/dist-src/ui.js', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'segundas-vias/package-lock.json', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'segundas-vias/package.json', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'segundas-vias/src/acts/casamento/casamento.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'segundas-vias/src/acts/casamento/mapperHtmlToJson.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'segundas-vias/src/acts/casamento/printTemplate.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'segundas-vias/src/acts/nascimento/mapperHtmlToJson.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'segundas-vias/src/acts/nascimento/nascimento.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'segundas-vias/src/acts/nascimento/printTemplate.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'segundas-vias/src/acts/obito/mapperHtmlToJson.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'segundas-vias/src/acts/obito/obito.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'segundas-vias/src/acts/obito/printTemplate.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'segundas-vias/src/app/mapperHtmlToJson.js', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'segundas-vias/src/core/contracts/CertidaoBase.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'segundas-vias/src/core/contracts/CertidaoCasamento.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'segundas-vias/src/core/contracts/CertidaoNascimento.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'segundas-vias/src/core/contracts/CertidaoObito.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'segundas-vias/src/core/events.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'segundas-vias/src/core/mappers/domainToJsonCasamento.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'segundas-vias/src/core/mappers/domainToJsonNascimento.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'segundas-vias/src/core/mappers/domainToJsonObito.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'segundas-vias/src/core/mappers/mapFormToDomainCasamento.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'segundas-vias/src/core/mappers/mapFormToDomainNascimento.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'segundas-vias/src/core/mappers/mapFormToDomainObito.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'segundas-vias/src/core/schemas/CasamentoDomainSchema.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'segundas-vias/src/core/schemas/CasamentoFormInputSchema.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'segundas-vias/src/core/schemas/NascimentoDomainSchema.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'segundas-vias/src/core/schemas/NascimentoFormInputSchema.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'segundas-vias/src/core/schemas/ObitoDomainSchema.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'segundas-vias/src/core/schemas/ObitoFormInputSchema.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'segundas-vias/src/core/state.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'segundas-vias/src/core/validators.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'segundas-vias/src/core/version/contractVersion.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'segundas-vias/src/db.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'segundas-vias/src/main.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'segundas-vias/src/preload.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'segundas-vias/src/shared/formatters/text.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'segundas-vias/src/shared/location/municipio.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'segundas-vias/src/shared/location/uf.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'segundas-vias/src/shared/matricula.js', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'segundas-vias/src/shared/matricula/cnj.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'segundas-vias/src/shared/nameValidator/index.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'segundas-vias/src/shared/placeAutofill/cache.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'segundas-vias/src/shared/placeAutofill/extractCityUf.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'segundas-vias/src/shared/placeAutofill/index.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'segundas-vias/src/shared/placeAutofill/normalize.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'segundas-vias/src/shared/productivity/index.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'segundas-vias/src/shared/ui/admin.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'segundas-vias/src/shared/ui/debug.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'segundas-vias/src/shared/ui/fieldState.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'segundas-vias/src/shared/ui/mask.js', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'segundas-vias/src/shared/ui/mask.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'segundas-vias/src/shared/validators/cpf.js', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'segundas-vias/src/shared/validators/cpf.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'segundas-vias/src/shared/validators/date.js', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'segundas-vias/src/shared/validators/date.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'segundas-vias/src/shared/validators/name.js', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'segundas-vias/src/shared/validators/name.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'segundas-vias/src/shared/validators/time.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'segundas-vias/src/state.js', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'segundas-vias/src/ui.css', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'segundas-vias/src/ui.js', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'segundas-vias/src/ui.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'segundas-vias/src/ui/setup-ui.js', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'segundas-vias/src/utils.js', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'segundas-vias/tests/MANUAL-TESTS.md', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'segundas-vias/tools/ensure_names_gz.js', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'segundas-vias/tools/import_names.js', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'segundas-vias/tsconfig.json', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'segundas-vias/ui/index.html', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'segundas-vias/ui/pages/Base2ViaLayout.html', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'segundas-vias/ui/styles/base.css', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'segundas-vias/ui/styles/components.css', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'segundas-vias/ui/styles/layout.css', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'segundas-vias/ui/ts/acts/casamento/casamento.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'segundas-vias/ui/ts/acts/casamento/mapperHtmlToJson.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'segundas-vias/ui/ts/acts/nascimento/nascimento.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'segundas-vias/ui/ts/acts/obito/mapperHtmlToJson.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'segundas-vias/ui/ts/acts/obito/obito.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'segundas-vias/ui/ts/acts/obito/printTemplate.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'segundas-vias/ui/ts/dom.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'segundas-vias/ui/ts/events.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'segundas-vias/ui/ts/nameValidator.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'segundas-vias/ui/ts/placeAutofill/cache.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'segundas-vias/ui/ts/placeAutofill/extractCityUf.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'segundas-vias/ui/ts/placeAutofill/index.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'segundas-vias/ui/ts/placeAutofill/normalize.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'segundas-vias/ui/ts/placeAutofill/suggest.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'segundas-vias/ui/ts/shared/documents/normalizeDocumento.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'segundas-vias/ui/ts/shared/formatters/cpf.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'segundas-vias/ui/ts/shared/formatters/date.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'segundas-vias/ui/ts/shared/formatters/text.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'segundas-vias/ui/ts/shared/location/municipio.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'segundas-vias/ui/ts/shared/location/uf.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'segundas-vias/ui/ts/shared/matricula/cnj.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'segundas-vias/ui/ts/shared/productivity/index.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'segundas-vias/ui/ts/shared/ui/admin.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'segundas-vias/ui/ts/shared/ui/debug.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'segundas-vias/ui/ts/shared/ui/drawer.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'segundas-vias/ui/ts/shared/ui/fieldState.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'segundas-vias/ui/ts/shared/ui/mask.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'segundas-vias/ui/ts/shared/validators/cpf.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'segundas-vias/ui/ts/shared/validators/date.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'segundas-vias/ui/ts/shared/validators/name.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'segundas-vias/ui/ts/shared/validators/required.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'segundas-vias/ui/ts/shared/validators/time.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'segundas-vias/ui/ts/state.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'segundas-vias/ui/ts/validators.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'segundas-vias/ui/tsconfig.json', LF will be replaced by CRLF the next time Git touches it
+segundas-vias/.gitignore
+segundas-vias/README.md
+segundas-vias/build.js
+segundas-vias/dist-src/db.js
+segundas-vias/dist-src/main.js
+segundas-vias/dist-src/preload.js
+segundas-vias/dist-src/ui.js
+segundas-vias/package-lock.json
+segundas-vias/package.json
+segundas-vias/src/acts/casamento/casamento.ts
+segundas-vias/src/acts/casamento/mapperHtmlToJson.ts
+segundas-vias/src/acts/nascimento/mapperHtmlToJson.ts
+segundas-vias/src/acts/nascimento/nascimento.ts
+segundas-vias/src/acts/nascimento/printTemplate.ts
+segundas-vias/src/acts/obito/mapperHtmlToJson.ts
+segundas-vias/src/acts/obito/obito.ts
+segundas-vias/src/app/mapperHtmlToJson.js
+segundas-vias/src/core/contracts/CertidaoCasamento.ts
+segundas-vias/src/core/contracts/CertidaoNascimento.ts
+segundas-vias/src/core/contracts/CertidaoObito.ts
+segundas-vias/src/core/mappers/domainToJsonCasamento.ts
+segundas-vias/src/core/mappers/domainToJsonNascimento.ts
+segundas-vias/src/core/mappers/domainToJsonObito.ts
+segundas-vias/src/core/mappers/mapFormToDomainCasamento.ts
+segundas-vias/src/core/mappers/mapFormToDomainNascimento.ts
+segundas-vias/src/core/mappers/mapFormToDomainObito.ts
+segundas-vias/src/core/schemas/CasamentoDomainSchema.ts
+segundas-vias/src/core/schemas/CasamentoFormInputSchema.ts
+segundas-vias/src/core/schemas/NascimentoDomainSchema.ts
+segundas-vias/src/core/schemas/NascimentoFormInputSchema.ts
+segundas-vias/src/core/schemas/ObitoDomainSchema.ts
+segundas-vias/src/core/schemas/ObitoFormInputSchema.ts
+segundas-vias/src/core/version/contractVersion.ts
+segundas-vias/src/db.ts
+segundas-vias/src/main.ts
+segundas-vias/src/preload.ts
+segundas-vias/src/shared/matricula.js
+segundas-vias/src/shared/ui/mask.js
+segundas-vias/src/shared/validators/cpf.js
+segundas-vias/src/shared/validators/date.js
+segundas-vias/src/shared/validators/name.js
+segundas-vias/src/state.js
+segundas-vias/src/ui.css
+segundas-vias/src/ui.js
+segundas-vias/src/ui.ts
+segundas-vias/src/ui/setup-ui.js
+segundas-vias/src/utils.js
+segundas-vias/tests/MANUAL-TESTS.md
+segundas-vias/tools/import_names.js
+segundas-vias/tsconfig.json
+segundas-vias/ui/index.html
+segundas-vias/ui/pages/Base2ViaLayout.html
+segundas-vias/ui/styles/base.css
+segundas-vias/ui/styles/components.css
+segundas-vias/ui/styles/layout.css
+segundas-vias/ui/ts/acts/casamento/casamento.ts
+segundas-vias/ui/ts/acts/casamento/mapperHtmlToJson.ts
+segundas-vias/ui/ts/acts/nascimento/nascimento.ts
+segundas-vias/ui/ts/acts/obito/mapperHtmlToJson.ts
+segundas-vias/ui/ts/acts/obito/obito.ts
+segundas-vias/ui/ts/acts/obito/printTemplate.ts
+segundas-vias/ui/ts/dom.ts
+segundas-vias/ui/ts/events.ts
+segundas-vias/ui/ts/nameValidator.ts
+segundas-vias/ui/ts/placeAutofill/cache.ts
+segundas-vias/ui/ts/placeAutofill/extractCityUf.ts
+segundas-vias/ui/ts/placeAutofill/index.ts
+segundas-vias/ui/ts/placeAutofill/normalize.ts
+segundas-vias/ui/ts/placeAutofill/suggest.ts
+segundas-vias/ui/ts/shared/location/uf.ts
+segundas-vias/ui/ts/shared/productivity/index.ts
+segundas-vias/ui/ts/shared/ui/admin.ts
+segundas-vias/ui/ts/shared/validators/date.ts
+segundas-vias/ui/ts/state.ts
+segundas-vias/ui/ts/validators.ts
+temp-editor

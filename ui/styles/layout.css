@@ -1,0 +1,139 @@
+.container {
+  max-width: 600px;
+  margin: 0 auto;
+  padding: 12px;
+}
+
+.card {
+  margin-top: 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg);
+  padding: 10px;
+}
+
+.cardTitle {
+  font-weight: 700;
+  font-size: 13px;
+  margin-bottom: 8px;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(12, 1fr);
+  gap: var(--gap);
+  align-items: end;
+}
+
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--gap);
+  align-items: flex-end;
+  margin-bottom: 8px;
+}
+.row:last-child {
+  margin-bottom: 0;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.row .field {
+  flex: 0 0 auto;
+}
+.row .field.grow {
+  flex: 1 1 auto;
+  min-width: 120px;
+}
+
+.span-1 {
+  grid-column: span 1;
+}
+.span-2 {
+  grid-column: span 2;
+}
+.span-3 {
+  grid-column: span 3;
+}
+.span-4 {
+  grid-column: span 4;
+}
+.span-5 {
+  grid-column: span 5;
+}
+.span-6 {
+  grid-column: span 6;
+}
+.span-7 {
+  grid-column: span 7;
+}
+.span-8 {
+  grid-column: span 8;
+}
+.span-9 {
+  grid-column: span 9;
+}
+.span-12 {
+  grid-column: 1 / -1;
+}
+
+.section {
+  border: 0;
+  padding: 0;
+  margin: 12px 0;
+}
+
+.section-divider {
+  height: 1px;
+  background: rgba(15, 23, 42, 0.08);
+  margin: 12px 0;
+}
+
+/* Filiação compacta (mãe/pai em 1 linha, avós em 1 linha) */
+.filiacao-grid {
+  display: grid;
+  grid-template-columns: minmax(200px, 1fr) 60px minmax(180px, 1fr);
+  gap: 6px;
+  align-items: end;
+}
+
+.filiacao-avos {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(180px, 1fr));
+  gap: 6px;
+  margin-top: 4px;
+}
+
+.filiacao-split {
+  height: 1px;
+  background: rgba(15, 23, 42, 0.06);
+  margin: 6px 0;
+}
+
+/* Local de nascimento "grande" */
+.w-local-wide {
+  flex: 1 1 320px;
+  min-width: 260px;
+}
+
+.row .field.w-local-wide {
+  flex: 1 1 320px;
+}
+
+@media (max-width: 520px) {
+  .filiacao-grid {
+    grid-template-columns: 1fr;
+  }
+  .filiacao-avos {
+    grid-template-columns: 1fr;
+  }
+  .w-local-wide {
+    flex-basis: 100%;
+    min-width: 0;
+  }
+}
