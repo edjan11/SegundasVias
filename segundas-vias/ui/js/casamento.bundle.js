@@ -93,24 +93,69 @@ var require_papaparse_min = __commonJS({
       function l(e) {
         (e = e || {}).chunkSize || (e.chunkSize = v.LocalChunkSize), u.call(this, e);
         var i2, r2, n2 = "undefined" != typeof FileReader;
-        // Legacy bundle stub: original monolithic bundle removed
-        // This lightweight shim loads the new refactored bundle (dist/app.bundle.js).
-        (function loadRefactorBundleShim(){
-          try{
-            if(typeof document === 'undefined') return;
-            const scriptPath = '../../dist/app.bundle.js';
-            const existing = document.querySelector(`script[data-refactor-bundle][src="${scriptPath}"]`);
-            if(existing) return;
-            const s = document.createElement('script');
-            s.setAttribute('data-refactor-bundle','1');
-            s.src = scriptPath;
-            s.defer = false;
-            s.async = false;
-            document.head.appendChild(s);
-          }catch(e){
-            console.warn('Failed to load refactor bundle shim', e);
+        this.stream = function(e2) {
+          this._input = e2, r2 = e2.slice || e2.webkitSlice || e2.mozSlice, n2 ? ((i2 = new FileReader()).onload = y(this._chunkLoaded, this), i2.onerror = y(this._chunkError, this)) : i2 = new FileReaderSync(), this._nextChunk();
+        }, this._nextChunk = function() {
+          this._finished || this._config.preview && !(this._rowCount < this._config.preview) || this._readChunk();
+        }, this._readChunk = function() {
+          var e2 = this._input, t = (this._config.chunkSize && (t = Math.min(this._start + this._config.chunkSize, this._input.size), e2 = r2.call(e2, this._start, t)), i2.readAsText(e2, this._config.encoding));
+          n2 || this._chunkLoaded({ target: { result: t } });
+        }, this._chunkLoaded = function(e2) {
+          this._start += this._config.chunkSize, this._finished = !this._config.chunkSize || this._start >= this._input.size, this.parseChunk(e2.target.result);
+        }, this._chunkError = function() {
+          this._sendError(i2.error);
+        };
+      }
+      function c(e) {
+        var i2;
+        u.call(this, e = e || {}), this.stream = function(e2) {
+          return i2 = e2, this._nextChunk();
+        }, this._nextChunk = function() {
+          var e2, t;
+          if (!this._finished) return e2 = this._config.chunkSize, i2 = e2 ? (t = i2.substring(0, e2), i2.substring(e2)) : (t = i2, ""), this._finished = !i2, this.parseChunk(t);
+        };
+      }
+      function p(e) {
+        u.call(this, e = e || {});
+        var t = [], i2 = true, r2 = false;
+        this.pause = function() {
+          u.prototype.pause.apply(this, arguments), this._input.pause();
+        }, this.resume = function() {
+          u.prototype.resume.apply(this, arguments), this._input.resume();
+        }, this.stream = function(e2) {
+          this._input = e2, this._input.on("data", this._streamData), this._input.on("end", this._streamEnd), this._input.on("error", this._streamError);
+        }, this._checkIsFinished = function() {
+          r2 && 1 === t.length && (this._finished = true);
+        }, this._nextChunk = function() {
+          this._checkIsFinished(), t.length ? this.parseChunk(t.shift()) : i2 = true;
+        }, this._streamData = y(function(e2) {
+          try {
+            t.push("string" == typeof e2 ? e2 : e2.toString(this._config.encoding)), i2 && (i2 = false, this._checkIsFinished(), this.parseChunk(t.shift()));
+          } catch (e3) {
+            this._streamError(e3);
           }
-        })();
+        }, this), this._streamError = y(function(e2) {
+          this._streamCleanUp(), this._sendError(e2);
+        }, this), this._streamEnd = y(function() {
+          this._streamCleanUp(), r2 = true, this._streamData("");
+        }, this), this._streamCleanUp = y(function() {
+          this._input.removeListener("data", this._streamData), this._input.removeListener("end", this._streamEnd), this._input.removeListener("error", this._streamError);
+        }, this);
+      }
+      function i(m2) {
+        var n2, s2, a2, t, o2 = Math.pow(2, 53), h2 = -o2, u2 = /^\s*-?(\d+\.?|\.\d+|\d+\.\d+)([eE][-+]?\d+)?\s*$/, d2 = /^((\d{4}-[01]\d-[0-3]\dT[0-2]\d:[0-5]\d:[0-5]\d\.\d+([+-][0-2]\d:[0-5]\d|Z))|(\d{4}-[01]\d-[0-3]\dT[0-2]\d:[0-5]\d:[0-5]\d([+-][0-2]\d:[0-5]\d|Z))|(\d{4}-[01]\d-[0-3]\dT[0-2]\d:[0-5]\d([+-][0-2]\d:[0-5]\d|Z)))$/, i2 = this, r2 = 0, f2 = 0, l2 = false, e = false, c2 = [], p2 = { data: [], errors: [], meta: {} };
+        function y2(e2) {
+          return "greedy" === m2.skipEmptyLines ? "" === e2.join("").trim() : 1 === e2.length && 0 === e2[0].length;
+        }
+        function g2() {
+          if (p2 && a2 && (k("Delimiter", "UndetectableDelimiter", "Unable to auto-detect delimiting character; defaulted to '" + v.DefaultDelimiter + "'"), a2 = false), m2.skipEmptyLines && (p2.data = p2.data.filter(function(e3) {
+            return !y2(e3);
+          })), _2()) {
+            let t3 = function(e3, t4) {
+              U(m2.transformHeader) && (e3 = m2.transformHeader(e3, t4)), c2.push(e3);
+            };
+            var t2 = t3;
+            if (p2) if (Array.isArray(p2.data[0])) {
               for (var e2 = 0; _2() && e2 < p2.data.length; e2++) p2.data[e2].forEach(t3);
               p2.data.splice(0, 1);
             } else p2.data.forEach(t3);
@@ -690,11 +735,6 @@ function buildRgItem(numero, data, orgao) {
   };
 }
 function mapperHtmlToJson(root = document) {
-  const cnsInput = root.querySelector('input[data-bind="certidao.cartorio_cns"]');
-  if (cnsInput) {
-    cnsInput.value = "163659";
-    cnsInput.readOnly = true;
-  }
   const observacao = getInputValue("observacao", root);
   const seloInfo = extractSelo(observacao);
   const seloInput = normalizeText(getInputValue("certidao.selo", root));
@@ -702,7 +742,7 @@ function mapperHtmlToJson(root = document) {
   const plataformaId = normalizeText(getInputValue("certidao.plataformaId", root));
   const tipoCertidao = normalizeText(getSelectValue("certidao.tipo_certidao", root));
   const modalidade = normalizeText(getSelectValue("certidao.modalidade", root));
-  const cartorioCns = "163659";
+  const cartorioCns = normalizeText(getInputValue("certidao.cartorio_cns", root));
   const cotaEmolumentos = normalizeText(getInputValue("certidao.cota_emolumentos", root));
   const transcricao = getCheckboxValue("certidao.transcricao", root);
   const noivoCpf = normalizeCpfFields(getInputValue("CPFNoivo", root));
@@ -764,7 +804,6 @@ function mapperHtmlToJson(root = document) {
       tipo_certidao: tipoCertidao,
       transcricao,
       cartorio_cns: cartorioCns,
-      // Sempre fixo
       selo: seloInput || seloInfo.selo,
       cod_selo: codInput || seloInfo.cod_selo,
       modalidade,
@@ -2481,14 +2520,16 @@ function updateMatricula() {
 }
 function applyCartorioChange() {
   const oficio = state.ui.cartorio_oficio || "";
-  state.certidao.cartorio_cns = "163659";
-  const cnsInput = document.querySelector('[data-bind="certidao.cartorio_cns"]');
-  if (cnsInput) {
-    cnsInput.value = "163659";
-    cnsInput.readOnly = true;
+  if (!oficio) {
+    updateMatricula();
+    return;
   }
-  const cnsMatricula = CNS_CARTORIOS[oficio];
-  state.registro.cartorio_cns_matricula = cnsMatricula || "";
+  const cns = CNS_CARTORIOS[oficio];
+  if (cns) {
+    state.certidao.cartorio_cns = cns;
+    const cnsInput = qs('[data-bind="certidao.cartorio_cns"]');
+    if (cnsInput) cnsInput.value = cns;
+  }
   updateMatricula();
 }
 function escapeXml(str) {
