@@ -42,7 +42,7 @@ const mainMod = require('electron/main');
   }
 
   const electronBin = typeof mod === 'string' ? mod : require('electron');
-  const env = { ...process.env, SEGUNDAS_ELECTRON_OK: '1' };
+  const env: any = { ...process.env, SEGUNDAS_ELECTRON_OK: '1' };
   delete env.ELECTRON_RUN_AS_NODE;
   const child = spawn(electronBin, process.argv.slice(1), {
     stdio: 'inherit',

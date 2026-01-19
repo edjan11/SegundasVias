@@ -9,3 +9,20 @@ ui/js/*.bundle.js
 ui/js/*.bundle.js.map
 dist-src/
 build.js
+# local debug / git dumps
+tmp_*.txt
+git_*.txt
+# Ignore ui TypeScript sources (kept locally as working copies)
+ui/ts/
+
+# Ignore generated JS next to UI TS sources (keep bundles if needed)
+ui/ts/**/*.js
+ui/ts/**/*.js.map
+
+# Ignore various git artifacts and diffs
+git_diff.txt
+git_saved_patch.diff
+git_saved_status.txt
+
+# Tools and migration scripts (not part of product runtime)
+tools/

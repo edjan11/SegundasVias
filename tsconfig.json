@@ -12,5 +12,13 @@
     "strict": false
   },
   "include": ["src/**/*", "src/acts/**/*.ts"],
-  "exclude": ["node_modules", "dist-src"]
+  "exclude": [
+    "node_modules",
+    "dist-src",
+    "ui/ts",
+    "ui/js",
+    "tools",
+    "**/*.diff",
+    "tmp_*"
+  ]
 }

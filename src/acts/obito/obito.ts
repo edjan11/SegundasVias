@@ -15,7 +15,7 @@ import {
 } from '../../shared/matricula/cnj';
 import { setupPrimaryShortcut } from '../../shared/productivity/index';
 import { setupAdminPanel } from '../../shared/ui/admin';
-import { createNameValidator } from '../../nameValidator';
+import { createNameValidator } from '../../shared/nameValidator';
 import { buildObitoPrintHtml } from './printTemplate';
 
 const NAME_MODE_KEY = 'ui.nameValidationMode';
@@ -44,6 +44,63 @@ function setStatus(text, isError?) {
     el.textContent = 'Pronto';
     el.style.color = '#64748b';
   }, 2000);
+}
+
+// helper to prevent actions when there are invalid fields (module-level)
+function canProceed() {
+  const invalids = collectInvalidFields(document);
+  if (!invalids || invalids.length === 0) return true;
+  setStatus(`${invalids.length} campo(s) inválido(s). Corrija antes de prosseguir.`, true);
+  showToast('Existem campos inválidos — corrija antes de prosseguir');
+  const invalidEl = (document.getElementById('debug-invalid') as HTMLElement | null);
+  if (invalidEl) (invalidEl as any).value = invalids.join('\n');
+  return false;
+}
+
+function updateActionButtons() {
+  const invalids = collectInvalidFields(document);
+  const disabled = !!(invalids && invalids.length > 0);
+  const btnJson = (document.getElementById('btn-json') as HTMLElement | null);
+  if (btnJson) (btnJson as any).disabled = disabled;
+  const btnXml = (document.getElementById('btn-xml') as HTMLElement | null);
+  if (btnXml) (btnXml as any).disabled = disabled;
+  const btnPrint = (document.getElementById('btn-print') as HTMLElement | null);
+  if (btnPrint) (btnPrint as any).disabled = disabled;
+  const statusEl = (document.getElementById('statusText') as HTMLElement | null);
+  if (statusEl && !disabled) statusEl.textContent = 'Pronto';
+  let summary = (document.getElementById('form-error-summary') as HTMLElement | null);
+  if (!summary) {
+    summary = document.createElement('div');
+    summary.id = 'form-error-summary';
+    summary.style.margin = '6px 0 0 0';
+    summary.style.padding = '6px 8px';
+    summary.style.borderRadius = '6px';
+    summary.style.background = 'transparent';
+    summary.style.border = 'none';
+    summary.style.color = '#6b7280';
+    summary.style.fontSize = '12px';
+    summary.style.opacity = '0.85';
+    const container = (document.querySelector('.container') as HTMLElement | null);
+    if (container) container.appendChild(summary);
+  }
+  if (disabled) {
+    summary.textContent = `Campos inválidos: ${invalids.join(', ')}`;
+    summary.style.display = 'block';
+  } else if (summary) {
+    summary.style.display = 'none';
+  }
+  let aria = (document.getElementById('aria-live-errors') as HTMLElement | null);
+  if (!aria) {
+    aria = document.createElement('div');
+    aria.id = 'aria-live-errors';
+    aria.className = 'sr-only';
+    aria.setAttribute('aria-live', 'assertive');
+    aria.setAttribute('role', 'status');
+    document.body.appendChild(aria);
+  }
+  aria.textContent = disabled
+    ? `Existem ${invalids.length} campos inválidos: ${invalids.join(', ')}`
+    : '';
 }
 
 function formatCpfInput(value) {
@@ -314,7 +371,9 @@ function ensureDrawer() {
 
   // tab switching
   tabbar.addEventListener('click', (e) => {
-    const btn = e.target.closest('.tab-btn');
+    const t = (e.target as Element | null);
+    if (!t || !(t instanceof Element)) return;
+    const btn = t.closest('.tab-btn') as HTMLElement | null;
     if (!btn) return;
     const tab = btn.getAttribute('data-tab');
     (tabbar as any).querySelectorAll('.tab-btn').forEach((b) => b.classList.remove('active'));
@@ -654,7 +713,7 @@ function setupLiveOutputs() {
 function setupTogglePanels() {
   document.querySelectorAll('[data-toggle]').forEach((toggle) => {
     const key = toggle.getAttribute('data-toggle');
-    const panel = document.querySelector(`[data-toggle-panel="${key}"]`);
+    const panel = document.querySelector(`[data-toggle-panel="${key}"]`) as HTMLElement | null;
     if (!panel) return;
     toggle.addEventListener('click', () => {
       const isHidden = panel.style.display === 'none' || !panel.style.display;
@@ -735,7 +794,7 @@ function applyState(input, field, state) {
 }
 
 function setupValidation() {
-  document.querySelectorAll('input[data-date]').forEach((input) => {
+  document.querySelectorAll<HTMLInputElement>('input[data-date]').forEach((input) => {
     const field = resolveField(input);
     const required = input.hasAttribute('data-required');
     const onInput = () => {
@@ -768,7 +827,7 @@ function setupValidation() {
     applyDateMask(input);
   });
 
-  document.querySelectorAll('input[data-time]').forEach((input) => {
+  document.querySelectorAll<HTMLInputElement>('input[data-time]').forEach((input) => {
     const field = resolveField(input);
     const required = input.hasAttribute('data-required');
     const handler = () => {
@@ -786,7 +845,7 @@ function setupValidation() {
 
   const enableNameValidation = localStorage.getItem(ENABLE_NAME_KEY) !== 'false';
   if (enableNameValidation) {
-    document.querySelectorAll('[data-name-validate]').forEach((input) => {
+    document.querySelectorAll<HTMLInputElement>('[data-name-validate]').forEach((input) => {
       const field = resolveField(input);
       const required = input.hasAttribute('data-required');
       const handler = () => {
@@ -808,7 +867,7 @@ function setupValidation() {
 
   const enableCpfValidation = localStorage.getItem(ENABLE_CPF_KEY) !== 'false';
   if (enableCpfValidation) {
-    document.querySelectorAll('input[data-cpf]').forEach((input) => {
+    document.querySelectorAll<HTMLInputElement>('input[data-cpf]').forEach((input) => {
       const field = resolveField(input);
       const required = input.hasAttribute('data-required');
       const handler = () => {
@@ -830,66 +889,7 @@ function setupValidation() {
     });
   }
 
-  // helper to prevent actions when there are invalid fields
-  function canProceed() {
-    const invalids = collectInvalidFields(document);
-    if (!invalids || invalids.length === 0) return true;
-    setStatus(`${invalids.length} campo(s) inv\u00e1lido(s). Corrija antes de prosseguir.`, true);
-    showToast('Existem campos inv\u00e1lidos \u2014 corrija antes de prosseguir');
-    // also populate debug area if present
-    const invalidEl = (document.getElementById('debug-invalid') as HTMLElement | null);
-    if (invalidEl) (invalidEl as any).value = invalids.join('\n');
-    return false;
-  }
-
-  function updateActionButtons() {
-    const invalids = collectInvalidFields(document);
-    const disabled = !!(invalids && invalids.length > 0);
-    const btnJson = (document.getElementById('btn-json') as HTMLElement | null);
-    if (btnJson) (btnJson as any).disabled = disabled;
-    const btnXml = (document.getElementById('btn-xml') as HTMLElement | null);
-    if (btnXml) (btnXml as any).disabled = disabled;
-    const btnPrint = (document.getElementById('btn-print') as HTMLElement | null);
-    if (btnPrint) (btnPrint as any).disabled = disabled;
-    const statusEl = (document.getElementById('statusText') as HTMLElement | null);
-    if (statusEl && !disabled) statusEl.textContent = 'Pronto';
-
-    // show inline summary near top of form
-    let summary = (document.getElementById('form-error-summary') as HTMLElement | null);
-    if (!summary) {
-      summary = document.createElement('div');
-      summary.id = 'form-error-summary';
-      summary.style.margin = '6px 0 0 0';
-      summary.style.padding = '6px 8px';
-      summary.style.borderRadius = '6px';
-      summary.style.background = 'transparent';
-      summary.style.border = 'none';
-      summary.style.color = '#6b7280';
-      summary.style.fontSize = '12px';
-      summary.style.opacity = '0.85';
-      const container = (document.querySelector('.container') as HTMLElement | null);
-      if (container) container.appendChild(summary);
-    }
-    if (disabled) {
-      summary.textContent = `Campos inv\u00e1lidos: ${invalids.join(', ')}`;
-      summary.style.display = 'block';
-    } else if (summary) {
-      summary.style.display = 'none';
-    }
-    // keep an aria-live region in sync for assistive tech
-    let aria = (document.getElementById('aria-live-errors') as HTMLElement | null);
-    if (!aria) {
-      aria = document.createElement('div');
-      aria.id = 'aria-live-errors';
-      aria.className = 'sr-only';
-      aria.setAttribute('aria-live', 'assertive');
-      aria.setAttribute('role', 'status');
-      document.body.appendChild(aria);
-    }
-    aria.textContent = disabled
-      ? `Existem ${invalids.length} campos inv\u00e1lidos: ${invalids.join(', ')}`
-      : '';
-  }
+ 
 
   document
     .querySelectorAll('select[data-required], textarea[data-required], input[data-required]')

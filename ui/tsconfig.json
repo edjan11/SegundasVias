@@ -10,5 +10,5 @@
     "noEmitOnError": false,
     "strict": false
   },
-  "include": ["ts/**/*.ts"]
+  "include": ["ts/**/*.d.ts"]
 }

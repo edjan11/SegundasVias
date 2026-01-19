@@ -1,6 +1,6 @@
 
-import '../../events.js';
-import { mapperHtmlToJson } from '../obito/mapperHtmlToJson';
+import '../../events';
+import { mapperHtmlToJson } from './mapperHtmlToJson';
 import { normalizeDate, validateDateDetailed } from '../../shared/validators/date';
 import { normalizeTime } from '../../shared/validators/time';
 import { normalizeCpf, isValidCpf } from '../../shared/validators/cpf';
@@ -15,6 +15,8 @@ import {
 } from '../../shared/matricula/cnj';
 import { setupNameCopy, setupAutoNationality } from '../../shared/productivity/index';
 import { setupAdminPanel } from '../../shared/ui/admin';
+import { buildNascimentoPdfHtmlTJ } from "../../prints/nascimento/printNascimentoTj";
+import { openHtmlAndSavePdf } from "../../prints/shared/openAndSavePdf";
 
 const NAME_MODE_KEY = 'ui.nameValidationMode';
 const DRAWER_POS_KEY = 'ui.drawerPosition';
@@ -22,7 +24,7 @@ const ENABLE_CPF_KEY = 'ui.enableCpfValidation';
 const ENABLE_NAME_KEY = 'ui.enableNameValidation';
 const PANEL_INLINE_KEY = 'ui.panelInline';
 
-function setStatus(text, isError?) {
+function setStatus(text: string, isError?: boolean): void {
   const el = (document.getElementById('statusText') as HTMLElement | null);
   if (!el) return;
   el.textContent = text;
@@ -34,7 +36,7 @@ function setStatus(text, isError?) {
   }, 2000);
 }
 
-function showToast(message) {
+function showToast(message: string): void {
   let container = (document.getElementById('toast-container') as HTMLElement | null);
   if (!container) {
     container = document.createElement('div');
@@ -54,13 +56,13 @@ function showToast(message) {
   }, 2000);
 }
 
-function resolveField(input) {
+function resolveField(input: Element): Element | null {
   return (
     input.closest('td') || input.closest('.campo') || input.closest('.field') || input.parentElement
   );
 }
 
-function setFieldHint(field, message) {
+function setFieldHint(field: Element | null, message?: string): void {
   if (!field) return;
   let hint = (field as any).querySelector('.hint');
   if (!hint) {
@@ -96,7 +98,7 @@ function setFieldHint(field, message) {
   }
 }
 
-function clearFieldHint(field) {
+function clearFieldHint(field: Element | null): void {
   setFieldHint(field, '');
 }
 
@@ -132,7 +134,7 @@ function formatCpfInput(value) {
   return out;
 }
 
-function toXml(obj, nodeName, indent = 0) {
+function toXml(obj: any, nodeName: string, indent = 0): string {
   const pad = '  '.repeat(indent);
   if (obj === null || obj === undefined) return `${pad}<${nodeName}></${nodeName}>`;
   if (typeof obj !== 'object') return `${pad}<${nodeName}>${String(obj || '')}</${nodeName}>`;
@@ -290,7 +292,7 @@ function generateXml() {
 
 function setupValidation() {
   // date fields (.w-date)
-  document.querySelectorAll('input.w-date').forEach((input) => {
+  document.querySelectorAll<HTMLInputElement>('input.w-date').forEach((input) => {
     const field = resolveField(input);
     const required = input.hasAttribute('data-required') || input.classList.contains('required');
     const onInput = () => {
@@ -299,7 +301,7 @@ function setupValidation() {
       const normalized = normalizeDate((input as any).value);
       const isValid = !(input as any).value || !!normalized;
       const state = getFieldState({ required, value: (input as any).value, isValid });
-      applyFieldState(field, state);
+      applyFieldState(field as HTMLElement, state);
     };
     const onBlur = () => {
       applyDateMask(input);
@@ -307,7 +309,7 @@ function setupValidation() {
       const res = validateDateDetailed(raw);
       const isValid = res.ok;
       const state = getFieldState({ required, value: raw, isValid });
-      applyFieldState(field, state);
+      applyFieldState(field as HTMLElement, state);
       if (!isValid && raw) setFieldHint(field, res.message || 'Data inválida');
       else clearFieldHint(field);
     };
@@ -317,7 +319,7 @@ function setupValidation() {
   });
 
   // time fields (.w-time)
-  document.querySelectorAll('input.w-time').forEach((input) => {
+  document.querySelectorAll<HTMLInputElement>('input.w-time').forEach((input) => {
     const field = resolveField(input);
     const required = input.hasAttribute('data-required');
     const handler = () => {
@@ -325,7 +327,7 @@ function setupValidation() {
       const normalized = normalizeTime((input as any).value);
       const isValid = !(input as any).value || !!normalized;
       const state = getFieldState({ required, value: (input as any).value, isValid });
-      applyFieldState(field, state);
+      applyFieldState(field as HTMLElement, state);
     };
     input.addEventListener('input', handler);
     input.addEventListener('blur', handler);
@@ -345,7 +347,7 @@ function setupValidation() {
         value: digits ? (cpfInput as any).value : '',
         isValid,
       });
-      applyFieldState(field, state);
+      applyFieldState(field as HTMLElement, state);
     };
     cpfInput.addEventListener('input', handler);
     cpfInput.addEventListener('blur', () => {
@@ -360,7 +362,7 @@ function setupValidation() {
   // name validation
   const enableName = localStorage.getItem('ui.enableNameValidation') !== 'false';
   if (enableName) {
-    document.querySelectorAll('[data-name-validate]').forEach((input) => {
+    document.querySelectorAll<HTMLInputElement>('[data-name-validate]').forEach((input) => {
       const field = resolveField(input);
       const required = input.hasAttribute('data-required');
       const handler = () => {
@@ -371,7 +373,7 @@ function setupValidation() {
           isValid: !res.invalid,
           warn: res.warn,
         });
-        applyFieldState(field, state);
+        applyFieldState(field as HTMLElement, state);
       };
       input.addEventListener('input', handler);
       input.addEventListener('blur', handler);
@@ -400,7 +402,7 @@ function setup() {
 
   // Print PDF button: build printable HTML from current form data or from
   // an existing certificate fragment on the page (preferred when present).
-  function buildNascimentoPrintHtml(data, srcDoc = document) {
+  function buildNascimentoPrintHtml(data: any, srcDoc: Document | HTMLElement | null = document): string {
     const reg = data?.registro || {};
     const cert = data?.certidao || {};
     const name = reg.nome_completo || '';
@@ -427,10 +429,10 @@ function setup() {
     if (candidate && /CERTIDÃO|CERTIDAO|CERTID/iu.test(candidate.textContent || '')) {
       // build head: copy stylesheet links and inline styles
       const links = Array.from((srcDoc as any).querySelectorAll('link[rel="stylesheet"]'))
-        .map((l: unknown) => `<link rel="stylesheet" href="${l.href}">`)
+        .map((l: unknown) => `<link rel="stylesheet" href="${(l as HTMLLinkElement).href}">`)
         .join('\n');
       const styles = Array.from((srcDoc as any).querySelectorAll('style'))
-        .map((s: unknown) => (s.innerHTML ? `<style>${s.innerHTML}</style>` : ''))
+        .map((s: unknown) => ((s as HTMLStyleElement).innerHTML ? `<style>${(s as HTMLStyleElement).innerHTML}</style>` : ''))
         .join('\n');
       const cloned = candidate.cloneNode(true) as HTMLElement;
       // remove interactive UI and scripts from the clone
@@ -440,12 +442,13 @@ function setup() {
       // remove fixed-position elements (common for buttons added by the page)
       Array.from((cloned as any).querySelectorAll('*')).forEach((el: unknown) => {
         try {
-          const st = (el.getAttribute && el.getAttribute('style')) || '';
-          if (/position\s*:\s*fixed/iu.test(st)) el.remove();
+          const elEl = el as Element;
+          const st = (elEl.getAttribute && elEl.getAttribute('style')) || '';
+          if (/position\s*:\s*fixed/iu.test(st)) elEl.remove();
         } catch (e) { /* ignore */ }
       });
       return `<!doctype html><html><head><meta charset="utf-8"><title>Certidão Nascimento</title>${links}${styles}</head><body>${
-        (cloned as unknown).outerHTML
+        cloned.outerHTML
       }
 				<script>
 				(function(){
@@ -467,7 +470,7 @@ function setup() {
 									});
 								}catch(e){/* ignore */}
 							})();
-							const el = document.(body as any).querySelector('center') || document.body.firstElementChild;
+                            const el = (document.body as any).querySelector('center') || document.body.firstElementChild;
 							if (window.html2pdf) {
 								window.html2pdf().set(opt).from(el).save();
 							} else { console.warn('html2pdf not loaded'); window.print(); }
@@ -548,7 +551,7 @@ function setup() {
 		</body></html>`;
   }
 
-  function escapeHtml(s) {
+  function escapeHtml(s: unknown): string {
     return String(s || '')
       .replace(/&/g, '&amp;')
       .replace(/</g, '&lt;')
@@ -556,33 +559,29 @@ function setup() {
       .replace(/"/g, '&quot;');
   }
 
-  (document.getElementById('btn-print') as HTMLElement | null)?.addEventListener('click', (e) => {
+ (document.getElementById('btn-print') as HTMLElement | null)?.addEventListener('click', (e) => {
     e.preventDefault();
-    const data = (window as any).mapperHtmlToJson
-      ? (window as any).mapperHtmlToJson(document)
-      : typeof mapperHtmlToJson === 'function'
-      ? mapperHtmlToJson(document)
-      : null;
-    if (!data) {
-      showToast('Falha ao coletar dados para impressão');
-      return;
+    if (!canProceed()) return;
+
+    const data = mapperHtmlToJson(document);
+    const html = buildNascimentoPdfHtmlTJ(data, {
+      cssHref: "../assets/tj/certidao.css", // você coloca o arquivo local
+    });
+
+    try {
+      openHtmlAndSavePdf(html, "NASCIMENTO_");
+      setStatus("Gerando PDF…");
+    } catch (err) {
+      showToast("Permita popups para imprimir/baixar PDF");
+      setStatus("Popup bloqueado", true);
     }
-    const html = buildNascimentoPrintHtml(data);
-    const w = window.open('', '_blank', 'width=900,height=1100');
-    if (!w) {
-      showToast('Permita popups para imprimir');
-      return;
-    }
-    w.document.open();
-    w.document.write(html);
-    w.document.close();
   });
   setupValidation();
   setupFocusEmphasis();
   setupAdminPanel();
   setupSettingsPanel();
   setupNameCopy('input[data-bind="ui.mae_nome"]', 'input[data-bind="ui.pai_nome"]');
-  setupAutoNationality('input[name="nacionalidadeNoivo"]', 'BRASILEIRO');
+  setupAutoNationality('input[name="nacionalidade"]', 'BRASILEIRO');
   setupLiveOutputs();
   // wire action button state
   updateActionButtons();

@@ -69,7 +69,7 @@ export function updateActionButtons(): void {
   // Atualiza os botões de ação com base no estado dos campos
 }
 
-export const state = {
+export const state: any = {
   certidao: {
     cod_selo: '',
     modalidade: 'eletronica',
@@ -159,12 +159,12 @@ declare global {
   }
 }
 
-function setStatus(text: string, isError?: boolean?) {
+function setStatus(text: string, isError?: boolean) {
   const el = (document.getElementById('statusText') as HTMLElement | null);
   if (!el) return;
   el.textContent = text;
   (el as HTMLElement).style.color = isError ? '#dc2626' : '#64748b';
-  const anyEl = el as unknown;
+  const anyEl = el as any;
   clearTimeout(anyEl._timer);
   anyEl._timer = setTimeout(() => {
     el.textContent = 'Pronto';
@@ -174,7 +174,7 @@ function setStatus(text: string, isError?: boolean?) {
 
 // ...restante do código...
 
-function setByPath(obj: unknown, path: string, value: unknown) {
+function setByPath(obj: any, path: string, value: unknown) {
   const parts = path.split('.');
   let cur = obj;
   for (let i = 0; i < parts.length - 1; i++) {
@@ -185,8 +185,8 @@ function setByPath(obj: unknown, path: string, value: unknown) {
   cur[parts[parts.length - 1]] = value;
 }
 
-function getByPath(obj: unknown, path: string) {
-  return path.split('.').reduce((acc, p) => (acc ? acc[p] : undefined), obj as unknown);
+function getByPath(obj: any, path: string): any {
+  return path.split('.').reduce((acc: any, p: string) => (acc ? acc[p] : undefined), obj);
 }
 
 function syncInputsFromState() {
@@ -683,7 +683,7 @@ function normalizeData() {
     cota_emolumentos_isento: !!cert.cota_emolumentos_isento,
   };
 
-  const filiacao: unknown[] = [];
+  const filiacao: any[] = [];
   const mae = buildFiliacaoItem(
     state.ui.mae_nome,
     state.ui.mae_cidade,
@@ -705,7 +705,7 @@ function normalizeData() {
   const matriculaDv = matriculaFull.length >= 2 ? matriculaFull.slice(-2) : '';
   const matriculaBase = matriculaFull.length > 2 ? matriculaFull.slice(0, -2) : '';
 
-  const registro: unknown = {
+  const registro: any = {
     nome_completo: trimValue(reg.nome_completo),
     cpf_sem_inscricao: cpfSem,
     cpf: cpfExists ? cpfDigits : '',
@@ -790,7 +790,7 @@ function isValidTime(value: string) {
   return /^([01]\d|2[0-3]):([0-5]\d)$/.test(normalized);
 }
 
-function validateData(data: unknown) {
+function validateData(data: any) {
   clearInvalid();
   let ok = true;
   if (!data.registro.nome_completo) {
@@ -955,7 +955,7 @@ function makeTimestamp() {
   )}${pad(d.getSeconds())}`;
 }
 
-function buildFileName(data: unknown, ext: string) {
+function buildFileName(data: any, ext: string) {
   const tipo = normalizeFilePart(data.certidao.tipo_registro || 'nascimento', 'NASCIMENTO');
   const nome = normalizeFilePart(data.registro.nome_completo, 'SEM_NOME');
   const cpfDigits = (data.registro.cpf || '').replace(/\D/g, '');
@@ -976,7 +976,7 @@ function escapeXml(str: string) {
 function toXml(obj: unknown, nodeName: string, indent?: number) {
   const pad = '  '.repeat(indent || 0);
   if (obj === null || obj === undefined) return `${pad}<${nodeName}></${nodeName}>`;
-  if (typeof obj !== 'object') return `${pad}<${nodeName}>${escapeXml(obj)}</${nodeName}>`;
+  if (typeof obj !== 'object') return `${pad}<${nodeName}>${escapeXml(String(obj))}</${nodeName}>`;
   if (Array.isArray(obj)) return obj.map((item) => toXml(item, nodeName, indent)).join('\n');
   const children = Object.keys(obj)
     .map((key) => toXml(obj[key], key, (indent || 0) + 1))
@@ -1639,7 +1639,7 @@ function setupBeforeUnload() {
   window.addEventListener('beforeunload', (e) => {
     if (!isDirty) return;
     e.preventDefault();
-    (e as unknown).returnValue = '';
+    (e as any).returnValue = '';
   });
 }
 
