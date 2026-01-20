@@ -1,7 +1,13 @@
 node_modules
+# build artifacts
 dist
+dist-src
+build/
+build.js
+# public/deliverables
+public/
+# UI bundles
 ui/js/*.bundle.js
 ui/js/*.bundle.js.map
 **/bin
-dist-src
-build.js
+
