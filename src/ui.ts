@@ -595,14 +595,46 @@ function buildMatricula() {
 }
 
 function setMatriculaValue(value: string) {
-  state.registro.matricula = value || '';
+  const digits = String(value || '').replace(/\D/g, '');
+  // only set when fully valid (32 digits). Otherwise, clear the generated field.
+  const final = digits.length === 32 ? digits : '';
+  state.registro.matricula = final;
   const matEl = (document.getElementById('matricula') as HTMLElement | null) as HTMLInputElement | null;
-  if (matEl) (matEl as any).value = value || '';
+  if (matEl) {
+    (matEl as any).value = final;
+    // ensure readonly UI (generated field)
+    (matEl as any).readOnly = true;
+  }
+}
+
+function markMissingForMatricula() {
+  // Lightweight visual hints for missing inputs (no popups)
+  const cartorioSelect = (document.getElementById('cartorio-oficio') as HTMLSelectElement | null);
+  const cnsInput = (document.querySelector('input[data-bind="certidao.cartorio_cns"]') as HTMLInputElement | null);
+  const livroEl = (document.getElementById('matricula-livro') as HTMLInputElement | null);
+  const folhaEl = (document.getElementById('matricula-folha') as HTMLInputElement | null);
+  const termoEl = (document.getElementById('matricula-termo') as HTMLInputElement | null);
+  const dateEl = (document.querySelector('input[name="dataRegistro"], input[name="dataTermo"], input[data-bind="registro.data_registro"]') as HTMLInputElement | null);
+
+  const missingMsg = 'Preencha para gerar matrícula';
+
+  if (cartorioSelect && (!cartorioSelect.value || cartorioSelect.value === '')) setFieldError(cartorioSelect as any, missingMsg); else if (cartorioSelect) setFieldError(cartorioSelect as any, '');
+  if (cnsInput && (!cnsInput.value || cnsInput.value.length !== 6)) setFieldError(cnsInput as any, missingMsg); else if (cnsInput) setFieldError(cnsInput as any, '');
+  if (livroEl && !String(livroEl.value || '').trim()) setFieldError(livroEl as any, missingMsg); else if (livroEl) setFieldError(livroEl as any, '');
+  if (folhaEl && !String(folhaEl.value || '').trim()) setFieldError(folhaEl as any, missingMsg); else if (folhaEl) setFieldError(folhaEl as any, '');
+  if (termoEl && !String(termoEl.value || '').trim()) setFieldError(termoEl as any, missingMsg); else if (termoEl) setFieldError(termoEl as any, '');
+  if (dateEl && !String(dateEl.value || '').trim()) setFieldError(dateEl as any, missingMsg); else if (dateEl) setFieldError(dateEl as any, '');
 }
 
 function updateMatricula() {
   const value = buildMatricula();
   setMatriculaValue(value);
+  if (!value) {
+    markMissingForMatricula();
+  } else {
+    // clear any existing hints
+    markMissingForMatricula();
+  }
 }
 
 function applyCartorioChange() {
@@ -1666,6 +1698,34 @@ function setupBeforeUnload() {
     (e as any).returnValue = '';
   });
 }
+
+function setupMatriculaAutoListeners() {
+  // Recalculate matrícula in real-time when these fields change
+  const fields = ['matricula-livro', 'matricula-folha', 'matricula-termo'];
+  fields.forEach((id) => {
+    const el = document.getElementById(id) as HTMLInputElement | null;
+    if (!el) return;
+    el.addEventListener('input', () => {
+      // sanitize numeric input
+      const sanitized = (el.value || '').replace(/\D/g, '');
+      if (sanitized !== el.value) el.value = sanitized;
+      updateMatricula();
+    });
+  });
+
+  const cartSelect = document.getElementById('cartorio-oficio') as HTMLSelectElement | null;
+  if (cartSelect) cartSelect.addEventListener('change', () => applyCartorioChange());
+
+  const dateEls = Array.from(document.querySelectorAll('input[name="dataRegistro"], input[name="dataTermo"], input[data-bind="registro.data_registro"]')) as HTMLInputElement[];
+  dateEls.forEach((d) => d.addEventListener('input', () => updateMatricula()));
+
+  // compute once at setup
+  updateMatricula();
+}
+
+// Setup automatic listeners when running in browser
+try { if (typeof window !== 'undefined') setupMatriculaAutoListeners(); } catch (e) { /* ignore */ }
+
 
 async function bootstrap() {
   syncInputsFromState();
