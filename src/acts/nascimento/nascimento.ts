@@ -19,6 +19,7 @@ import { setupAdminPanel } from '../../shared/ui/admin';
 import { setupActSelect } from '../../ui/setup-ui';
 import { buildNascimentoPdfHtmlTJ } from "../../prints/nascimento/printNascimentoTj";
 import { openHtmlAndSavePdf } from "../../prints/shared/openAndSavePdf";
+import { escapeHtml, sanitizeHref, sanitizeCss } from '../../prints/shared/print-utils';
 
 const NAME_MODE_KEY = 'ui.nameValidationMode';
 const DRAWER_POS_KEY = 'ui.drawerPosition';
@@ -540,10 +541,16 @@ function setup() {
     if (candidate && /CERTIDÃO|CERTIDAO|CERTID/iu.test(candidate.textContent || '')) {
       // build head: copy stylesheet links and inline styles
       const links = Array.from((srcDoc as any).querySelectorAll('link[rel="stylesheet"]'))
-        .map((l: unknown) => `<link rel="stylesheet" href="${(l as HTMLLinkElement).href}">`)
+        .map((l: unknown) => sanitizeHref((l as HTMLLinkElement).href, '').trim())
+        .filter(Boolean)
+        .map((href) => `<link rel="stylesheet" href="${escapeHtml(href)}">`)
         .join('\n');
       const styles = Array.from((srcDoc as any).querySelectorAll('style'))
-        .map((s: unknown) => ((s as HTMLStyleElement).innerHTML ? `<style>${(s as HTMLStyleElement).innerHTML}</style>` : ''))
+        .map((s: unknown) => {
+          const raw = (s as HTMLStyleElement).innerHTML || '';
+          const clean = sanitizeCss(raw);
+          return clean ? `<style>${clean}</style>` : '';
+        })
         .join('\n');
       const cloned = candidate.cloneNode(true) as HTMLElement;
       // remove interactive UI and scripts from the clone
@@ -556,6 +563,32 @@ function setup() {
           const elEl = el as Element;
           const st = (elEl.getAttribute && elEl.getAttribute('style')) || '';
           if (/position\s*:\s*fixed/iu.test(st)) elEl.remove();
+        } catch (e) { /* ignore */ }
+      });
+
+      // Sanitize attributes on the cloned node: remove event handlers and unsafe href/src/style values
+      Array.from((cloned as any).querySelectorAll('*')).forEach((node: any) => {
+        try {
+          const attrs = Array.from(node.attributes || []);
+          attrs.forEach((a: Attr) => {
+            const name = String(a.name || '').toLowerCase();
+            const val = String(a.value || '');
+            if (name.startsWith('on')) {
+              node.removeAttribute(a.name);
+              return;
+            }
+            if (name === 'href' || name === 'src') {
+              const safe = sanitizeHref(val, '');
+              if (!safe) node.removeAttribute(a.name);
+              else node.setAttribute(a.name, safe);
+              return;
+            }
+            if (name === 'style') {
+              const safeStyle = sanitizeCss(val);
+              if (!safeStyle) node.removeAttribute('style');
+              else node.setAttribute('style', safeStyle);
+            }
+          });
         } catch (e) { /* ignore */ }
       });
       return `<!doctype html><html><head><meta charset="utf-8"><title>Certidão Nascimento</title>${links}${styles}</head><body>${
@@ -660,14 +693,6 @@ function setup() {
 			})();
 		</script>
 		</body></html>`;
-  }
-
-  function escapeHtml(s: unknown): string {
-    return String(s || '')
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;');
   }
 
  (document.getElementById('btn-print') as HTMLElement | null)?.addEventListener('click', (e) => {
