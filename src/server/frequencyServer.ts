@@ -1,6 +1,6 @@
 import express from 'express';
 import bodyParser from 'body-parser';
-import { InMemoryFrequencyStore } from './frequencyStore';
+import { InMemoryFrequencyStore } from './frequencyStore.js';
 
 const app = express();
 app.use(bodyParser.json());

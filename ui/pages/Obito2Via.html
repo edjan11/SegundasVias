@@ -29,6 +29,15 @@
     </div>
 
     <form id="form-obito">
+  <!-- Anti-autofill honeypot (consumes browser autofill) -->
+  <div class="no-autofill-honeypot" aria-hidden="true">
+    <input autocomplete="username" name="no_autofill_username" tabindex="-1" />
+    <input type="password" autocomplete="new-password" name="no_autofill_password" tabindex="-1" />
+    <input autocomplete="address-line1" name="no_autofill_addr1" tabindex="-1" />
+    <input autocomplete="address-line2" name="no_autofill_addr2" tabindex="-1" />
+    <input autocomplete="postal-code" name="no_autofill_postal" tabindex="-1" />
+    <input autocomplete="country" name="no_autofill_country" tabindex="-1" />
+  </div>
   <input type="hidden" name="idObitoNascidoVivo" value="" />
   <input type="hidden" name="operacao" value="NOVO" />
   <input type="hidden" name="tituloLivro" value="9º OFÍCIO DA COMARCA DE ARACAJU" />
@@ -65,17 +74,17 @@
 
         <div class="campo span-2">
           <label class="label">Livro <span class="obrigatorio">*</span></label>
-          <input data-bind="ui.matricula_livro" name="livro" maxlength="5" data-required />
+          <input data-bind="ui.matricula_livro" name="livro" maxlength="5" inputmode="numeric" data-required />
         </div>
 
         <div class="campo span-2">
           <label class="label">Termo <span class="obrigatorio">*</span></label>
-          <input data-bind="ui.matricula_termo" name="termo" maxlength="8" data-required />
+          <input data-bind="ui.matricula_termo" name="termo" maxlength="7" inputmode="numeric" data-required />
         </div>
 
         <div class="campo span-1">
           <label class="label">Folha <span class="obrigatorio">*</span></label>
-          <input data-bind="ui.matricula_folha" name="folha" maxlength="3" data-required />
+          <input data-bind="ui.matricula_folha" name="folha" maxlength="3" inputmode="numeric" data-required />
         </div>
 
         <div class="campo span-6">
@@ -174,12 +183,12 @@
       <div class="grid">
         <div class="campo span-4">
           <label class="label">Cidade de nascimento <span class="obrigatorio">*</span></label>
-          <input name="cidadeNascimento" maxlength="200" data-required />
+          <input name="cidadeNascimento" maxlength="200" data-required autocomplete="nope" autocorrect="off" autocapitalize="off" spellcheck="false" />
         </div>
 
         <div class="campo span-2">
           <label class="label">UF <span class="obrigatorio">*</span></label>
-          <select name="ufNascimento" data-required>
+          <select name="ufNascimento" data-required autocomplete="nope" spellcheck="false">
             <option value=""></option>
             <option value="AC">AC</option><option value="AL">AL</option><option value="AP">AP</option><option value="AM">AM</option>
             <option value="BA">BA</option><option value="BR">BR</option><option value="CE">CE</option><option value="DF">DF</option>
@@ -255,12 +264,12 @@
 
         <div class="campo span-3">
           <label class="label">Cidade do óbito <span class="obrigatorio">*</span></label>
-          <input name="municipioObito" maxlength="50" data-required />
+          <input name="municipioObito" maxlength="50" data-required autocomplete="nope" autocorrect="off" autocapitalize="off" spellcheck="false" />
         </div>
 
         <div class="campo span-1">
           <label class="label">UF <span class="obrigatorio">*</span></label>
-          <select name="ufMunicipioObito" id="ufMunicipioObito" data-required>
+          <select name="ufMunicipioObito" id="ufMunicipioObito" data-required autocomplete="nope" spellcheck="false">
             <option value=""></option>
             <option value="AC">AC</option><option value="AL">AL</option><option value="AP">AP</option><option value="AM">AM</option>
             <option value="BA">BA</option><option value="BR">BR</option><option value="CE">CE</option><option value="DF">DF</option>
@@ -275,17 +284,17 @@
 
         <div class="campo span-6">
           <label class="label">Local do sepultamento</label>
-          <input name="sepultamento" maxlength="300" />
+          <input name="sepultamento" maxlength="300" autocomplete="nope" autocorrect="off" autocapitalize="off" spellcheck="false" />
         </div>
 
         <div class="campo span-4">
           <label class="label">Cidade sepultamento <span class="obrigatorio">*</span></label>
-          <input name="municipioSepultamento" maxlength="300" data-required />
+          <input name="municipioSepultamento" maxlength="300" data-required autocomplete="nope" autocorrect="off" autocapitalize="off" spellcheck="false" />
         </div>
 
         <div class="campo span-2">
           <label class="label">UF <span class="obrigatorio">*</span></label>
-          <select name="ufMunicipioSepultamento" id="ufMunicipioSepultamento" data-required>
+          <select name="ufMunicipioSepultamento" id="ufMunicipioSepultamento" data-required autocomplete="nope" spellcheck="false">
             <option value=""></option>
             <option value="AC">AC</option><option value="AL">AL</option><option value="AP">AP</option><option value="AM">AM</option>
             <option value="BA">BA</option><option value="BR">BR</option><option value="CE">CE</option><option value="DF">DF</option>
@@ -344,7 +353,7 @@
       <div class="grid">
         <div class="campo span-8">
           <label class="label">Endereço</label>
-          <input name="endereco" maxlength="200" />
+          <input name="endereco" maxlength="200" autocomplete="nope" autocorrect="off" autocapitalize="off" spellcheck="false" />
         </div>
         <div class="campo span-4">
           <label class="label">Declarante <span class="obrigatorio">*</span></label>
@@ -439,7 +448,7 @@
 
           <div class="campo span-3">
             <label class="label">CEP</label>
-            <input name="CEP" maxlength="8" />
+            <input name="CEP" maxlength="8" autocomplete="nope" autocorrect="off" autocapitalize="off" spellcheck="false" />
           </div>
           <div class="campo span-3">
             <label class="label">Grupo Sanguíneo</label>
@@ -482,7 +491,7 @@
       </div>
       <div class="field span-3">
         <label>tipo_registro</label>
-        <input name="certidao.tipo_registro" value="obito" readonly />
+        <input data-bind="certidao.tipo_registro" name="certidao.tipo_registro" value="obito" readonly />
       </div>
       <div class="field span-3">
         <label>tipo_certidao</label>

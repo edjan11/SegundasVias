@@ -34,20 +34,27 @@ const DEFAULT_NAMES = [
   'thiago',
 ];
 
-const NAME_PARTICLES = new Set(['da', 'de', 'do', 'das', 'dos', 'e']);
+const NAME_PARTICLES = new Set(['DA', 'DE', 'DO', 'DAS', 'DOS', 'E']);
 
 function normalizeName(value) {
   return stripAccents(String(value || ''))
-    .toLowerCase()
-    .replace(/[^a-z\s]+/g, ' ')
+    .toUpperCase()
+    .replace(/[^A-Z'\s]+/g, ' ')
     .replace(/\s+/g, ' ')
     .trim();
+}
+
+function normalizeToken(token) {
+  const clean = normalizeName(token);
+  if (!clean) return '';
+  const trimmed = clean.replace(/^'+|'+$/g, '');
+  return trimmed;
 }
 
 function tokenizeName(value) {
   return normalizeName(value)
     .split(' ')
-    .map((t) => t.trim())
+    .map((t) => normalizeToken(t))
     .filter((t) => t && !NAME_PARTICLES.has(t));
 }
 
@@ -187,17 +194,22 @@ export class NameDictionaryRepository {
   addException(value) {
     const normalized = normalizeName(value);
     if (!normalized) return;
+    const tokens = normalized.split(' ').map((t) => normalizeToken(t)).filter(Boolean);
+    if (!tokens.length) return;
+    const token = tokens[tokens.length - 1];
     const data = this.load();
-    if (data.entries.find((e) => e.normalized === normalized)) return;
+    if (data.entries.find((e) => e.normalized === token)) return;
+    const display = String(value || '').trim();
+    const displayToken = display.includes(' ') ? token : display.toUpperCase();
     data.entries.push({
-      value,
-      normalized,
+      value: displayToken,
+      normalized: token,
       addedAt: new Date().toISOString(),
       source: 'user',
     });
     this.save(data);
     try {
-      console.log('NameDictionaryRepository.addException -> added', normalized);
+      console.log('NameDictionaryRepository.addException -> added', token);
     } catch (e) {
       /* ignore */
     }
@@ -205,7 +217,7 @@ export class NameDictionaryRepository {
 
   has(value) {
     const normalized = normalizeName(value);
-    if (!normalized) return false;
+    if (!normalized || normalized.includes(' ')) return false;
     const data = this.load();
     return data.entries.some((e) => e.normalized === normalized);
   }

@@ -1,3 +1,5 @@
+Sempre me responda em português brasil
+
 ## API Boundary Rule (Mandatory)
 
 Whenever implementing or modifying business logic that:

@@ -29,6 +29,15 @@
     </div>
 
     <form id="form-casamento">
+      <!-- Anti-autofill honeypot (consumes browser autofill) -->
+      <div class="no-autofill-honeypot" aria-hidden="true">
+        <input autocomplete="username" name="no_autofill_username" tabindex="-1" />
+        <input type="password" autocomplete="new-password" name="no_autofill_password" tabindex="-1" />
+        <input autocomplete="address-line1" name="no_autofill_addr1" tabindex="-1" />
+        <input autocomplete="address-line2" name="no_autofill_addr2" tabindex="-1" />
+        <input autocomplete="postal-code" name="no_autofill_postal" tabindex="-1" />
+        <input autocomplete="country" name="no_autofill_country" tabindex="-1" />
+      </div>
       <div class="card">
         <div class="section">
         <div class="subTitulo">Termo e casamento</div>
@@ -92,11 +101,11 @@
           </div>
           <div class="campo span-6">
             <label class="label">Cidade nascimento</label>
-            <input name="cidadeNascimentoNoivo" />
+            <input name="cidadeNascimentoNoivo" autocomplete="nope" autocorrect="off" autocapitalize="off" spellcheck="false" />
           </div>
           <div class="campo span-3">
             <label class="label">UF nascimento</label>
-            <select name="ufNascimentoNoivo">
+            <select name="ufNascimentoNoivo" autocomplete="nope" spellcheck="false">
               <option value=""></option>
               <option>AC</option><option>AL</option><option>AP</option><option>AM</option><option>BA</option>
               <option>BR</option><option>CE</option><option>DF</option><option>ES</option><option>ET</option>
@@ -156,11 +165,11 @@
           </div>
           <div class="campo span-6">
             <label class="label">Cidade nascimento</label>
-            <input name="cidadeNascimentoNoiva" />
+            <input name="cidadeNascimentoNoiva" autocomplete="nope" autocorrect="off" autocapitalize="off" spellcheck="false" />
           </div>
           <div class="campo span-3">
             <label class="label">UF nascimento</label>
-            <select name="ufNascimentoNoiva">
+            <select name="ufNascimentoNoiva" autocomplete="nope" spellcheck="false">
               <option value=""></option>
               <option>AC</option><option>AL</option><option>AP</option><option>AM</option><option>BA</option>
               <option>BR</option><option>CE</option><option>DF</option><option>ES</option><option>ET</option>
@@ -220,15 +229,15 @@
           </div>
           <div class="campo span-3">
             <label class="label">Livro</label>
-            <input data-bind="ui.matricula_livro" name="livro" />
+            <input data-bind="ui.matricula_livro" name="livro" inputmode="numeric" maxlength="5" />
           </div>
           <div class="campo span-3">
             <label class="label">Folha</label>
-            <input data-bind="ui.matricula_folha" name="folha" />
+            <input data-bind="ui.matricula_folha" name="folha" inputmode="numeric" maxlength="3" />
           </div>
           <div class="campo span-3">
             <label class="label">Termo</label>
-            <input data-bind="ui.matricula_termo" name="termo" onblur="this.dispatchEvent(new Event('change'))" />
+            <input data-bind="ui.matricula_termo" name="termo" inputmode="numeric" maxlength="7" onblur="this.dispatchEvent(new Event('change'))" />
           </div>
           <div class="campo span-6">
             <label class="label">Matricula (gerada)</label>
@@ -340,7 +349,7 @@
             </div>
             <div class="field span-3">
               <label>tipo_registro</label>
-              <input name="certidao.tipo_registro" value="casamento" readonly />
+              <input data-bind="certidao.tipo_registro" name="certidao.tipo_registro" value="casamento" readonly />
             </div>
             <div class="field span-3">
               <label>tipo_certidao</label>

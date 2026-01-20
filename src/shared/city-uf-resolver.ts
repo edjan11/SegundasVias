@@ -15,12 +15,45 @@ export type CityMatch = {
   city: string; // original city name
 };
 
+export const DEFAULT_STATE_PRIORITY = ['SE', 'BA', 'AL'];
+const DEFAULT_FREQUENCY_LIMIT = 30;
+
 export type ResolveResult =
   | { uf: string; status: 'ok'; reason?: string }
   | { uf: string; status: 'inferred'; reason?: string }
   | { uf: null; status: 'ambiguous'; matches: CityMatch[] }
   | { uf: null; status: 'invalid' }
   | { uf: string | null; status: 'divergent'; matches: CityMatch[] };
+
+/**
+ * API boundary: fetch public JSON city data and build an index.
+ * Intended for browser usage (e.g., UI bootstrap or HTTP API later).
+ */
+export async function fetchIndexFromPublicData(options: { basePaths?: string[] } = {}) {
+  if (typeof fetch !== 'function') return new Map<string, CityMatch[]>();
+  const bases =
+    options.basePaths && options.basePaths.length
+      ? options.basePaths
+      : ['/data/jsonCidades', './data/jsonCidades', '../data/jsonCidades', 'data/jsonCidades'];
+  const files = ['estados-cidades.json', 'estados-cidades2.json'];
+
+  for (const base of bases) {
+    for (const file of files) {
+      try {
+        const url = `${base}/${file}`;
+        const res = await fetch(url);
+        if (!res.ok) continue;
+        const raw = await res.json();
+        const idx = buildIndexFromData(raw);
+        if (idx.size > 0) return idx;
+      } catch (e) {
+        /* ignore and try next */
+      }
+    }
+  }
+
+  return new Map<string, CityMatch[]>();
+}
 
 /**
  * Normalize a city name for comparison:
@@ -42,6 +75,27 @@ export function normalizeCityName(input: string | null | undefined): string {
   // collapse whitespace
   s = s.replace(/\s+/g, ' ').trim();
   return s;
+}
+
+export function getStatePriorityIndex(uf: string, priority?: string[]) {
+  const list = priority && priority.length ? priority : DEFAULT_STATE_PRIORITY;
+  const idx = list.indexOf(String(uf || '').toUpperCase().trim());
+  return idx === -1 ? list.length + 1 : idx;
+}
+
+export function scoreTextSimilarity(queryNorm: string, candidateNorm: string) {
+  if (!queryNorm || !candidateNorm) return 0;
+  if (candidateNorm === queryNorm) return 1.2;
+  if (candidateNorm.startsWith(queryNorm)) return 1.0;
+  if (candidateNorm.includes(queryNorm)) return 0.8;
+
+  // Subsequence match ratio (very light fuzzy)
+  let qi = 0;
+  for (let i = 0; i < candidateNorm.length && qi < queryNorm.length; i++) {
+    if (candidateNorm[i] === queryNorm[qi]) qi++;
+  }
+  const ratio = qi / Math.max(1, queryNorm.length);
+  return ratio * 0.7;
 }
 
 /**
@@ -190,19 +244,30 @@ export function loadFrequencyMapFromLocalStorage(key = 'citySuggestionFreq'): Ma
   }
 }
 
-export function saveFrequencyMapToLocalStorage(map: Map<string, number>, key = 'citySuggestionFreq') {
+export function saveFrequencyMapToLocalStorage(
+  map: Map<string, number>,
+  key = 'citySuggestionFreq',
+  maxEntries = DEFAULT_FREQUENCY_LIMIT,
+) {
   if (typeof window === 'undefined') return;
-  const obj = Object.fromEntries(map);
+  const sorted = Array.from(map.entries()).sort((a, b) => b[1] - a[1]);
+  const trimmed = sorted.slice(0, Math.max(1, maxEntries));
+  const obj = Object.fromEntries(trimmed);
   localStorage.setItem(key, JSON.stringify(obj));
 }
 
-export function incrementFrequency(city: string, uf: string, key = 'citySuggestionFreq') {
+export function incrementFrequency(
+  city: string,
+  uf: string,
+  key = 'citySuggestionFreq',
+  maxEntries = DEFAULT_FREQUENCY_LIMIT,
+) {
   if (typeof window === 'undefined') return;
   const map = loadFrequencyMapFromLocalStorage(key);
   const mapKey = `${city}|${uf}`;
   const prev = Number(map.get(mapKey) || 0);
   map.set(mapKey, prev + 1);
-  saveFrequencyMapToLocalStorage(map, key);
+  saveFrequencyMapToLocalStorage(map, key, maxEntries);
 }
 
 /**
@@ -220,18 +285,12 @@ export function findCitySuggestions(
   const q = normalizeCityName(query);
   if (!q) return [];
 
-  const prefix: Array<{ m: CityMatch; type: 'prefix' | 'contains' }> = [];
-  const contains: Array<{ m: CityMatch; type: 'prefix' | 'contains' }> = [];
-
+  const combined: Array<{ m: CityMatch; similarity: number }> = [];
   for (const [norm, matches] of index) {
-    if (norm.startsWith(q)) {
-      for (const m of matches) prefix.push({ m, type: 'prefix' });
-    } else if (norm.includes(q)) {
-      for (const m of matches) contains.push({ m, type: 'contains' });
-    }
+    const similarity = scoreTextSimilarity(q, norm);
+    if (similarity < 0.35) continue;
+    for (const m of matches) combined.push({ m, similarity });
   }
-
-  const combined = prefix.concat(contains);
 
   // Build frequency map (options override localStorage)
   let freqMap: Map<string, number> | undefined = options?.frequencyMap;
@@ -240,16 +299,12 @@ export function findCitySuggestions(
   }
 
   // State priority ranking
-  const priority = (options && options.statePriority) || [];
-  const priorityIndex = (uf: string) => {
-    const idx = priority.indexOf(uf);
-    return idx === -1 ? priority.length + 1 : idx;
-  };
+  const priority = (options && options.statePriority) || DEFAULT_STATE_PRIORITY;
 
-  // Sort by: state priority (lower better), frequency desc, prefix before contains, city name
+  // Sort by: state priority (lower better), frequency desc, similarity desc, city name
   combined.sort((a, b) => {
-    const pa = priorityIndex(a.m.uf);
-    const pb = priorityIndex(b.m.uf);
+    const pa = getStatePriorityIndex(a.m.uf, priority);
+    const pb = getStatePriorityIndex(b.m.uf, priority);
     if (pa !== pb) return pa - pb;
 
     const ka = `${a.m.city}|${a.m.uf}`;
@@ -258,7 +313,7 @@ export function findCitySuggestions(
     const fb = Number(freqMap?.get(kb) || 0);
     if (fa !== fb) return fb - fa;
 
-    if (a.type !== b.type) return a.type === 'prefix' ? -1 : 1;
+    if (a.similarity !== b.similarity) return b.similarity - a.similarity;
 
     return a.m.city.localeCompare(b.m.city, 'pt', { sensitivity: 'base' });
   });

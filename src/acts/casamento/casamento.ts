@@ -13,14 +13,17 @@ import {
 } from '../../shared/matricula/cnj';
 import {
   setupPrimaryShortcut,
-  setupNameCopy,
-  setupAutoNationality,
+  setupAutofillWithDirty,
+  setupDefaultValueWithDirty,
   setupCasamentoDates,
 } from '../../shared/productivity/index';
 import { setupAdminPanel } from '../../shared/ui/admin';
-import { setupActSelect } from '../../ui/setup-ui';
+import { setupActSelect, disableBrowserAutofill } from '../../ui/setup-ui';
+import { attachCityIntegrationToAll } from '../../ui/city-uf-ui';
 import { createNameValidator } from '../../shared/nameValidator';
 import { updateActionButtons } from '../../ui';
+import { resolveCasamentoTipo } from '../../shared/productivity/casamento-rules';
+import { validateMatriculaType } from '../../shared/matricula/type';
 
 const NAME_MODE_KEY = 'ui.nameValidationMode';
 let nameValidationMode = localStorage.getItem(NAME_MODE_KEY) || 'blur';
@@ -299,7 +302,8 @@ function updateDebug(data: any): void {
   const tipo =
     (document.querySelector('select[name="tipoCasamento"]') as HTMLSelectElement | null)?.value ||
     '';
-  const tipoAto = tipo === 'R' ? '3' : tipo === 'C' ? '2' : '';
+  const tipoResolved = resolveCasamentoTipo(tipo);
+  const tipoAto = tipoResolved === 'religioso' ? '3' : tipoResolved === 'civil' ? '2' : '';
   const livro =
     (document.querySelector('input[name="livro"]') as HTMLInputElement | null)?.value || '';
   const folha =
@@ -383,9 +387,14 @@ function setupNameValidation(): void {
     if (hint) {
       hint.addEventListener('click', (e) => {
         e.preventDefault();
-        const value = (input as HTMLInputElement).value;
-        if (!value) return;
-        validator.repo.addException(value);
+        const value = (input as HTMLInputElement).value || '';
+        const token =
+          (input as HTMLElement).getAttribute('data-name-token') ||
+          (field && field.getAttribute('data-name-token')) ||
+          validator.check(value).token ||
+          '';
+        if (!token) return;
+        validator.repo.addException(token);
         (input as HTMLElement).classList.remove('invalid');
         if (field) field.classList.remove('name-suspect');
         const t = timers.get(input as any);
@@ -402,9 +411,17 @@ function setupNameValidation(): void {
       sanitize();
       const value = (input as HTMLInputElement).value || '';
       const result = validator.check(value);
+      const token = result && result.token ? String(result.token).trim() : '';
       const suspect = !!result.suspicious;
       (input as HTMLElement).classList.toggle('invalid', suspect);
       if (field) field.classList.toggle('name-suspect', suspect);
+      if (token) {
+        (input as HTMLElement).setAttribute('data-name-token', token);
+        if (field) field.setAttribute('data-name-token', token);
+      } else {
+        (input as HTMLElement).removeAttribute('data-name-token');
+        if (field) field.removeAttribute('data-name-token');
+      }
       if (suspect) {
         try {
           setFieldHint(field as Element | null, 'Nome incorreto!');
@@ -438,9 +455,67 @@ function setupNameValidation(): void {
         const suspect = !!result.suspicious;
         (input as HTMLElement).classList.toggle('invalid', suspect);
         if (field) field.classList.toggle('name-suspect', suspect);
+        const token = result && result.token ? String(result.token).trim() : '';
+        if (token) {
+          (input as HTMLElement).setAttribute('data-name-token', token);
+          if (field) field.setAttribute('data-name-token', token);
+        } else {
+          (input as HTMLElement).removeAttribute('data-name-token');
+          if (field) field.removeAttribute('data-name-token');
+        }
       }
     });
   });
+}
+
+function getFieldContainer(el: HTMLElement | null): HTMLElement | null {
+  if (!el) return null;
+  return (el.closest('.campo') as HTMLElement | null) || (el.closest('.field') as HTMLElement | null);
+}
+
+function setupMatriculaTypeValidation(): void {
+  const tipo = document.querySelector('select[name="tipoCasamento"]') as HTMLSelectElement | null;
+  const matricula = document.getElementById('matricula') as HTMLInputElement | null;
+  if (!tipo || !matricula) return;
+  const field = getFieldContainer(matricula);
+
+  const run = () => {
+    const expected = resolveCasamentoTipo(tipo.value);
+    const value = String(matricula.value || '').trim();
+    if (!value) {
+      if (field) applyFieldState(field, 'valid');
+      clearFieldHint(field);
+      return;
+    }
+    if (expected === 'unknown') {
+      if (field) applyFieldState(field, 'valid');
+      clearFieldHint(field);
+      return;
+    }
+    const res = validateMatriculaType(value, expected);
+    if (!res.ok) {
+      if (field) applyFieldState(field, 'warn');
+      setFieldHint(field, res.reason || 'Matricula incompativel com o tipo selecionado.');
+      return;
+    }
+    if (field) applyFieldState(field, 'valid');
+    clearFieldHint(field);
+  };
+
+  tipo.addEventListener('change', run);
+  tipo.addEventListener('input', run);
+  matricula.addEventListener('input', run);
+  matricula.addEventListener('blur', run);
+}
+
+function setupCasamentoNameAutofill(): void {
+  setupAutofillWithDirty('input[name="nomeSolteiro"]', 'input[name="nomeCasado"]');
+  setupAutofillWithDirty('input[name="nomeSolteira"]', 'input[name="nomeCasada"]');
+}
+
+function setupCasamentoNationalityDefaults(): void {
+  setupDefaultValueWithDirty('input[name="nacionalidadeNoivo"]', 'BRASILEIRO');
+  setupDefaultValueWithDirty('input[name="nacionalidadeNoiva"]', 'BRASILEIRA');
 }
 
 function setup(): void {
@@ -451,204 +526,11 @@ function setup(): void {
       void e;
     }
   }
-  const elTipo = document.querySelector('select[name="tipoCasamento"]') as HTMLSelectElement | null;
-  const elDataTermo = document.querySelector('input[name="dataTermo"]') as HTMLInputElement | null;
-  const elDataCasamento = document.querySelector(
-    'input[name="dataCasamento"]',
-  ) as HTMLInputElement | null;
-  const elRegimeBens = document.querySelector(
-    'select[name="regimeBens"]',
-  ) as HTMLSelectElement | null;
-  function syncDataCasamentoState() {
-    if (!elTipo || !elDataTermo || !elDataCasamento) return;
-    if (elTipo.value === '3') {
-      elDataCasamento.removeAttribute('readonly');
-      elDataCasamento.style.background = '';
-      elDataCasamento.tabIndex = 0;
-      if (elDataCasamento.value === elDataTermo.value || elDataCasamento.hasAttribute('readonly')) {
-        elDataCasamento.value = '';
-        setTimeout(() => elDataCasamento.focus(), 10);
-      }
-      elDataCasamento.style.outline = '2px solid #22c55e';
-      elDataCasamento.title = 'readonly: ' + elDataCasamento.hasAttribute('readonly');
-    } else {
-      elDataCasamento.setAttribute('readonly', 'readonly');
-      elDataCasamento.style.background = '#ddd';
-      elDataCasamento.tabIndex = -1;
-      elDataCasamento.value = elDataTermo.value;
-      elDataCasamento.style.outline = '';
-      elDataCasamento.title = '';
-      if (document.activeElement === elDataCasamento && elRegimeBens) elRegimeBens.focus();
-    }
-    triggerMatricula();
-  }
-  elTipo?.addEventListener('change', syncDataCasamentoState);
-  try {
-    if (elTipo) elTipo.required = true;
-  } catch (e) {
-    /* ignore */
-  }
-  elDataTermo?.addEventListener('input', () => {
-    if (elTipo?.value !== '3') {
-      if (elDataCasamento) elDataCasamento.value = elDataTermo?.value || '';
-      if (elTipo?.value === '3') startEnforceUnlock();
-      else stopEnforceUnlock();
-      triggerMatricula();
-    }
-  });
-  elDataCasamento?.addEventListener('input', () => {
-    if (elTipo?.value === '3' && elDataCasamento.value.length === 10 && elRegimeBens)
-      elRegimeBens.focus();
-    triggerMatricula();
-  });
-  let enforceInterval: number | null = null;
-  const dataCasamentoObserver = new MutationObserver((mutations) => {
-    const tipoVal = elTipo?.value || '';
-    if (tipoVal === '3') {
-      if (
-        elDataCasamento.hasAttribute('readonly') ||
-        elDataCasamento.tabIndex === -1 ||
-        elDataCasamento.classList.contains('input-locked')
-      ) {
-        unlockDataCasamento();
-      }
-    } else {
-      if (!elDataCasamento.hasAttribute('readonly')) {
-        lockDataCasamento();
-      }
-    }
-  });
-  function startEnforceUnlock() {
-    if (enforceInterval != null) return;
-    enforceInterval = window.setInterval(() => {
-      if (elTipo?.value === '3') unlockDataCasamento();
-      else lockDataCasamento();
-    }, 350) as unknown as number;
-  }
-  function stopEnforceUnlock() {
-    if (enforceInterval != null) {
-      clearInterval(enforceInterval as unknown as number);
-      enforceInterval = null;
-    }
-  }
-  function lockDataCasamento() {
-    try {
-      elDataCasamento.setAttribute('readonly', 'readonly');
-      elDataCasamento.tabIndex = -1;
-      elDataCasamento.style.background = '#ddd';
-      if (!elDataCasamento.classList.contains('input-locked'))
-        elDataCasamento.classList.add('input-locked');
-    } catch (e) {
-      /* ignore */
-    }
-  }
-  function unlockDataCasamento() {
-    try {
-      elDataCasamento.removeAttribute('readonly');
-      elDataCasamento.tabIndex = 0;
-      elDataCasamento.style.background = '';
-      elDataCasamento.classList.remove('input-locked');
-    } catch (e) {
-      /* ignore */
-    }
-  }
-  function findMatriculaFieldLocal(): HTMLInputElement | null {
-    const byId = document.getElementById('matricula') as HTMLInputElement | null;
-    if (byId) return byId;
-    const byName = document.querySelector(
-      'input[name*="matricula"], input[id*="matricula"]',
-    ) as HTMLInputElement | null;
-    if (byName) return byName;
-    const byDataBind = Array.from(document.querySelectorAll('input[data-bind]')).find((i) =>
-      (i.getAttribute('data-bind') || '').toLowerCase().includes('matricula'),
-    ) as HTMLInputElement | undefined;
-    return byDataBind || null;
-  }
-  function fixMatriculaField(mEl: HTMLInputElement | null) {
-    if (!mEl) return;
-    const val = (mEl.value || '').trim();
-    if (!val || !/^\d+$/.test(val)) return;
-    if (val.length <= 14) return;
-    const tipo = elTipo?.value || '';
-    const desired = tipo === '3' ? '3' : tipo === '2' ? '2' : null;
-    if (!desired) return;
-    if (val[14] === desired) return;
-    const newVal = val.slice(0, 14) + desired + val.slice(15);
-    mEl.value = newVal;
-    try {
-      mEl.dispatchEvent(new Event('input', { bubbles: true }));
-      mEl.dispatchEvent(new Event('change', { bubbles: true }));
-    } catch (e) {
-      /* ignore */
-    }
-  }
-  function observeMatricula() {
-    const mEl = findMatriculaFieldLocal();
-    if (!mEl) return;
-    mEl.addEventListener('input', () => fixMatriculaField(mEl));
-    mEl.addEventListener('change', () => fixMatriculaField(mEl));
-    try {
-      const mo = new MutationObserver(() => fixMatriculaField(mEl));
-      mo.observe(mEl, { attributes: true, attributeFilter: ['value'] });
-    } catch (e) {
-      /* ignore */
-    }
-    let last = mEl.value;
-    let blockInterval: number | null = null;
-    function startBlockingUntilTipo() {
-      if (blockInterval != null) return;
-      blockInterval = window.setInterval(() => {
-        if ((elTipo?.value || '').trim() === '') {
-          if (mEl.value) {
-            mEl.value = '';
-            try {
-              mEl.dispatchEvent(new Event('input', { bubbles: true }));
-            } catch (e) {
-              /* ignore */
-            }
-          }
-          mEl.setAttribute('readonly', 'readonly');
-          mEl.placeholder = 'Selecione o tipo antes';
-        } else {
-          if (blockInterval != null) {
-            clearInterval(blockInterval as unknown as number);
-            blockInterval = null;
-          }
-          try {
-            mEl.removeAttribute('readonly');
-          } catch (e) {
-            /* ignore */
-          }
-          mEl.placeholder = '';
-          fixMatriculaField(mEl);
-        }
-      }, 300) as unknown as number;
-    }
-    if ((elTipo?.value || '').trim() === '') startBlockingUntilTipo();
-    setInterval(() => {
-      if (mEl.value !== last) {
-        last = mEl.value;
-        fixMatriculaField(mEl);
-      }
-    }, 500);
-  }
   ['cartorio-oficio', 'matricula-livro', 'matricula-folha', 'matricula-termo'].forEach((id) => {
     const el = document.getElementById(id) as HTMLElement | null;
     if (el) el.addEventListener('input', triggerMatricula);
     if (el) el.addEventListener('change', triggerMatricula);
   });
-  setTimeout(() => {
-    syncDataCasamentoState();
-    try {
-      dataCasamentoObserver.observe(elDataCasamento as Element, {
-        attributes: true,
-        attributeFilter: ['readonly', 'class', 'tabindex', 'disabled', 'style'],
-      });
-    } catch (e) {
-      /* ignore */
-    }
-    observeMatricula();
-  }, 50);
   document.getElementById('btn-json')?.addEventListener('click', (e) => {
     e.preventDefault();
     generateJson();
@@ -689,16 +571,30 @@ function setup(): void {
   setupPrimaryShortcut(
     () => document.getElementById('btn-json') || document.getElementById('btn-xml'),
   );
-  if (localStorage.getItem('ui.enableParentNameCopy') === 'true') {
-    setupNameCopy('input[name="nomeSolteiro"]', 'input[name="nomeCasado"]');
-    setupNameCopy('input[name="nomeSolteira"]', 'input[name="nomeCasada"]');
-  }
-  setupAutoNationality('input[name="nacionalidadeNoivo"]', 'BRASILEIRO');
-  setupAutoNationality('input[name="nacionalidadeNoiva"]', 'BRASILEIRA');
+  setupCasamentoNameAutofill();
+  setupCasamentoNationalityDefaults();
   setupCasamentoDates();
+  setupMatriculaTypeValidation();
+  document.querySelector('input[name="dataTermo"]')?.addEventListener('input', triggerMatricula);
+  document.querySelector('input[name="dataCasamento"]')?.addEventListener('input', triggerMatricula);
   setupFocusEmphasis();
   setupLiveOutputs();
   updateActionButtons();
+
+  // Attach city integration for all city-like fields (same flow as obito)
+  try {
+    attachCityIntegrationToAll().catch?.(() => {});
+  } catch (e) {
+    /* ignore */
+  }
+
+  // Disable browser autofill heuristics on form fields
+  try {
+    const root = document.getElementById('form-casamento');
+    if (root) disableBrowserAutofill(root);
+  } catch (e) {
+    /* ignore */
+  }
   document.getElementById('form-casamento')?.addEventListener('input', updateActionButtons);
   document.getElementById('form-casamento')?.addEventListener('change', updateActionButtons);
 }
@@ -797,7 +693,10 @@ function canProceed(): boolean {
   return false;
 }
 
-// Expose setup for the page
+// Boot the page
+setup();
+
+// Expose setup for potential manual calls
 export { setup };
 export {};
 

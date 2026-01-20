@@ -85,7 +85,8 @@ export function mapperHtmlToJson(doc) {
           const ano = (dt.match(/(\d{4})$/) || [])[1] || '';
           const tipo =
             (doc.querySelector('select[name="tipoCasamento"]') || { value: '' }).value || '';
-          const tipoAto = tipo === 'R' ? '3' : tipo === 'C' ? '2' : '';
+          const tipoDigit = String(tipo || '').replace(/\D/g, '').slice(0, 1);
+          const tipoAto = tipoDigit === '3' ? '3' : tipoDigit === '2' ? '2' : '2';
           const livro = padLeft((doc.getElementById('matricula-livro') || { value: '' }).value, 5);
           const folha = padLeft((doc.getElementById('matricula-folha') || { value: '' }).value, 3);
           const termo = padLeft((doc.getElementById('matricula-termo') || { value: '' }).value, 7);

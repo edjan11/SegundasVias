@@ -12,7 +12,9 @@
     "ui:bundle:watch": "esbuild src/acts/nascimento/nascimento.ts src/acts/casamento/casamento.ts src/acts/obito/obito.ts --bundle --format=esm --target=es2019 --outdir=ui/js --entry-names=[name].bundle --sourcemap=external --watch",
     "ui:copy-data": "node tools/copy_public_data.js",
     "serve": "live-server ui --port=4180 --no-browser --watch=ui,ui/js",
-    "dev": "npm-run-all --parallel watch ui:bundle:watch serve",
+    "build:once": "tsc -p tsconfig.json",
+    "freq:dev": "npm run build:once && nodemon --watch src/server --ext ts --exec \"npm run build:once && node dist-src/server/frequencyServer.js\"",
+    "dev": "npm-run-all --parallel watch ui:bundle:watch serve freq:dev",
     "format": "prettier --write \"src/**/*.{ts,tsx,js,jsx,json,css,md}\"",
     "lint": "eslint \"src/**/*.{ts,tsx}\"",
     "lint:fix": "npm run lint -- --fix",
@@ -24,7 +26,9 @@
     "test": "echo \"no tests\"",
     "test:prints": "npm run build && node tests/print-test.js",
     "test:city": "npm run build && node tests/city-uf-resolver.test.js",
-    "start:freq-server": "npm run build && node dist-src/server/frequencyServer.js"
+    "test:city-ui": "npm run build && node --experimental-specifier-resolution=node tests/city-ui.test.js",
+    "start:freq-server": "npm run build && node dist-src/server/frequencyServer.js",
+    "start-nodemon": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/start-nodemon.ps1"
   },
   "tools": {
     "import_names": "node tools/import_names.js",
@@ -51,7 +55,9 @@
     "eslint": "^8.57.1",
     "eslint-plugin-unused-imports": "^3.1.0",
     "espree": "^11.0.0",
+    "jsdom": "^22.1.0",
     "live-server": "^1.2.2",
+    "nodemon": "^3.1.11",
     "npm-run-all": "^4.1.5",
     "prettier": "^2.8.8",
     "source-map-explorer": "^2.5.2",

@@ -147,12 +147,17 @@
         <div class="row row-place">
           <div class="field w-local-wide">
             <label>Local de nascimento <span class="req">*</span></label>
-            <input id="local-nascimento" data-bind="registro.local_nascimento" data-required placeholder="Ex: Na Clínica Santa Helena, Aracaju/SE" list="local-suggestions" autocomplete="off" />
+            <input
+              id="local-nascimento"
+              data-bind="registro.local_nascimento"
+              data-required
+              placeholder="Ex: Na Clínica Santa Helena, Aracaju/SE"
+              autocomplete="off"
+            />
             <div id="local-suggestion" class="suggestion-bar">
               <span id="local-suggestion-text" class="suggestion-text"></span>
               <button type="button" class="btn secondary tiny" id="local-suggestion-apply">Aplicar sugestao</button>
             </div>
-            <datalist id="local-suggestions"></datalist>
           </div>
         </div>
 
@@ -286,17 +291,17 @@
 
           <div class="field">
             <label>Livro</label>
-            <input data-bind="ui.matricula_livro" id="matricula-livro" class="w-livro" placeholder="00000" />
+            <input data-bind="ui.matricula_livro" id="matricula-livro" class="w-livro" placeholder="00000" inputmode="numeric" maxlength="5" />
           </div>
 
           <div class="field">
             <label>Folha</label>
-            <input data-bind="ui.matricula_folha" id="matricula-folha" class="w-folha" placeholder="000" />
+            <input data-bind="ui.matricula_folha" id="matricula-folha" class="w-folha" placeholder="000" inputmode="numeric" maxlength="3" />
           </div>
 
           <div class="field">
             <label>Termo</label>
-            <input data-bind="ui.matricula_termo" id="matricula-termo" class="w-termo" placeholder="0000000" />
+            <input data-bind="ui.matricula_termo" id="matricula-termo" class="w-termo" placeholder="0000000" inputmode="numeric" maxlength="7" />
           </div>
 
           <div class="field" id="casamento-tipo-wrap" style="display:none;">

@@ -17,7 +17,7 @@ import { setupNameCopy, setupAutoNationality } from '../../shared/productivity/i
 import { setupAdminPanel } from '../../shared/ui/admin';
 import { setupActSelect } from '../../ui/setup-ui';
 import { attachAutocomplete } from '../../ui/city-autocomplete';
-import { attachCityUfAutofill } from '../../ui/city-uf-ui';
+import { attachCityUfAutofill, attachCityIntegrationToAll } from '../../ui/city-uf-ui';
 import { buildIndexFromData } from '../../shared/city-uf-resolver';
 import { buildNascimentoPdfHtmlTJ } from '../../prints/nascimento/printNascimentoTj';
 import { openHtmlAndSavePdf } from '../../prints/shared/openAndSavePdf';
@@ -440,9 +440,14 @@ function setupValidation() {
         if (hint) {
           hint.addEventListener('click', (e) => {
             e.preventDefault();
-            const value = (input as HTMLInputElement).value;
-            if (!value) return;
-            validator.repo.addException(value);
+            const value = (input as HTMLInputElement).value || '';
+            const token =
+              (input as HTMLElement).getAttribute('data-name-token') ||
+              (field && field.getAttribute('data-name-token')) ||
+              validator.check(value).token ||
+              '';
+            if (!token) return;
+            validator.repo.addException(token);
             (input as HTMLElement).classList.remove('invalid');
             if (field) field.classList.remove('name-suspect');
             const t = timers.get(input as any);
@@ -464,9 +469,17 @@ function setupValidation() {
           sanitize();
           const value = (input as HTMLInputElement).value || '';
           const result = validator.check(value);
+          const token = result && result.token ? String(result.token).trim() : '';
           const suspect = !!result.suspicious;
           (input as HTMLElement).classList.toggle('invalid', suspect);
           if (field) field.classList.toggle('name-suspect', suspect);
+          if (token) {
+            (input as HTMLElement).setAttribute('data-name-token', token);
+            if (field) field.setAttribute('data-name-token', token);
+          } else {
+            (input as HTMLElement).removeAttribute('data-name-token');
+            if (field) field.removeAttribute('data-name-token');
+          }
           if (suspect) {
             try {
               setFieldHint(field, 'Nome incorreto!');
@@ -503,6 +516,14 @@ function setupValidation() {
               const suspect = !!result.suspicious;
               (input as HTMLElement).classList.toggle('invalid', suspect);
               if (field) field.classList.toggle('name-suspect', suspect);
+              const token = result && result.token ? String(result.token).trim() : '';
+              if (token) {
+                (input as HTMLElement).setAttribute('data-name-token', token);
+                if (field) field.setAttribute('data-name-token', token);
+              } else {
+                (input as HTMLElement).removeAttribute('data-name-token');
+                if (field) field.removeAttribute('data-name-token');
+              }
             }
           });
         })
@@ -789,14 +810,22 @@ function setup() {
     try {
       // Try loading JSON from public path (browser-friendly)
       async function tryFetch(filename: string) {
-        try {
-          const url = `/data/jsonCidades/${filename}`;
-          const res = await fetch(url);
-          if (!res.ok) return null;
-          return await res.json();
-        } catch (e) {
-          return null;
+        const candidates = [
+          `/data/jsonCidades/${filename}`,
+          `./data/jsonCidades/${filename}`,
+          `../data/jsonCidades/${filename}`,
+          `data/jsonCidades/${filename}`,
+        ];
+        for (const url of candidates) {
+          try {
+            const res = await fetch(url);
+            if (!res.ok) continue;
+            return await res.json();
+          } catch (e) {
+            /* try next */
+          }
         }
+        return null;
       }
 
       const raw1 = await tryFetch('estados-cidades.json');
@@ -820,6 +849,14 @@ function setup() {
       if (cidadeNat && ufNat && index && index.size > 0) {
         attachAutocomplete(cidadeNat, { index, minSuggestions: 5 });
         attachCityUfAutofill(cidadeNat, ufNat as any, index, (res) => console.debug('autofill(naturalidade):', res));
+      }
+
+      // Generic integration: attach to mother/father/noivo/noiva and other city-like fields
+      try {
+        // prefer reusing the loaded index for efficiency
+        attachCityIntegrationToAll(index, { minSuggestions: 5 }).catch?.(() => {});
+      } catch (e) {
+        /* ignore */
       }
 
       // Expose for debugging (temporary)

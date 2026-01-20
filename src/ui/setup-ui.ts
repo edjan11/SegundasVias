@@ -1,5 +1,5 @@
-// setup-ui.ts: Versão TypeScript das funções de setup extraídas do bundle original.
-// Apenas migração estrutural, sem alteração de comportamento.
+﻿// setup-ui.ts: VersÃ£o TypeScript das funÃ§Ãµes de setup extraÃ­das do bundle original.
+// Apenas migraÃ§Ã£o estrutural, sem alteraÃ§Ã£o de comportamento.
 
 import { createNameValidator } from '../shared/nameValidator';
 import { clearFieldHint } from '../ui';
@@ -155,7 +155,7 @@ export function setupConfigPanel(registerHandlers?: RegisterHandlers): void {
       }
       // provide feedback and reload to apply immediately (consistent with other settings)
       try {
-        setStatus('Preferências salvas. Atualizando...', false);
+        setStatus('PreferÃªncias salvas. Atualizando...', false);
       } catch (e) {
         /* ignore */
       }
@@ -208,7 +208,7 @@ export function setupActions(handlers: ActionHandlers = {}): void {
       b.className = 'btn';
       b.type = 'button';
       b.textContent = 'Salvar local';
-      b.title = 'Salvar certidão localmente (JSON)';
+      b.title = 'Salvar certidÃ£o localmente (JSON)';
       b.addEventListener('click', () => {
         try {
           // process marked names first
@@ -424,7 +424,7 @@ try {
                 const r = await fetch(p, { method: 'HEAD' });
                 if (r.ok) {
                   if (statusEl) {
-                    statusEl.textContent = `Nome DB: disponível (${p})`;
+                    statusEl.textContent = `Nome DB: disponÃ­vel (${p})`;
                     statusEl.style.background = '#ecfdf5';
                     statusEl.style.color = '#065f46';
                     statusEl.style.border = '1px solid #bbf7d0';
@@ -441,7 +441,7 @@ try {
             if (!found) {
               if (statusEl) {
                 statusEl.textContent =
-                  'Nome DB: não encontrado (usando nomes padrão, sem consulta)';
+                  'Nome DB: nÃ£o encontrado (usando nomes padrÃ£o, sem consulta)';
                 statusEl.style.background = '#fff7f0';
                 statusEl.style.color = '#7c2d12';
                 statusEl.style.border = '1px solid #fed7aa';
@@ -628,7 +628,7 @@ export function setupCartorioTyping(): void {
 
 type NameValidator = {
   ready?: Promise<unknown>;
-  check: (value: string) => { suspicious?: boolean };
+  check: (value: string) => { suspicious?: boolean; token?: string };
   repo?: { addException: (value: string) => void };
 };
 
@@ -711,40 +711,32 @@ export function setupNameValidation(
 
       hint = document.createElement('label');
       hint.className = 'name-suggest';
-      hint.setAttribute('title', 'Incluir no vocabulário (ao salvar)');
-      hint.setAttribute('data-tooltip', 'Incluir no vocabulário (ao salvar)');
+      hint.setAttribute('title', 'Incluir no vocabulario (ao salvar)');
+      hint.setAttribute('data-tooltip', 'Incluir no vocabulario (ao salvar)');
 
-      // compact text + select (no SVG). Select choice marks field for later processing (non-blocking).
+      // compact label + toggle (non-blocking).
       const labelSpan = document.createElement('span');
       labelSpan.className = 'name-suggest-label';
-      labelSpan.textContent = 'Adicionar nome incorreto ao vocabulário';
+      labelSpan.textContent = 'Vocab.';
       hint.appendChild(labelSpan);
 
-      const sel = document.createElement('select');
-      sel.className = 'name-suggest-select';
-      sel.setAttribute('aria-label', 'Ação para nome suspeito');
-      const optEmpty = document.createElement('option');
-      optEmpty.value = '';
-      optEmpty.textContent = '—';
-      sel.appendChild(optEmpty);
-      const optIncluir = document.createElement('option');
-      optIncluir.value = 'incluir';
-      optIncluir.textContent = 'Incluir';
-      sel.appendChild(optIncluir);
-      const optMarcar = document.createElement('option');
-      optMarcar.value = 'marcar';
-      optMarcar.textContent = 'Marcar';
-      sel.appendChild(optMarcar);
-      hint.appendChild(sel);
+      const toggle = document.createElement('input');
+      toggle.type = 'checkbox';
+      toggle.className = 'name-suggest-toggle';
+      toggle.setAttribute('aria-label', 'Incluir token no vocabulario');
+      hint.appendChild(toggle);
 
-      sel.addEventListener('change', () => {
-        const v = sel.value;
-        if (!v) {
+      const track = document.createElement('span');
+      track.className = 'name-suggest-toggle-ui';
+      hint.appendChild(track);
+
+      toggle.addEventListener('change', () => {
+        const checked = toggle.checked;
+        if (!checked) {
           hint.classList.remove('name-suggest-checked');
           if (field) field.setAttribute('data-name-marked', 'false');
           return;
         }
-        // selecting an action marks field for later processing (non-blocking)
         hint.classList.add('name-suggest-checked');
         if (field) field.setAttribute('data-name-marked', 'true');
       });
@@ -784,19 +776,18 @@ export function setupNameValidation(
     }
 
     if (hint) {
-      const sel = hint.querySelector('.name-suggest-select') as HTMLSelectElement | null;
-      if (sel) {
-        sel.addEventListener('change', () => {
-          const v = sel.value;
-          if (!v) {
+      const toggle = hint.querySelector('.name-suggest-toggle') as HTMLInputElement | null;
+      if (toggle) {
+        toggle.addEventListener('change', () => {
+          const checked = !!toggle.checked;
+          if (!checked) {
             hint.classList.remove('name-suggest-checked');
             if (field) field.setAttribute('data-name-marked', 'false');
             return;
           }
-          // selecting an action marks field for later processing (non-blocking)
           const value = getValue(input).trim();
           if (!value) {
-            sel.value = '';
+            toggle.checked = false;
             return;
           }
           hint.classList.add('name-suggest-checked');
@@ -804,10 +795,9 @@ export function setupNameValidation(
         });
       }
     }
-
     const sanitize = () => {
       const v = getValue(input);
-      const s = v.replace(/[^A-Za-zÀ-ÿ'\- ]/g, '');
+      const s = v.replace(/[^A-Za-z'\- ]/g, '');
       if (s !== v) setValue(input, s);
     };
 
@@ -815,19 +805,22 @@ export function setupNameValidation(
       sanitize();
       const value = getValue(input).trim();
       const result = validator ? validator.check(value) : { suspicious: false };
+      const token = result && result.token ? String(result.token).trim() : '';
       const shiftHeld =
         typeof window._nameValidationShiftHeld === 'function'
           ? window._nameValidationShiftHeld()
           : false;
       const suspect = !shiftHeld && !!result?.suspicious;
 
-      // visual state on input and field
       if (isValueElement(input)) (input as HTMLInputElement).classList.toggle('invalid', suspect);
+      if (token) (input as HTMLElement).setAttribute('data-name-token', token);
+      else (input as HTMLElement).removeAttribute('data-name-token');
 
       if (field) {
         field.classList.toggle('name-suspect', suspect);
+        if (token) field.setAttribute('data-name-token', token);
+        else field.removeAttribute('data-name-token');
 
-        // tooltip on the small '?' icon inside the field (non-intrusive)
         const warn = field.querySelector('.name-warn') as HTMLElement | null;
         if (suspect) {
           if (warn)
@@ -835,7 +828,6 @@ export function setupNameValidation(
               'data-tooltip',
               value ? `Nome incorreto: "${value}"` : 'Nome incorreto',
             );
-          // show the add-control only when suspect
           const suggest = field.querySelector('.name-suggest') as HTMLElement | null;
           if (suggest) suggest.style.display = 'inline-flex';
         } else {
@@ -844,8 +836,6 @@ export function setupNameValidation(
           if (suggest) suggest.style.display = 'none';
         }
       }
-
-      // avoid using setFieldHint / toasts — lightweight non-blocking UX
     };
 
     input.addEventListener('input', () => {
@@ -893,6 +883,14 @@ export function setupNameValidation(
             if (isValueElement(input))
               (input as HTMLInputElement).classList.toggle('invalid', suspect);
             if (field) field.classList.toggle('name-suspect', suspect);
+            const token = result && result.token ? String(result.token).trim() : '';
+            if (token) {
+              (input as HTMLElement).setAttribute('data-name-token', token);
+              if (field) field.setAttribute('data-name-token', token);
+            } else {
+              (input as HTMLElement).removeAttribute('data-name-token');
+              if (field) field.removeAttribute('data-name-token');
+            }
             // ensure add-control visibility consistent
             const suggest = field
               ? (field.querySelector('.name-suggest') as HTMLElement | null)
@@ -914,8 +912,8 @@ export function setupNameValidation(
 }
 
 // Helpers: collect and process marked names (to be run when the user saves)
-export function collectMarkedNames(): string[] {
-  const out: string[] = [];
+export function processMarkedNames(validatorArg?: NameValidator): void {
+  const validatorToUse = validatorArg || window._nameValidator;
   const fields = Array.from(document.querySelectorAll('[data-name-validate]')) as Element[];
   fields.forEach((input) => {
     const field = (input.closest('td') ||
@@ -926,26 +924,21 @@ export function collectMarkedNames(): string[] {
     const marked = field.getAttribute('data-name-marked') === 'true';
     if (!marked) return;
     const value = isValueElement(input) ? (input as HTMLInputElement).value : '';
-    if (value) out.push(value);
-  });
-  return out;
-}
-
-export function processMarkedNames(validatorArg?: NameValidator): void {
-  const validatorToUse = validatorArg || window._nameValidator;
-  const toAdd = collectMarkedNames();
-  if (!toAdd.length) return;
-  toAdd.forEach((v) => {
+    if (!value) return;
+    const storedToken =
+      field.getAttribute('data-name-token') || (input as HTMLElement).getAttribute('data-name-token');
+    const fallback = validatorToUse?.check ? validatorToUse.check(value).token : '';
+    const token = String(storedToken || fallback || '').trim();
+    if (!token) return;
     try {
       if (validatorToUse?.repo && typeof validatorToUse.repo.addException === 'function') {
-        validatorToUse.repo.addException(v);
+        validatorToUse.repo.addException(token);
       }
     } catch (e) {
       /* ignore */
     }
   });
   // cleanup UI: unmark fields and remove invalid classes and hints
-  const fields = Array.from(document.querySelectorAll('[data-name-validate]')) as Element[];
   fields.forEach((input) => {
     const field = (input.closest('td') ||
       input.closest('.campo') ||
@@ -954,8 +947,8 @@ export function processMarkedNames(validatorArg?: NameValidator): void {
     if (!field) return;
     if (field.getAttribute('data-name-marked') === 'true') {
       field.setAttribute('data-name-marked', 'false');
-      const sel = field.querySelector('.name-suggest-select') as HTMLSelectElement | null;
-      if (sel) sel.value = '';
+      const toggle = field.querySelector('.name-suggest-toggle') as HTMLInputElement | null;
+      if (toggle) toggle.checked = false;
       if (isValueElement(input)) (input as HTMLInputElement).classList.remove('invalid');
       try {
         clearFieldHint(field);
@@ -992,3 +985,40 @@ function downloadJson(obj: Record<string, unknown>, filename: string): void {
     console.error('failed to download json', e);
   }
 }
+
+// Anti-autofill helper: programmatically ensure attributes for dynamic content or missed elements
+export function disableBrowserAutofill(root: Document | HTMLElement = document, selectors: string[] = []) {
+  const defaultSelectors = [
+    'input[name*="cidade"]',
+    'select[name*="uf"]',
+    'input[name*="municipio"]',
+    'input[name*="endereco"]',
+    'input[name*="CEP"]',
+    'input[name*="cidadeTitulo"]'
+  ];
+  const sel = (selectors && selectors.length ? selectors : defaultSelectors).join(',');
+  try {
+    const nodes = (root as Document).querySelectorAll(sel);
+    nodes.forEach((n) => {
+      try {
+        if (n instanceof HTMLInputElement || n instanceof HTMLSelectElement || n instanceof HTMLTextAreaElement) {
+          n.setAttribute('autocomplete', 'nope');
+          n.setAttribute('autocorrect', 'off');
+          n.setAttribute('autocapitalize', 'off');
+          n.setAttribute('spellcheck', 'false');
+          n.setAttribute('data-autofill-disabled', '1');
+        }
+      } catch (e) {
+        /* ignore per-input failures */
+      }
+    });
+  } catch (e) {
+    /* ignore */
+  }
+}
+
+
+
+
+
+

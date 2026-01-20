@@ -175,6 +175,16 @@ a.btn {
   border: 0 !important;
 }
 
+/* Hide honeypot inputs used to neutralize browser autofill (kept out of tab order) */
+.no-autofill-honeypot {
+  position: absolute !important;
+  left: -9999px !important;
+  width: 1px !important;
+  height: 1px !important;
+  overflow: hidden !important;
+}
+.no-autofill-honeypot input { display: block !important; }
+
 .type-group {
   display: flex;
   gap: 6px;
@@ -1125,9 +1135,86 @@ details.collapse summary {
 }
 .name-field .label-row .name-suggest:hover{ opacity:1; }
 
-/* small select and label */
-.name-field .label-row .name-suggest .name-suggest-label{ font-size:12px; padding-right:6px; }
-.name-field .label-row .name-suggest .name-suggest-select{ font-size:11px; padding:2px 6px; height:26px; border-radius:6px; border:1px solid rgba(6,95,70,0.08); background:#fff; }
+/* compact label + toggle */
+.name-field .label-row .name-suggest .name-suggest-label{ font-size:11px; padding-right:4px; }
+.name-field .label-row .name-suggest .name-suggest-toggle{
+  position:absolute;
+  opacity:0;
+  width:1px;
+  height:1px;
+  pointer-events:none;
+}
+.name-field .label-row .name-suggest .name-suggest-toggle-ui{
+  width:34px;
+  height:18px;
+  border-radius:999px;
+  background:#e2e8f0;
+  position:relative;
+  transition: background 0.2s ease;
+  flex:0 0 auto;
+}
+.name-field .label-row .name-suggest .name-suggest-toggle-ui::after{
+  content:'';
+  width:14px;
+  height:14px;
+  border-radius:50%;
+  background:#fff;
+  position:absolute;
+  top:2px;
+  left:2px;
+  transition: transform 0.2s ease;
+  box-shadow:0 1px 2px rgba(2,6,23,0.15);
+}
+.name-field .label-row .name-suggest .name-suggest-toggle:checked + .name-suggest-toggle-ui{
+  background:#10b981;
+}
+.name-field .label-row .name-suggest .name-suggest-toggle:checked + .name-suggest-toggle-ui::after{
+  transform: translateX(16px);
+}
+
+/* Autocomplete dropdown (shared by city and local suggestions) */
+.city-autocomplete-list,
+.local-autocomplete-list {
+  position: absolute;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  border-radius: var(--radius);
+  box-shadow: 0 4px 12px rgba(2,6,23,0.08);
+  font-size: 12px;
+  max-height: 200px;
+  overflow-y: auto;
+  z-index: 99999;
+  padding: 4px 0;
+  box-sizing: border-box;
+}
+
+.city-autocomplete-item,
+.local-autocomplete-item {
+  padding: 6px 8px;
+  cursor: pointer;
+  color: var(--text);
+  white-space: nowrap;
+}
+
+.city-autocomplete-item:hover,
+.city-autocomplete-item.active,
+.local-autocomplete-item:hover,
+.local-autocomplete-item.active {
+  background: rgba(6,95,70,0.06);
+  color: var(--text);
+}
+
+/* ensure dropdown items fit the width without affecting layout */
+.city-autocomplete-list::-webkit-scrollbar,
+.local-autocomplete-list::-webkit-scrollbar {
+  height: 8px;
+  width: 8px;
+}
+.city-autocomplete-list::-webkit-scrollbar-thumb,
+.local-autocomplete-list::-webkit-scrollbar-thumb {
+  background: rgba(0,0,0,0.08);
+  border-radius: 4px;
+}
 
 /* when marked */
 .name-field .label-row .name-suggest.name-suggest-checked{ background: rgba(16,185,129,0.04); border-color: rgba(16,185,129,0.18); }

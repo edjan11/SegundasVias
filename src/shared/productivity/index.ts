@@ -1,3 +1,10 @@
+import {
+  resolveCasamentoTipo,
+  shouldAutoCopyTermoToCasamento,
+  shouldSkipDataCasamentoTab,
+} from './casamento-rules.js';
+import { shouldAutofillFromSource, recordAutofill, recordUserEdit } from '../ui/autofill.js';
+
 function lockInput(input: any) {
   if (!input) return;
   input.readOnly = true;
@@ -63,46 +70,134 @@ export function setupCasamentoDates(opts: any = {}) {
   const dataCasamento = document.querySelector(
     opts.dataCasamentoSelector || 'input[name="dataCasamento"]',
   ) as HTMLInputElement | null;
-  const regime = document.querySelector(
-    opts.regimeSelector || 'select[name="regimeBens"]',
-  ) as HTMLSelectElement | null;
-  if (!dataTermo || !tipo || !dataCasamento || !regime) return;
+  if (!dataTermo || !tipo || !dataCasamento) return;
 
-  const lock = () => {
-    dataCasamento.value = dataTermo.value;
-    lockInput(dataCasamento);
-    dataCasamento.dispatchEvent(new Event('input', { bubbles: true }));
+  let lastAuto = '';
+  let dirty = false;
+
+  const markUserEdit = () => {
+    const current = String(dataCasamento.value || '').trim();
+    if (!current) {
+      dirty = false;
+      lastAuto = '';
+      return;
+    }
+    if (current !== lastAuto) dirty = true;
   };
-  const unlock = () => {
-    unlockInput(dataCasamento);
-    if (!dataCasamento.value) dataCasamento.focus();
+
+  const applyAutoCopy = () => {
+    const tipoVal = resolveCasamentoTipo(tipo.value);
+    if (!shouldAutoCopyTermoToCasamento(tipoVal)) return;
+    const src = String(dataTermo.value || '').trim();
+    if (!src) return;
+    if (!dataCasamento.value || dataCasamento.value === lastAuto || !dirty) {
+      dataCasamento.value = src;
+      lastAuto = src;
+      dirty = false;
+      dataCasamento.dispatchEvent(new Event('input', { bubbles: true }));
+    }
   };
+
+  const applyTabPolicy = () => {
+    const tipoVal = resolveCasamentoTipo(tipo.value);
+    const skip = shouldSkipDataCasamentoTab(tipoVal);
+    dataCasamento.tabIndex = skip ? -1 : 0;
+  };
+
+  const applyTipoChange = () => {
+    const tipoVal = resolveCasamentoTipo(tipo.value);
+    applyTabPolicy();
+    if (tipoVal === 'religioso') {
+      dataCasamento.focus();
+      try {
+        dataCasamento.select();
+      } catch (e) {
+        /* ignore */
+      }
+      return;
+    }
+    applyAutoCopy();
+  };
+
+  const focusTipo = () => {
+    if (!tipo) return;
+    if (tipo.disabled || tipo.getAttribute('tabindex') === '-1') return;
+    tipo.focus();
+  };
+
+  const onTabFromTermo = (e: KeyboardEvent) => {
+    if (e.key !== 'Tab' || e.shiftKey) return;
+    const tipoVal = resolveCasamentoTipo(tipo.value);
+    if (!shouldSkipDataCasamentoTab(tipoVal)) return;
+    // Explicitly move focus to tipo when dataCasamento is skipped.
+    e.preventDefault();
+    focusTipo();
+  };
+
+  const onTabFromCasamento = (e: KeyboardEvent) => {
+    if (e.key !== 'Tab' || e.shiftKey) return;
+    // Ensure tipo receives focus even if dataCasamento is not in tab order.
+    e.preventDefault();
+    focusTipo();
+  };
+
+  dataCasamento.addEventListener('input', markUserEdit);
+  dataTermo.addEventListener('input', applyAutoCopy);
+  dataTermo.addEventListener('keydown', onTabFromTermo);
+  dataCasamento.addEventListener('keydown', onTabFromCasamento);
+  tipo.addEventListener('change', applyTipoChange);
+  tipo.addEventListener('input', applyTipoChange);
+
+  applyTabPolicy();
+  applyAutoCopy();
+}
+
+export function setupAutofillWithDirty(
+  sourceSelector: string,
+  targetSelector: string,
+  opts: { onAutofill?: (value: string) => void } = {},
+) {
+  const source = document.querySelector(sourceSelector) as HTMLInputElement | null;
+  const target = document.querySelector(targetSelector) as HTMLInputElement | null;
+  if (!source || !target) return;
+  let state = { lastAuto: '', dirty: false };
+
   const apply = () => {
-    if (tipo.value === 'R') {
-      unlock();
-    } else {
-      lock();
-      tipo.focus();
-    }
+    const nextValue = String(source.value || '').trim();
+    if (!shouldAutofillFromSource({ sourceValue: nextValue, targetValue: target.value, state }))
+      return;
+    target.value = nextValue;
+    state = recordAutofill(state, nextValue);
+    target.dispatchEvent(new Event('input', { bubbles: true }));
+    if (opts.onAutofill) opts.onAutofill(nextValue);
   };
 
-  dataTermo.addEventListener('input', () => {
-    if (dataTermo.value) lock();
-  });
-  tipo.addEventListener('change', apply);
+  const onTargetInput = () => {
+    state = recordUserEdit(state, target.value);
+  };
 
-  dataTermo.addEventListener('keydown', (e) => {
-    if (e.key === 'Tab' && !e.shiftKey) {
-      e.preventDefault();
-      tipo.focus();
-    }
-  });
-  dataCasamento.addEventListener('keydown', (e) => {
-    if (e.key === 'Tab' && !e.shiftKey) {
-      e.preventDefault();
-      regime.focus();
-    }
+  source.addEventListener('input', apply);
+  source.addEventListener('blur', apply);
+  target.addEventListener('input', onTargetInput);
+}
+
+export function setupDefaultValueWithDirty(selector: string, value: string) {
+  const target = document.querySelector(selector) as HTMLInputElement | null;
+  if (!target) return;
+  let state = { lastAuto: '', dirty: false };
+
+  const applyDefault = () => {
+    const current = String(target.value || '').trim();
+    if (current || state.dirty) return;
+    target.value = value;
+    state = recordAutofill(state, value);
+    target.dispatchEvent(new Event('input', { bubbles: true }));
+  };
+
+  target.addEventListener('input', () => {
+    state = recordUserEdit(state, target.value);
+    if (!String(target.value || '').trim()) applyDefault();
   });
 
-  apply();
+  applyDefault();
 }

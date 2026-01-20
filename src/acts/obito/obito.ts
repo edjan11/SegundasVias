@@ -15,9 +15,11 @@ import {
 } from '../../shared/matricula/cnj';
 import { setupPrimaryShortcut } from '../../shared/productivity/index';
 import { setupAdminPanel } from '../../shared/ui/admin';
-import { setupActSelect } from '../../ui/setup-ui';
+import { setupActSelect, disableBrowserAutofill } from '../../ui/setup-ui';
+import { attachCityIntegrationToAll } from '../../ui/city-uf-ui';
 import { createNameValidator } from '../../shared/nameValidator';
 import { buildObitoPrintHtml } from './printTemplate';
+import { validateMatriculaType } from '../../shared/matricula/type';
 
 const NAME_MODE_KEY = 'ui.nameValidationMode';
 let nameValidationMode = localStorage.getItem(NAME_MODE_KEY) || 'blur';
@@ -769,6 +771,35 @@ function clearFieldHint(field) {
   setFieldHint(field, '');
 }
 
+function getFieldContainer(el: HTMLElement | null): HTMLElement | null {
+  if (!el) return null;
+  return (el.closest('.campo') as HTMLElement | null) || (el.closest('.field') as HTMLElement | null);
+}
+
+function setupMatriculaTypeValidation(): void {
+  const matricula = document.getElementById('matricula') as HTMLInputElement | null;
+  if (!matricula) return;
+  const field = getFieldContainer(matricula);
+  const run = () => {
+    const value = String(matricula.value || '').trim();
+    if (!value) {
+      if (field) applyFieldState(field, 'valid');
+      clearFieldHint(field);
+      return;
+    }
+    const res = validateMatriculaType(value, 'obito');
+    if (!res.ok) {
+      if (field) applyFieldState(field, 'warn');
+      setFieldHint(field, res.reason || 'Matricula incompativel com obito.');
+      return;
+    }
+    if (field) applyFieldState(field, 'valid');
+    clearFieldHint(field);
+  };
+  matricula.addEventListener('input', run);
+  matricula.addEventListener('blur', run);
+}
+
 function setupFocusEmphasis() {
   document.addEventListener('focusin', (e) => {
     const el = e.target;
@@ -961,9 +992,14 @@ function setupNameValidation() {
     if (hint) {
       hint.addEventListener('click', (e) => {
         e.preventDefault();
-        const value = (input as any).value;
-        if (!value) return;
-        validator.repo.addException(value);
+        const value = (input as any).value || '';
+        const token =
+          (input as HTMLElement).getAttribute('data-name-token') ||
+          (field && field.getAttribute('data-name-token')) ||
+          validator.check(value).token ||
+          '';
+        if (!token) return;
+        validator.repo.addException(token);
         input.classList.remove('invalid');
         if (field) field.classList.remove('name-suspect');
         const t = timers.get(input);
@@ -982,9 +1018,17 @@ function setupNameValidation() {
       sanitize();
       const value = (input as any).value || '';
       const result = validator.check(value);
+      const token = result && result.token ? String(result.token).trim() : '';
       const suspect = !!result.suspicious;
       input.classList.toggle('invalid', suspect);
       if (field) field.classList.toggle('name-suspect', suspect);
+      if (token) {
+        (input as HTMLElement).setAttribute('data-name-token', token);
+        if (field) field.setAttribute('data-name-token', token);
+      } else {
+        (input as HTMLElement).removeAttribute('data-name-token');
+        if (field) field.removeAttribute('data-name-token');
+      }
       if (suspect) {
         try {
           setFieldHint(field as Element | null, 'Nome incorreto!');
@@ -1020,6 +1064,14 @@ function setupNameValidation() {
         const suspect = !!result.suspicious;
         input.classList.toggle('invalid', suspect);
         if (field) field.classList.toggle('name-suspect', suspect);
+        const token = result && result.token ? String(result.token).trim() : '';
+        if (token) {
+          (input as HTMLElement).setAttribute('data-name-token', token);
+          if (field) field.setAttribute('data-name-token', token);
+        } else {
+          (input as HTMLElement).removeAttribute('data-name-token');
+          if (field) field.removeAttribute('data-name-token');
+        }
       }
     });
   });
@@ -1039,6 +1091,7 @@ function setup() {
     openPrintPreview();
   });
   setupValidation();
+  setupMatriculaTypeValidation();
   // popular selects dependentes (órgãos, UF título)
   populateOrgaoAndUf();
   setupNameValidation();
@@ -1070,6 +1123,21 @@ function setup() {
     'change',
     updateActionButtons,
   );
+
+  // Attach generic city integration for mother/father and other city-like fields
+  try {
+    attachCityIntegrationToAll().catch?.(() => {});
+  } catch (e) {
+    /* ignore */
+  }
+
+  // Disable browser autofill heuristics on form fields
+  try {
+    const root = document.getElementById('form-obito');
+    if (root) disableBrowserAutofill(root);
+  } catch (e) {
+    /* ignore */
+  }
 }
 
 setup();

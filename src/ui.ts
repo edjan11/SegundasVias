@@ -1,4 +1,10 @@
-// Funções relacionadas à interface do usuário
+﻿import {
+  DEFAULT_STATE_PRIORITY,
+  getStatePriorityIndex,
+  scoreTextSimilarity,
+} from './shared/city-uf-resolver.js';
+
+// FunÃ§Ãµes relacionadas Ã  interface do usuÃ¡rio
 export function showToast(message: string): void {
   let container = document.getElementById('toast-container') as HTMLElement | null;
   if (!container) {
@@ -20,7 +26,7 @@ export function showToast(message: string): void {
 }
 
 export function setupConfigPanel(): void {
-  // Configuração do painel de configurações
+  // ConfiguraÃ§Ã£o do painel de configuraÃ§Ãµes
 }
 
 export function setFieldHint(field: HTMLElement | null, message: string): void {
@@ -35,7 +41,7 @@ export function setFieldHint(field: HTMLElement | null, message: string): void {
     hint.innerHTML = '';
     const icon = document.createElement('span');
     icon.className = 'icon';
-    icon.textContent = '⚠';
+    icon.textContent = 'âš ';
     icon.setAttribute('aria-hidden', 'true');
     hint.appendChild(icon);
     const txt = document.createElement('span');
@@ -64,7 +70,7 @@ export function clearFieldHint(field: HTMLElement | null): void {
 }
 
 export function updateActionButtons(): void {
-  // Atualiza os botões de ação com base no estado dos campos
+  // Atualiza os botÃµes de aÃ§Ã£o com base no estado dos campos
 }
 
 export const state: any = {
@@ -174,7 +180,7 @@ function setStatus(text: string, isError?: boolean) {
   }, 2000);
 }
 
-// ...restante do código...
+// ...restante do cÃ³digo...
 
 function setByPath(obj: any, path: string, value: unknown) {
   const parts = path.split('.');
@@ -556,15 +562,40 @@ function yearFromDate(value: string) {
 }
 
 function tipoDigit() {
-  const registro = String(
-    (state.certidao && (state.certidao as any).tipo_registro) || 'nascimento',
+  let registro = String(
+    (state.certidao && (state.certidao as any).tipo_registro) || '',
   ).toLowerCase();
+  if (!registro) {
+    try {
+      registro = String(
+        (
+          document.querySelector(
+            'input[data-bind="certidao.tipo_registro"], input[name="certidao.tipo_registro"]',
+          ) as HTMLInputElement | null
+        )?.value || '',
+      ).toLowerCase();
+    } catch (e) {
+      void e;
+    }
+  }
+  if (!registro) registro = 'nascimento';
   if (registro === 'nascimento') return '1';
   if (registro === 'casamento') {
     // casamento: default to civil (2) when not explicitly selected
-    const selected = digitsOnly(
+    let selected = digitsOnly(
       state.ui && (state.ui as any).casamento_tipo ? String((state.ui as any).casamento_tipo) : '',
     ).slice(0, 1);
+    if (!selected) {
+      try {
+        selected = digitsOnly(
+          (
+            document.querySelector('select[name="tipoCasamento"]') as HTMLSelectElement | null
+          )?.value || '',
+        ).slice(0, 1);
+      } catch (e) {
+        void e;
+      }
+    }
     return selected || '2';
   }
   if (registro === 'obito') return '4';
@@ -749,10 +780,10 @@ function markMissingForMatricula() {
     if (missing) {
       ensureHoverHintForMatricula(
         matEl,
-        'Preencha Cartório / Livro / Folha / Termo / Data para gerar matrícula',
+        'Preencha CartÃ³rio / Livro / Folha / Termo / Data para gerar matrÃ­cula',
       );
       (matEl as any).setAttribute('aria-invalid', 'true');
-      (matEl as any).setAttribute('title', 'Campos faltantes — passe o cursor para ver quais');
+      (matEl as any).setAttribute('title', 'Campos faltantes â€” passe o cursor para ver quais');
     } else {
       clearHoverHintForMatricula(matEl);
       (matEl as any).removeAttribute('aria-invalid');
@@ -1369,6 +1400,7 @@ type PlaceCacheEntry = {
   ufBirth: string;
   cityNatural?: string;
   ufNatural?: string;
+  count: number;
   updatedAt: number;
   tokens: string[];
 };
@@ -1434,22 +1466,26 @@ class PlaceAutoFillCache {
     const key = this.normalize(this.stripCityUfSuffix(input || ''));
     if (!key) return [];
     const data = this.readData();
-    const queryTokens = this.tokenize(key);
     return (Object as any)
       .values(data.entries)
       .map((entry) => {
         const entryKey = entry.key || '';
-        const contains = entryKey.includes(key) || key.includes(entryKey);
-        const intersect = queryTokens.filter((t) => entry.tokens.includes(t)).length;
-        const tokenScore = queryTokens.length
-          ? intersect / Math.max(queryTokens.length, entry.tokens.length)
-          : 0;
-        let score = tokenScore + (contains ? 0.6 : 0);
-        if (entryKey === key) score += 0.4;
-        return { entry, score };
+        const similarity = scoreTextSimilarity(key, entryKey);
+        return { entry, similarity };
       })
-      .filter((item) => item.score >= 0.35)
-      .sort((a, b) => b.score - a.score || b.entry.updatedAt - a.entry.updatedAt)
+      .filter((item) => item.similarity >= 0.35)
+      .sort((a, b) => {
+        const pa = getStatePriorityIndex(a.entry.ufBirth, DEFAULT_STATE_PRIORITY);
+        const pb = getStatePriorityIndex(b.entry.ufBirth, DEFAULT_STATE_PRIORITY);
+        if (pa !== pb) return pa - pb;
+        if (a.entry.count !== b.entry.count) return b.entry.count - a.entry.count;
+        if (a.similarity !== b.similarity) return b.similarity - a.similarity;
+        return (a.entry.normalizedPlaceText || a.entry.key).localeCompare(
+          b.entry.normalizedPlaceText || b.entry.key,
+          'pt',
+          { sensitivity: 'base' },
+        );
+      })
       .slice(0, limit)
       .map((item) => item.entry);
   }
@@ -1472,11 +1508,14 @@ class PlaceAutoFillCache {
     const keyBase = this.stripCityUfSuffix(placeText);
     const key = this.normalize(keyBase || placeText);
     if (!key) return;
+    const data = this.readData();
+    const prev = data.entries[key];
     const entry: PlaceCacheEntry = {
       key,
       normalizedPlaceText: normalizedPlaceText || placeText,
       cityBirth,
       ufBirth,
+      count: (prev?.count || 0) + 1,
       updatedAt: Date.now(),
       tokens: this.tokenize(key),
     };
@@ -1484,7 +1523,6 @@ class PlaceAutoFillCache {
     const ufNatural = trimValue(args.ufNatural).toUpperCase();
     if (cityNatural) entry.cityNatural = cityNatural;
     if (ufNatural) entry.ufNatural = ufNatural;
-    const data = this.readData();
     data.entries[key] = entry;
     this.prune(data);
     this.writeData(data);
@@ -1526,7 +1564,12 @@ class PlaceAutoFillCache {
   private prune(data: PlaceCacheData) {
     const keys = Object.keys(data.entries);
     if (keys.length <= this.maxEntries) return;
-    keys.sort((a, b) => data.entries[a].updatedAt - data.entries[b].updatedAt);
+    keys.sort((a, b) => {
+      const ca = data.entries[a].count || 0;
+      const cb = data.entries[b].count || 0;
+      if (ca !== cb) return ca - cb;
+      return data.entries[a].updatedAt - data.entries[b].updatedAt;
+    });
     for (let i = 0; i < keys.length - this.maxEntries; i++) {
       delete data.entries[keys[i]];
     }
@@ -1563,7 +1606,7 @@ class PlaceAutoFillCache {
 
 const placeCache = new PlaceAutoFillCache({
   storageKey: 'certidao.placeCache.v1',
-  maxEntries: 200,
+  maxEntries: 30,
 });
 
 function recordPlaceMappingFromState(placeTextOverride?: string) {
@@ -1687,9 +1730,6 @@ function setupLocalAutofill() {
   const suggestionWrap = document.getElementById('local-suggestion') as HTMLElement | null;
   const suggestionText = document.getElementById('local-suggestion-text') as HTMLElement | null;
   const suggestionApply = document.getElementById('local-suggestion-apply') as HTMLElement | null;
-  const dataList = document.getElementById(
-    'local-suggestions',
-  ) as HTMLElement | null as HTMLDataListElement | null;
   const copyBtn = document.getElementById(
     'copy-naturalidade',
   ) as HTMLElement | null as HTMLButtonElement | null;
@@ -1697,6 +1737,22 @@ function setupLocalAutofill() {
 
   const suggestionMap = new Map<string, PlaceCacheEntry>();
   let pendingSuggestion: { city: string; uf: string } | null = null;
+  let suggestionEntries: PlaceCacheEntry[] = [];
+  let suggestionItems: HTMLElement[] = [];
+  let activeSuggestionIndex = -1;
+
+  const suggestionContainer = document.createElement('div');
+  suggestionContainer.className = 'local-autocomplete-list';
+  suggestionContainer.setAttribute('role', 'listbox');
+  suggestionContainer.id = `local-autocomplete-${Math.random().toString(36).substr(2, 9)}`;
+  suggestionContainer.hidden = true;
+  document.body.appendChild(suggestionContainer);
+
+  localEl.setAttribute('role', 'combobox');
+  localEl.setAttribute('aria-autocomplete', 'list');
+  localEl.setAttribute('aria-haspopup', 'listbox');
+  localEl.setAttribute('aria-controls', suggestionContainer.id);
+  localEl.setAttribute('aria-expanded', 'false');
 
   const recordDebounced = debounce(() => recordPlaceMappingFromState(), 650);
   const suggestDebounced = debounce(() => runSuggest(false), 550);
@@ -1720,19 +1776,94 @@ function setupLocalAutofill() {
     recordPlaceMappingFromState();
   }
 
-  function renderSuggestions(list: PlaceCacheEntry[]) {
-    if (!dataList) return;
-    dataList.innerHTML = '';
+  const repositionSuggestionContainer = () => {
+    if (suggestionContainer.hidden) return;
+    const rect = localEl.getBoundingClientRect();
+    suggestionContainer.style.width = `${rect.width}px`;
+    suggestionContainer.style.left = `${rect.left + window.scrollX}px`;
+    suggestionContainer.style.top = `${rect.bottom + window.scrollY}px`;
+  };
+
+  const resetSuggestionList = () => {
+    suggestionEntries = [];
+    suggestionItems = [];
+    suggestionContainer.innerHTML = '';
+  };
+
+  const hideSuggestionList = () => {
+    if (suggestionContainer.hidden) return;
+    resetSuggestionList();
+    suggestionContainer.hidden = true;
+    localEl.setAttribute('aria-expanded', 'false');
+    localEl.removeAttribute('aria-activedescendant');
+    activeSuggestionIndex = -1;
+  };
+
+  const showSuggestionList = () => {
+    suggestionContainer.hidden = false;
+    localEl.setAttribute('aria-expanded', 'true');
+    repositionSuggestionContainer();
+  };
+
+  const setActiveSuggestionItem = (idx: number) => {
+    if (!suggestionItems.length) return;
+    const normalized = Math.max(0, Math.min(idx, suggestionItems.length - 1));
+    if (activeSuggestionIndex >= 0 && suggestionItems[activeSuggestionIndex]) {
+      suggestionItems[activeSuggestionIndex].classList.remove('active');
+    }
+    activeSuggestionIndex = normalized;
+    const el = suggestionItems[activeSuggestionIndex];
+    el.classList.add('active');
+    localEl.setAttribute('aria-activedescendant', el.id);
+    try {
+      el.scrollIntoView({ block: 'nearest' });
+    } catch {
+      /* ignore */
+    }
+  };
+
+  const selectSuggestion = (idx: number) => {
+    const entry = suggestionEntries[idx];
+    if (!entry) return;
+    applyPlaceEntry(entry, { force: true, setLocal: true, allowNatural: true });
+    recordPlaceMappingFromState(entry.normalizedPlaceText || entry.key);
+    clearSuggestion();
+    hideSuggestionList();
+  };
+
+  const renderSuggestions = (list: PlaceCacheEntry[]) => {
+    resetSuggestionList();
     suggestionMap.clear();
-    list.forEach((entry) => {
-      const value = entry.normalizedPlaceText || entry.key;
-      if (!value) return;
-      const option = document.createElement('option');
-      (option as any).value = value;
-      dataList.appendChild(option);
-      suggestionMap.set(value.toLowerCase(), entry);
+    if (!list.length) {
+      hideSuggestionList();
+      return;
+    }
+    suggestionEntries = list;
+    list.forEach((entry, idx) => {
+      const label = entry.normalizedPlaceText || entry.key;
+      if (!label) return;
+      suggestionMap.set(label.toLowerCase(), entry);
+      const item = document.createElement('div');
+      item.className = 'local-autocomplete-item';
+      item.setAttribute('role', 'option');
+      item.id = `${suggestionContainer.id}-opt-${idx}`;
+      item.tabIndex = -1;
+      item.textContent = label;
+      item.addEventListener('pointerdown', (ev) => {
+        ev.preventDefault();
+        selectSuggestion(idx);
+      });
+      item.addEventListener('mouseenter', () => setActiveSuggestionItem(idx));
+      suggestionContainer.appendChild(item);
+      suggestionItems.push(item);
     });
-  }
+    if (!suggestionItems.length) {
+      hideSuggestionList();
+      return;
+    }
+    showSuggestionList();
+    setActiveSuggestionItem(0);
+  };
 
   function applySelectedSuggestion() {
     const entry = suggestionMap.get((localEl as any).value.trim().toLowerCase());
@@ -1740,6 +1871,7 @@ function setupLocalAutofill() {
     applyPlaceEntry(entry, { force: true, allowNatural: true });
     recordPlaceMappingFromState(entry.normalizedPlaceText || (localEl as any).value);
     clearSuggestion();
+    hideSuggestionList();
   }
 
   function handleExtracted(city: string, uf: string) {
@@ -1802,6 +1934,32 @@ function setupLocalAutofill() {
     runSuggest(true);
     recordPlaceMappingFromState();
   });
+  localEl.addEventListener('keydown', (ev) => {
+    if (suggestionContainer.hidden) return;
+    if (ev.key === 'ArrowDown') {
+      ev.preventDefault();
+      setActiveSuggestionItem(activeSuggestionIndex + 1);
+    } else if (ev.key === 'ArrowUp') {
+      ev.preventDefault();
+      setActiveSuggestionItem(activeSuggestionIndex - 1);
+    } else if (ev.key === 'Enter') {
+      if (activeSuggestionIndex >= 0) {
+        ev.preventDefault();
+        selectSuggestion(activeSuggestionIndex);
+      }
+    } else if (ev.key === 'Escape') {
+      ev.preventDefault();
+      hideSuggestionList();
+    } else if (ev.key === 'Tab') {
+      hideSuggestionList();
+    }
+  });
+  document.addEventListener('click', (ev) => {
+    if (ev.target === localEl || suggestionContainer.contains(ev.target as Node)) return;
+    hideSuggestionList();
+  });
+  window.addEventListener('resize', repositionSuggestionContainer);
+  window.addEventListener('scroll', repositionSuggestionContainer, true);
   cityEl.addEventListener('input', recordDebounced);
   ufEl.addEventListener('change', recordDebounced);
   natCityEl?.addEventListener('input', recordDebounced);
@@ -1878,7 +2036,7 @@ function setupCartorioTyping() {
   });
 }
 
-// --- Máscaras simples de data e hora (só números) ---
+// --- MÃ¡scaras simples de data e hora (sÃ³ nÃºmeros) ---
 function digitsOnly__dup_2(v: string) {
   return (v || '').replace(/\D/g, '');
 }
@@ -1892,7 +2050,7 @@ function setupBeforeUnload() {
 }
 
 function setupMatriculaAutoListeners() {
-  // Recalculate matrícula in real-time when these fields change
+  // Recalculate matrÃ­cula in real-time when these fields change
   // Inputs with explicit ids (used in nascimento)
   const fields = ['matricula-livro', 'matricula-folha', 'matricula-termo'];
   fields.forEach((id) => {
@@ -1990,6 +2148,17 @@ try {
 }
 
 async function bootstrap() {
+  // Ensure tipo_registro starts from DOM if provided by the page template.
+  try {
+    const tipoEl = document.querySelector(
+      'input[data-bind="certidao.tipo_registro"], input[name="certidao.tipo_registro"]',
+    ) as HTMLInputElement | null;
+    const current = String(state.certidao?.tipo_registro || '').trim();
+    const fromDom = String(tipoEl?.value || '').trim();
+    if (!current && fromDom) state.certidao.tipo_registro = fromDom;
+  } catch (e) {
+    /* ignore */
+  }
   syncInputsFromState();
   bindInputs();
   //  setupMasks();
@@ -2017,3 +2186,5 @@ async function bootstrap() {
 }
 
 bootstrap();
+
+
