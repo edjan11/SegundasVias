@@ -8,8 +8,7 @@
  * these functions and decides focus/readonly behaviour.
  */
 
-import fs from 'fs';
-import path from 'path';
+
 
 export type CityMatch = {
   uf: string; // state abbreviation, e.g. 'SP'
@@ -142,21 +141,34 @@ export function resolveCityToUf(
  * Not used by the pure functions — provided as a tiny helper for the UI or CLI.
  */
 export function loadIndexFromProjectData(rootDir = process.cwd()): Map<string, CityMatch[]> {
-  const candidates = [
-    path.join(rootDir, 'public', 'data', 'jsonCidades', 'estados-cidades.json'),
-    path.join(rootDir, 'public', 'data', 'jsonCidades', 'estados-cidades2.json')
-  ];
+  // This helper is Node-only. In browser bundles we use fetch + buildIndexFromData instead.
+  if (typeof window !== 'undefined') return new Map();
 
-  for (const p of candidates) {
-    try {
-      if (fs.existsSync(p)) {
-        const raw = JSON.parse(fs.readFileSync(p, 'utf-8'));
-        const idx = buildIndexFromData(raw);
-        if (idx.size > 0) return idx;
+  try {
+    // require here so bundlers for browser don't attempt to resolve 'fs'/'path' at build time
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const fs = require('fs');
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const path = require('path');
+
+    const candidates = [
+      path.join(rootDir, 'public', 'data', 'jsonCidades', 'estados-cidades.json'),
+      path.join(rootDir, 'public', 'data', 'jsonCidades', 'estados-cidades2.json'),
+    ];
+
+    for (const p of candidates) {
+      try {
+        if (fs.existsSync(p)) {
+          const raw = JSON.parse(fs.readFileSync(p, 'utf-8'));
+          const idx = buildIndexFromData(raw);
+          if (idx.size > 0) return idx;
+        }
+      } catch (err) {
+        // ignore and try next
       }
-    } catch (err) {
-      // ignore and try next
     }
+  } catch (e) {
+    // if require fails, return empty map
   }
 
   // No data found

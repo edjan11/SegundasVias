@@ -7,21 +7,29 @@ import { resolveCityToUf, loadIndexFromProjectData } from '../shared/city-uf-res
  */
 export function attachCityUfAutofill(
   cityInput: HTMLInputElement,
-  ufInput: HTMLInputElement,
-  resolverIndex: Map<string, any> = loadIndexFromProjectData(),
+  ufInput: HTMLInputElement | HTMLSelectElement,
+  resolverIndex: Map<string, any>,
   onAutofilled?: (res: any) => void
 ) {
   let lastAutoFilled = false;
 
   async function handleCityConfirm() {
     const city = cityInput.value;
-    const currentUf = ufInput.value;
+    const currentUf = (ufInput as any).value;
     const res = resolveCityToUf(city, currentUf ? currentUf : null, resolverIndex);
 
     if (res.status === 'inferred' || res.status === 'ok') {
-      // Autofill UF and set temporary readonly
-      ufInput.value = (res as any).uf || '';
-      ufInput.setAttribute('readonly', 'true');
+      // Autofill UF and set temporary readonly-ish state
+      const ufValue = (res as any).uf || '';
+      if ((ufInput as HTMLInputElement).tagName === 'SELECT') {
+        (ufInput as HTMLSelectElement).value = ufValue;
+        (ufInput as HTMLElement).setAttribute('data-auto-filled', 'true');
+        (ufInput as HTMLElement).classList.add('auto-filled');
+      } else {
+        (ufInput as HTMLInputElement).value = ufValue;
+        (ufInput as HTMLInputElement).setAttribute('readonly', 'true');
+      }
+
       lastAutoFilled = true;
 
       // Move focus forward (like TAB). Use focus on next tabbable element.
@@ -56,7 +64,12 @@ export function attachCityUfAutofill(
   function removeReadonlyIfUserFocused(e: FocusEvent) {
     // If user Shift+Tabs into UF or clicks it, allow editing
     if (lastAutoFilled) {
-      ufInput.removeAttribute('readonly');
+      if ((ufInput as HTMLInputElement).tagName === 'SELECT') {
+        (ufInput as HTMLElement).removeAttribute('data-auto-filled');
+        (ufInput as HTMLElement).classList.remove('auto-filled');
+      } else {
+        (ufInput as HTMLInputElement).removeAttribute('readonly');
+      }
       lastAutoFilled = false;
     }
   }
@@ -75,10 +88,18 @@ export function attachCityUfAutofill(
   });
 
   // If user goes back (Shift+Tab) or clicks UF, allow editing and remove readonly
-  ufInput.addEventListener('focus', removeReadonlyIfUserFocused);
+  ufInput.addEventListener('focus', removeReadonlyIfUserFocused as any);
   ufInput.addEventListener('mousedown', () => {
     // allow click to edit
-    if (lastAutoFilled) ufInput.removeAttribute('readonly');
+    if (lastAutoFilled) {
+      if ((ufInput as HTMLInputElement).tagName === 'SELECT') {
+        (ufInput as HTMLElement).removeAttribute('data-auto-filled');
+        (ufInput as HTMLElement).classList.remove('auto-filled');
+      } else {
+        (ufInput as HTMLInputElement).removeAttribute('readonly');
+      }
+      lastAutoFilled = false;
+    }
   });
 
   // Return an detach function so caller can remove listeners

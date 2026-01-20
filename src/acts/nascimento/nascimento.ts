@@ -16,6 +16,9 @@ import {
 import { setupNameCopy, setupAutoNationality } from '../../shared/productivity/index';
 import { setupAdminPanel } from '../../shared/ui/admin';
 import { setupActSelect } from '../../ui/setup-ui';
+import { attachAutocomplete } from '../../ui/city-autocomplete';
+import { attachCityUfAutofill } from '../../ui/city-uf-ui';
+import { buildIndexFromData } from '../../shared/city-uf-resolver';
 import { buildNascimentoPdfHtmlTJ } from '../../prints/nascimento/printNascimentoTj';
 import { openHtmlAndSavePdf } from '../../prints/shared/openAndSavePdf';
 import { escapeHtml, sanitizeHref, sanitizeCss } from '../../prints/shared/print-utils.js';
@@ -780,7 +783,58 @@ function setup() {
   updateActionButtons();
   document.addEventListener('input', updateActionButtons);
   document.addEventListener('change', updateActionButtons);
+
+  // --- City autocomplete & city→UF autofill bootstrap ---
+  (async () => {
+    try {
+      // Try loading JSON from public path (browser-friendly)
+      async function tryFetch(filename: string) {
+        try {
+          const url = `/data/jsonCidades/${filename}`;
+          const res = await fetch(url);
+          if (!res.ok) return null;
+          return await res.json();
+        } catch (e) {
+          return null;
+        }
+      }
+
+      const raw1 = await tryFetch('estados-cidades.json');
+      const raw2 = raw1 ? null : await tryFetch('estados-cidades2.json');
+      const index = raw1 ? buildIndexFromData(raw1) : raw2 ? buildIndexFromData(raw2) : new Map();
+
+      // primary city inputs (municipio nascimento e naturalidade)
+      const cidadeNasc = document.querySelector<HTMLInputElement>('input[data-bind="registro.municipio_nascimento"]');
+      const ufNasc = document.querySelector<HTMLSelectElement | HTMLInputElement>('select[data-bind="registro.uf_nascimento"]');
+      const cidadeNat = document.querySelector<HTMLInputElement>('input[data-bind="registro.municipio_naturalidade"]');
+      const ufNat = document.querySelector<HTMLSelectElement | HTMLInputElement>('select[data-bind="registro.uf_naturalidade"]');
+
+      // Attach autocompletion + autofill when elements exist
+      if (cidadeNasc && ufNasc && index && index.size > 0) {
+        attachAutocomplete(cidadeNasc, { index, minSuggestions: 5 });
+        attachCityUfAutofill(cidadeNasc, ufNasc as any, index, (res) => {
+          // expose console logging for debug
+          console.debug('autofill(nascimento):', res);
+        });
+      }
+      if (cidadeNat && ufNat && index && index.size > 0) {
+        attachAutocomplete(cidadeNat, { index, minSuggestions: 5 });
+        attachCityUfAutofill(cidadeNat, ufNat as any, index, (res) => console.debug('autofill(naturalidade):', res));
+      }
+
+      // Expose for debugging (temporary)
+      (window as any).__sv = Object.assign((window as any).__sv || {}, {
+        attachAutocomplete,
+        attachCityUfAutofill,
+        buildIndexFromData,
+      });
+    } catch (e) {
+      // don't break the app if index or elements are absent
+      console.warn('City autocomplete bootstrap skipped:', e);
+    }
+  })();
 }
+
 
 function setupSettingsPanel() {
   const select = document.getElementById('settings-drawer-position') as HTMLElement | null;
