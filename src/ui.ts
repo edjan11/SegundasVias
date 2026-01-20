@@ -684,14 +684,23 @@ function applyCartorioChange() {
     return;
   }
   const cns = CNS_CARTORIOS[oficio];
+  const cnsInput = document.querySelector('[data-bind="certidao.cartorio_cns"]') as HTMLInputElement | null;
   if (cns) {
     state.certidao.cartorio_cns = cns;
-    const cnsInput = document.querySelector(
-      '[data-bind="certidao.cartorio_cns"]',
-    ) as HTMLInputElement | null;
-    if (cnsInput) (cnsInput as any).value = cns;
+    if (cnsInput) {
+      (cnsInput as any).value = cns;
+      // trigger any input/change handlers bound to this field so state sync happens immediately
+      cnsInput.dispatchEvent(new Event('input', { bubbles: true }));
+      cnsInput.dispatchEvent(new Event('change', { bubbles: true }));
+    }
+  } else if (cnsInput) {
+    // clear if unknown
+    (cnsInput as any).value = '';
+    cnsInput.dispatchEvent(new Event('input', { bubbles: true }));
+    cnsInput.dispatchEvent(new Event('change', { bubbles: true }));
   }
-  updateMatricula();
+  // force recalc after ensuring cns is in DOM/state
+  setTimeout(() => updateMatricula(), 0);
 }
 
 function trimValue(value: unknown) {
