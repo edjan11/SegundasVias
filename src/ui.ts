@@ -1701,6 +1701,7 @@ function setupBeforeUnload() {
 
 function setupMatriculaAutoListeners() {
   // Recalculate matrícula in real-time when these fields change
+  // Inputs with explicit ids (used in nascimento)
   const fields = ['matricula-livro', 'matricula-folha', 'matricula-termo'];
   fields.forEach((id) => {
     const el = document.getElementById(id) as HTMLInputElement | null;
@@ -1709,6 +1710,16 @@ function setupMatriculaAutoListeners() {
       // sanitize numeric input
       const sanitized = (el.value || '').replace(/\D/g, '');
       if (sanitized !== el.value) el.value = sanitized;
+      updateMatricula();
+    });
+  });
+
+  // Inputs by name (used in casamento and some pages)
+  const namedInputs = Array.from(document.querySelectorAll('input[name="livro"], input[name="folha"], input[name="termo"]')) as HTMLInputElement[];
+  namedInputs.forEach((ni) => {
+    ni.addEventListener('input', () => {
+      const sanitized = (ni.value || '').replace(/\D/g, '');
+      if (sanitized !== ni.value) ni.value = sanitized;
       updateMatricula();
     });
   });
