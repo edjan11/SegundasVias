@@ -405,7 +405,6 @@ a.type-btn {
 /* checkbox/label do "adicionar ao dicionário" vira um controle minimal (pequeno) */
 .name-field .name-suggest {
   display: inline-flex;
-  position: absolute;
   right: 8px;
   top: 50%;
   transform: translateY(-50%);
@@ -539,7 +538,6 @@ a.type-btn {
   border-radius: 6px;
 }
 /* Mostrar o botão '+' somente quando o campo estiver suspeito */
-.name-field:not(.name-suspect) .name-suggest { display: none; }
 .name-field.name-suspect .name-suggest { display: inline-flex; }
 
 /* ensure hint keeps small and doesn't push layout */
@@ -548,7 +546,6 @@ a.type-btn {
 /* a hint vira um aviso compacto, posicionado discretamente dentro da .name-field */
 .name-field .hint {
   display: none;
-  position: absolute;
   left: 8px; /* pin to the left edge of the field */
   top: calc(100% + 4px); /* just below the input */
   z-index: 30;
@@ -686,7 +683,6 @@ a.type-btn {
   align-items: center;
   justify-content: center;
   gap: 6px;
-  margin: 6px auto 0;
   opacity: 0.95;
 } 
 
@@ -1102,3 +1098,236 @@ details.collapse summary {
   outline: none !important;
   transition: box-shadow 0.14s ease, border-color 0.14s ease;
 }
+
+/* label vira linha com ação à direita */
+.name-field > .label-row{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+}
+
+/* + pequeno e discreto no label */
+.name-field .label-row .name-suggest{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  width:18px;
+  height:18px;
+  border-radius:999px;
+  border:1px solid rgba(6,95,70,0.14);
+  background:rgba(16,185,129,0.06);
+  color:#065f46;
+  cursor:pointer;
+  opacity:.75;
+}
+.name-field .label-row .name-suggest:hover{ opacity:1; }
+
+.name-field .label-row .name-suggest-icon{
+  width:10px;
+  height:10px;
+  display:block;
+}
+
+.name-field .name-suggest-checkbox{
+  position:absolute;
+  opacity:0;
+  pointer-events:none;
+}
+
+/* marcado */
+.name-field .label-row .name-suggest:has(.name-suggest-checkbox:checked){
+  background:rgba(16,185,129,0.12);
+  border-color:rgba(16,185,129,0.28);
+  opacity:1;
+}
+
+/* só mostra quando suspeito */
+.name-field:not(.name-suspect) .label-row .name-suggest{ display:none; }
+.name-field.name-suspect .label-row .name-suggest{ display:inline-flex; }
+
+/* hint vermelho compacto */
+.name-field > .hint{
+  display:none;
+  margin-top:4px;
+  padding:2px 8px;
+  border-radius:999px;
+  font-size:11px;
+  line-height:1.2;
+  border:1px solid rgba(244,63,94,.35);
+  background:rgba(244,63,94,.08);
+  color:#b42318;
+  width:fit-content;
+  max-width:100%;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+
+.name-field.name-suspect > .hint{ display:inline-flex; align-items:center; gap:6px; }
+.name-field > .hint .icon{ font-size:11px; line-height:1; }
+
+/* =========================================================
+   ROW FIXA (2 COLUNAS): Nome ocupa tudo, Sexo fixo
+   ========================================================= */
+
+.row.row--fixed-2{
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 220px; /* <- importante */
+  gap: 12px;
+  align-items: start;
+}
+
+/* campos não podem estourar a coluna */
+.row.row--fixed-2 > .field{ min-width: 0; }
+
+/* Nome (coluna 1) */
+.row.row--fixed-2 > .field.grow{ width: 100%; min-width: 0; }
+
+/* INPUT do Nome sempre preenche a coluna */
+.row.row--fixed-2 > .field.grow input,
+.row.row--fixed-2 > .field.grow .control-row input{
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+/* Sexo (coluna 2) */
+.row.row--fixed-2 > .field:not(.grow){ width: 100%; }
+
+/* hint no fluxo normal, sem quebrar colunas */
+.row.row--fixed-2 .name-field{ position: static; padding-bottom: 0; }
+.row.row--fixed-2 .name-field > .hint{ position: static; margin-top: 4px; display: none; }
+.row.row--fixed-2 .name-field.name-suspect > .hint{ display: inline-flex; }
+
+/* =========================================================
+   Linha fixa: Nome (full) + Sexo (fixo)
+   ========================================================= */
+.row.row--fixed-2{
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 220px;
+  gap: 12px;
+  align-items: start;
+}
+.row.row--fixed-2 > .field{ min-width: 0; }
+.row.row--fixed-2 > .field.grow{ width: 100%; }
+.row.row--fixed-2 > .field.grow input{ width: 100%; max-width: 100%; box-sizing: border-box; }
+
+/* =========================================================
+   Nome suspeito: vermelho + pulso leve + ? dentro do input
+   ========================================================= */
+
+/* garante posicionamento dos overlays no field */
+.name-field{ position: relative; }
+
+/* espaço no input pra não bater no ícone */
+.name-field input[data-name-validate]{
+  padding-right: 34px;
+}
+
+/* estado suspeito (sem hint embaixo) */
+.name-field.name-suspect .hint{ display: none !important; }
+
+/* borda vermelha + animação suave */
+@keyframes softPulse {
+  0%   { box-shadow: 0 0 0 0 rgba(244,63,94,0.18); }
+  70%  { box-shadow: 0 0 0 6px rgba(244,63,94,0.00); }
+  100% { box-shadow: 0 0 0 0 rgba(244,63,94,0.00); }
+}
+
+.name-field.name-suspect input[data-name-validate]{
+  border-color: rgba(244,63,94,0.75);
+  background: rgba(244,63,94,0.03);
+  animation: softPulse 1.8s ease-out infinite;
+}
+
+/* ícone ? dentro do input, canto direito */
+.name-warn{
+  display: none;
+  position: absolute;
+  right: 10px;
+  top: 34px; /* ajusta se seu label for maior/menor */
+  width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  align-items: center;
+  justify-content: center;
+
+  border: 1px solid rgba(244,63,94,0.35);
+  background: rgba(244,63,94,0.10);
+  color: #b42318;
+
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1;
+  cursor: help;
+  user-select: none;
+}
+
+/* aparece só quando suspeito */
+.name-field.name-suspect .name-warn{ display: inline-flex; }
+
+/* tooltip */
+.name-warn[data-tooltip]{
+  position: absolute;
+}
+.name-warn[data-tooltip]::after{
+  content: attr(data-tooltip);
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + 6px);
+  white-space: nowrap;
+
+  background: rgba(15,23,42,0.96);
+  color: #fff;
+  font-size: 11px;
+  padding: 5px 8px;
+  border-radius: 8px;
+
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(2px);
+  transition: opacity .12s ease, transform .12s ease;
+}
+.name-warn[data-tooltip]:hover::after{
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* acessibilidade: respeita quem desliga animação */
+@media (prefers-reduced-motion: reduce){
+  .name-field.name-suspect input[data-name-validate]{ animation: none; }
+}
+
+/* Fix: Anchor the name-suggest to the label (no absolute positioning) */
+.name-field .name-suggest{
+  position: static !important;
+  transform: none !important;
+  margin-left: 8px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* label-row aligned and safe */
+.name-field > .label-row{
+  display:flex;
+  align-items:center;
+  justify-content:flex-start;
+  gap:10px;
+}
+
+/* input always full for fields that had name validation */
+.name-field input[data-name-validate]{ width: 100%; }
+
+/* subtle inline checkbox styles */
+.name-suggest-checkbox{
+  appearance: none;
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+  border: 1px solid #ccc;
+  display:inline-block;
+}
+.name-suggest-checkbox:checked{ background: #0ea5a4; border-color: #0ea5a4; }
+

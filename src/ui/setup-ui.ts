@@ -513,50 +513,71 @@ export function setupNameValidation(validator?: NameValidator, opts: NameValidat
     const field = resolveField(input);
     if (field) field.classList.add('name-field');
     let hint = field ? (field.querySelector('.name-suggest') as HTMLLabelElement | null) : null;
-    if (field && !hint) {
-      // label + checkbox so it looks like a small inline control next to the field
+
+    // Only inject the name-suggest control for simple single-input name fields.
+    // This prevents the '+' from appearing on composite lines (UF/Cidade, multi-input rows, selects, textareas etc.).
+    const eligibleForSuggest = (() => {
+      if (!field) return false;
+      // only fields with exactly one input-like control
+      const inputsInField = field.querySelectorAll('input, textarea, select');
+      if (inputsInField.length !== 1) return false;
+      const only = inputsInField[0];
+      // ensure the control is a plain text input
+      if (only.tagName !== 'INPUT') return false;
+      const onlyInput = only as HTMLInputElement;
+      if (onlyInput.type && onlyInput.type !== 'text') return false;
+      // must have a label to anchor the suggest control
+      const labelEl = field.querySelector('label');
+      if (!labelEl) return false;
+      return true;
+    })();
+
+    if (field && eligibleForSuggest && !hint) {
+      // Create the suggest control anchored to the label (inside .label-row)
+      // Ensure we have a label-row to anchor into (avoid duplicates)
+      const labelEl = field.querySelector('label') as HTMLElement | null;
+      if (!labelEl) return; // safety
+
+      let labelRow = field.querySelector('.label-row') as HTMLElement | null;
+      if (!labelRow) {
+        labelRow = document.createElement('div');
+        labelRow.className = 'label-row';
+        // insert labelRow before the label and move the label into it
+        field.insertBefore(labelRow, labelEl);
+        labelRow.appendChild(labelEl);
+      }
+
       hint = document.createElement('label');
       hint.className = 'name-suggest';
-      hint.setAttribute('title', 'Marcar para adicionar ao dicionário (será adicionado ao salvar)');
+      hint.setAttribute('title', 'Adicionar ao dicionário (ao salvar)');
+      hint.setAttribute('data-tooltip', 'Adicionar ao dicionário');
+
       const cb = document.createElement('input');
       cb.type = 'checkbox';
       cb.className = 'name-suggest-checkbox';
       cb.setAttribute('aria-label', 'Marcar nome para adicionar ao dicionário');
       hint.appendChild(cb);
-      // visible + icon (small) for quick action
-      // use a compact SVG icon instead of text for a cleaner, crisper look
+
+      // compact SVG plus icon
       const svgNS = 'http://www.w3.org/2000/svg';
       const svg = document.createElementNS(svgNS, 'svg');
       svg.setAttribute('viewBox', '0 0 24 24');
-      svg.setAttribute('width', '12');
-      svg.setAttribute('height', '12');
+      svg.setAttribute('width', '10');
+      svg.setAttribute('height', '10');
       svg.setAttribute('aria-hidden', 'true');
       svg.classList.add('name-suggest-icon');
-      // plus icon path (simple plus sign)
       svg.innerHTML = '<path d="M19 11H13V5h-2v6H5v2h6v6h2v-6h6z" fill="currentColor"/>';
       hint.appendChild(svg);
-      // tooltip for hover (also accessible via title)
-      hint.setAttribute('title', 'Adicionar ao dicionário (ao salvar)');
-      hint.setAttribute('data-tooltip', 'Adicionar ao dicionário');
-      // visual-only text for accessibility (hidden visually but readable by screen readers)
-      const vis = document.createElement('span');
-      vis.className = 'sr-only';
-      vis.textContent = 'Marcar para adicionar';
-      hint.appendChild(vis);
 
-      // ensure a .control-row exists and contains the input + hint for aligned layout
-      let controlRow = field.querySelector('.control-row') as HTMLElement | null;
-      if (!controlRow) {
-        controlRow = document.createElement('div');
-        controlRow.className = 'control-row';
-        const labelEl = field.querySelector('label');
-        if (labelEl && labelEl.nextSibling) field.insertBefore(controlRow, labelEl.nextSibling); else field.appendChild(controlRow);
-      }
-      // move input and hint into the control row if not already
+      const sr = document.createElement('span');
+      sr.className = 'sr-only';
+      sr.textContent = 'Marcar para adicionar';
+      hint.appendChild(sr);
+
+      // append to labelRow (keeps suggest anchored to label and prevents layout breaking)
       try {
-        if (input.parentElement !== controlRow) controlRow.appendChild(input as Node);
-        if (hint.parentElement !== controlRow) controlRow.appendChild(hint);
-      } catch (e) { /* ignore DOM move errors */ }
+        if (hint.parentElement !== labelRow) labelRow.appendChild(hint);
+      } catch (e) { /* ignore DOM errors */ }
     }
 
     // ensure shift-handling (while Shift held, validation is ignored temporarily)
