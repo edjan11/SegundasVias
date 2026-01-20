@@ -211,6 +211,8 @@ function formatBens(value) {
 	return v;
 }
 
+import { escapeHtml } from '../../prints/shared/print-utils';
+
 export function buildObitoPrintHtml(data: any, opts: any = {}) {
 	const registro = data?.registro || {};
 	const certidao = data?.certidao || {};
@@ -262,54 +264,52 @@ export function buildObitoPrintHtml(data: any, opts: any = {}) {
 	<input type="hidden" name="moeda" value="">
 	<br><span style="font-size: 13pt; color: gray">CERTIDAO DE OBITO</span><br>
 	<br> <span class="label">NOME&nbsp;</span><br>
-	<span style="font-size: 10pt; font-weight: bold">${fallback(
-		normalizeUpper(registro.nome_completo),
-	)}</span><br>
+	<span style="font-size: 10pt; font-weight: bold">${escapeHtml(fallback(normalizeUpper(registro.nome_completo)))}</span><br>
 	<div style="width: 80%">
 		<table class="tabela">
 			<tr>
 				<td class="label" width="30%">CPF</td>
 			</tr>
 			<tr>
-				<td class="novodado" width="30%">${fallback(normalizeUpper(registro.cpf))}</td>
+				<td class="novodado" width="30%">${escapeHtml(fallback(normalizeUpper(registro.cpf)))}</td>
 			</tr>
 		</table>
 		<b>MATRICULA</b>
-		<div style="font-size: 15px"><b>${formatMatricula(registro.matricula)}</b></div>
+		<div style="font-size: 15px"><b>${escapeHtml(formatMatricula(registro.matricula))}</b></div>
 
 		<table class="tabela">
 			<tr>
 				<td>
 					<fieldset>
 						<legend class="label">Data do falecimento</legend>
-						<div class="novomodelo">${dataFalecimentoExt}</div>
+					<div class="novomodelo">${escapeHtml(dataFalecimentoExt)}</div>
 					</fieldset>
 				</td>
 				<td>
 					<fieldset>
 						<legend class="label">Dia</legend>
-						<div class="novomodelo">${dataFalecimentoParts.day}</div>
+					<div class="novomodelo">${escapeHtml(dataFalecimentoParts.day)}</div>
 					</fieldset>
 				</td>
 				<td>
 					<fieldset>
 						<legend class="label">Mes</legend>
-						<div class="novomodelo">${dataFalecimentoParts.month}</div>
+					<div class="novomodelo">${escapeHtml(dataFalecimentoParts.month)}</div>
 					</fieldset>
 				</td>
 				<td>
 					<fieldset>
 						<legend class="label">Ano</legend>
-						<div class="novomodelo">${dataFalecimentoParts.year}</div>
+					<div class="novomodelo">${escapeHtml(dataFalecimentoParts.year)}</div>
 					</fieldset>
 				</td>
 				<td>
 					<fieldset>
 						<legend class="label">Horario do falecimento</legend>
-						<div class="novomodelo">${fallback(
-							normalizeTime(registro.hora_falecimento),
-							'N/C',
-						)} hora(s)</div>
+					<div class="novomodelo">${escapeHtml(fallback(
+						normalizeTime(registro.hora_falecimento),
+						'N/C',
+					))} hora(s)</div>
 					</fieldset>
 				</td>
 			</tr>
@@ -320,21 +320,22 @@ export function buildObitoPrintHtml(data: any, opts: any = {}) {
 				<td>
 					<fieldset>
 						<legend class="label">Local de falecimento</legend>
-						<div class="novomodelo">${fallback(normalizeUpper(registro.local_falecimento))}</div>
+					<div class="novomodelo">${escapeHtml(fallback(normalizeUpper(registro.local_falecimento)))}</div>
 					</fieldset>
 				</td>
 				<td>
 					<fieldset>
 						<legend class="label">Municipio de falecimento</legend>
-						<div class="novomodelo">${fallback(
-							normalizeUpper(registro.municipio_falecimento),
+					<div class="novomodelo">${escapeHtml(
+						fallback(normalizeUpper(registro.municipio_falecimento),
+						)
 						)}</div>
 					</fieldset>
 				</td>
 				<td>
 					<fieldset>
 						<legend class="label">UF</legend>
-						<div class="novomodelo">${ufDisplay(registro.uf_falecimento)}</div>
+					<div class="novomodelo">${escapeHtml(ufDisplay(registro.uf_falecimento))}</div>
 					</fieldset>
 				</td>
 			</tr>
@@ -345,21 +346,21 @@ export function buildObitoPrintHtml(data: any, opts: any = {}) {
 				<td>
 					<fieldset>
 						<legend class="label">Sexo</legend>
-						<div class="novomodelo">${fallback(sexo)}</div>
-					</fieldset>
+					<div class="novomodelo">${escapeHtml(fallback(sexo))}</div>
+				</fieldset>
 				</td>
 				<td>
-					<fieldset>
-						<legend class="label">Estado Civil</legend>
-						<div class="novomodelo">${fallback(estadoCivil)}</div>
-					</fieldset>
+				<fieldset>
+					<legend class="label">Estado Civil</legend>
+					<div class="novomodelo">${escapeHtml(fallback(estadoCivil))}</div>
+				</fieldset>
 				</td>
 				<td>
-					<fieldset>
-						<legend class="label">Nome do ultimo conjuge ou convivente</legend>
-						<div class="novomodelo">${fallback(
-							normalizeUpper(registro.nome_ultimo_conjuge_convivente),
-						)}</div>
+				<fieldset>
+					<legend class="label">Nome do ultimo conjuge ou convivente</legend>
+					<div class="novomodelo">${escapeHtml(fallback(
+						normalizeUpper(registro.nome_ultimo_conjuge_convivente),
+					))}</div>
 					</fieldset>
 				</td>
 			</tr>
@@ -407,7 +408,7 @@ export function buildObitoPrintHtml(data: any, opts: any = {}) {
 				<td>
 					<fieldset>
 						<legend class="label">Nome do(a)s Genitor(es)</legend>
-						<div class="novomodelo">&nbsp;${fallback(normalizeUpper(registro.filiacao))}</div>
+					<div class="novomodelo">&nbsp;${escapeHtml(fallback(normalizeUpper(registro.filiacao)))}</div>
 					</fieldset>
 				</td>
 			</tr>
@@ -418,7 +419,7 @@ export function buildObitoPrintHtml(data: any, opts: any = {}) {
 				<td>
 					<fieldset>
 						<legend class="label">Causa da morte</legend>
-						<div class="novomodelo">${fallback(normalizeUpper(registro.causa_morte))}</div>
+					<div class="novomodelo">${escapeHtml(fallback(normalizeUpper(registro.causa_morte)))}</div>
 					</fieldset>
 				</td>
 			</tr>
@@ -429,13 +430,13 @@ export function buildObitoPrintHtml(data: any, opts: any = {}) {
 				<td>
 					<fieldset>
 						<legend class="label">Nome do medico que atestou o obito ou, se for o caso, das testemunhas</legend>
-						<div class="novomodelo">&nbsp;${normalizeUpper(registro.nome_medico)}</div>
-					</fieldset>
+					<div class="novomodelo">&nbsp;${escapeHtml(normalizeUpper(registro.nome_medico))}</div>
+				</fieldset>
 				</td>
 				<td>
-					<fieldset>
-						<legend class="label">Numero do documento</legend>
-						<div class="novomodelo">${normalizeUpper(registro.crm_medico)}</div>
+				<fieldset>
+					<legend class="label">Numero do documento</legend>
+					<div class="novomodelo">${escapeHtml(normalizeUpper(registro.crm_medico))}</div>
 					</fieldset>
 				</td>
 			</tr>
@@ -446,23 +447,23 @@ export function buildObitoPrintHtml(data: any, opts: any = {}) {
 				<td>
 					<fieldset>
 						<legend class="label">Local de sepultamento / Cremacao</legend>
-						<div class="novomodelo">${fallback(
-							normalizeUpper(registro.local_sepultamento_cremacao),
-						)}</div>
-					</fieldset>
+					<div class="novomodelo">${escapeHtml(fallback(
+						normalizeUpper(registro.local_sepultamento_cremacao),
+					))}</div>
+				</fieldset>
 				</td>
 				<td>
-					<fieldset>
-						<legend class="label">Municipio</legend>
-						<div class="novomodelo">${fallback(
-							normalizeUpper(registro.municipio_sepultamento_cremacao),
-						)}</div>
-					</fieldset>
+				<fieldset>
+					<legend class="label">Municipio</legend>
+					<div class="novomodelo">${escapeHtml(fallback(
+						normalizeUpper(registro.municipio_sepultamento_cremacao),
+					))}</div>
+				</fieldset>
 				</td>
 				<td>
-					<fieldset>
-						<legend class="label">UF</legend>
-						<div class="novomodelo">${ufDisplay(registro.uf_sepultamento_cremacao)}</div>
+				<fieldset>
+					<legend class="label">UF</legend>
+					<div class="novomodelo">${escapeHtml(ufDisplay(registro.uf_sepultamento_cremacao))}</div>
 					</fieldset>
 				</td>
 			</tr>
@@ -473,25 +474,25 @@ export function buildObitoPrintHtml(data: any, opts: any = {}) {
 				<td>
 					<fieldset>
 						<legend class="label">Data de registro</legend>
-						<div class="novomodelo">${dataRegistroExt}</div>
+					<div class="novomodelo">${escapeHtml(dataRegistroExt)}</div>
 					</fieldset>
 				</td>
 				<td>
 					<fieldset>
 						<legend class="label">Dia</legend>
-						<div class="novomodelo">${dataRegistroParts.day}</div>
+					<div class="novomodelo">${escapeHtml(dataRegistroParts.day)}</div>
 					</fieldset>
 				</td>
 				<td>
 					<fieldset>
 						<legend class="label">Mes</legend>
-						<div class="novomodelo">${dataRegistroParts.month}</div>
+					<div class="novomodelo">${escapeHtml(dataRegistroParts.month)}</div>
 					</fieldset>
 				</td>
 				<td>
 					<fieldset>
 						<legend class="label">Ano</legend>
-						<div class="novomodelo">${dataRegistroParts.year}</div>
+					<div class="novomodelo">${escapeHtml(dataRegistroParts.year)}</div>
 					</fieldset>
 				</td>
 			</tr>
@@ -502,19 +503,19 @@ export function buildObitoPrintHtml(data: any, opts: any = {}) {
 				<td>
 					<fieldset>
 						<legend class="label">Nome do Declarante</legend>
-						<div class="novomodelo">${fallback(normalizeUpper(registro.nome_declarante))}</div>
-					</fieldset>
+					<div class="novomodelo">${escapeHtml(fallback(normalizeUpper(registro.nome_declarante)))}</div>
+				</fieldset>
 				</td>
 				<td>
-					<fieldset>
-						<legend class="label">Existencia de bens</legend>
-						<div class="novomodelo">${formatBens(registro.existencia_bens)}</div>
-					</fieldset>
+				<fieldset>
+					<legend class="label">Existencia de bens</legend>
+					<div class="novomodelo">${escapeHtml(formatBens(registro.existencia_bens))}</div>
+				</fieldset>
 				</td>
 				<td>
-					<fieldset>
-						<legend class="label">Existencia de filhos</legend>
-						<div class="novomodelo">${formatFilhos(registro)}</div>
+				<fieldset>
+					<legend class="label">Existencia de filhos</legend>
+					<div class="novomodelo">${escapeHtml(formatFilhos(registro))}</div>
 					</fieldset>
 				</td>
 			</tr>
@@ -525,9 +526,9 @@ export function buildObitoPrintHtml(data: any, opts: any = {}) {
 				<td>
 					<fieldset>
 						<legend class="label">Anotacoes voluntarias de cadastro</legend>
-						<div class="novomodelo" style="font-size: 95% !important">${formatAnotacoes(
-							registro.anotacoes_cadastro,
-						)}</div>
+					<div class="novomodelo" style="font-size: 95% !important">${escapeHtml(formatAnotacoes(
+						registro.anotacoes_cadastro,
+					))}</div>
 					</fieldset>
 				</td>
 			</tr>
@@ -537,16 +538,16 @@ export function buildObitoPrintHtml(data: any, opts: any = {}) {
 			<tr>
 				<td class="rodape-esquerdo">
 					<div>
-						<div>CNS nº ${fallback(certidao.cartorio_cns)}</div>
+						<div>CNS nº ${escapeHtml(fallback(certidao.cartorio_cns))}</div>
 						<div>Oficial de Registro Civil de Pessoas Naturais</div>
-						<div>${cidadeCartorio}${ufCartorio && cidadeCartorio ? '-' : ''}${ufCartorio}</div>
+						<div>${escapeHtml(cidadeCartorio)}${escapeHtml(ufCartorio) && cidadeCartorio ? '-' : ''}${escapeHtml(ufCartorio)}</div>
 						<br>
-						<div>${assinante || 'ESCREVENTE'}</div>
+						<div>${escapeHtml(assinante || 'ESCREVENTE')}</div>
 						<div>ESCREVENTE</div>
 						<br>
-						<div>${enderecoCartorio}</div>
-						<div>${cidadeCartorio}${ufCartorio && cidadeCartorio ? ' - ' : ''}${ufCartorio}</div>
-						<div>${telefoneCartorio}</div>
+						<div>${escapeHtml(enderecoCartorio)}</div>
+						<div>${escapeHtml(cidadeCartorio)}${escapeHtml(ufCartorio) && cidadeCartorio ? ' - ' : ''}${escapeHtml(ufCartorio)}</div>
+						<div>${escapeHtml(telefoneCartorio)}</div>
 					</div>
 				</td>
 				<td><span class="via">2ª VIA</span></td>
@@ -554,7 +555,7 @@ export function buildObitoPrintHtml(data: any, opts: any = {}) {
 					<table class="tabelafinal">
 						<tr>
 							<td style="text-align: center">O conteudo da certidao e verdadeiro. Dou fe. <br>
-								${cidadeCartorio}, ${ufCartorio}, ${formatIssueDate(now)}. <br>
+								${escapeHtml(cidadeCartorio)}, ${escapeHtml(ufCartorio)}, ${escapeHtml(formatIssueDate(now))}. <br>
 								<br><span style="font-family:verdana !important;"> _______________________________________________________</span><br>
 								Assinatura do Oficial
 							</td>

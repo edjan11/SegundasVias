@@ -2,7 +2,7 @@
 // Apenas migração estrutural, sem alteração de comportamento.
 
 import { createNameValidator } from '../shared/nameValidator';
-import { setFieldHint, clearFieldHint } from '../ui';
+import { clearFieldHint } from '../ui';
 
 // Minimal types for UI helpers
 export type AppState = {

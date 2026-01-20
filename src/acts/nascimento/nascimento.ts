@@ -13,7 +13,6 @@ import {
   buildMatriculaBase30,
   calcDv2Digits,
   buildMatriculaFinal,
-  adjustMatricula,
 } from '../../shared/matricula/cnj';
 import { setupNameCopy, setupAutoNationality } from '../../shared/productivity/index';
 import { setupAdminPanel } from '../../shared/ui/admin';
