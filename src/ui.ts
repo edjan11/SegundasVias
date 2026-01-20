@@ -554,12 +554,14 @@ function yearFromDate(value: string) {
 }
 
 function tipoDigit() {
-  const registro = state.certidao.tipo_registro || '';
+  const registro = String(state.certidao && (state.certidao as any).tipo_registro || 'nascimento').toLowerCase();
   if (registro === 'nascimento') return '1';
   if (registro === 'casamento') {
-    const selected = digitsOnly(state.ui.casamento_tipo || '').slice(0, 1);
-    return selected || '';
+    // casamento: default to civil (2) when not explicitly selected
+    const selected = digitsOnly(state.ui && (state.ui as any).casamento_tipo ? String((state.ui as any).casamento_tipo) : '').slice(0, 1);
+    return selected || '2';
   }
+  if (registro === 'obito') return '4';
   return '';
 }
 
@@ -1809,6 +1811,13 @@ function setupMatriculaAutoListeners() {
 
   const dateEls = Array.from(document.querySelectorAll('input[name="dataRegistro"], input[name="dataTermo"], input[data-bind="registro.data_registro"]')) as HTMLInputElement[];
   dateEls.forEach((d) => d.addEventListener('input', () => updateMatricula()));
+
+  // re-calc when the document type changes (nascimento/casamento/obito)
+  const tipoInput = document.querySelector('input[data-bind="certidao.tipo_registro"]') as HTMLInputElement | null;
+  if (tipoInput) tipoInput.addEventListener('change', () => {
+    try { if (tipoInput.value) { (state.certidao as any).tipo_registro = tipoInput.value; } } catch(e) { /* ignore */ }
+    updateMatricula();
+  });
 
   // compute once at setup
   updateMatricula();
