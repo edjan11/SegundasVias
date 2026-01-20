@@ -72,6 +72,22 @@ export function attachAutocomplete(
     container.style.top = `${cityInput.offsetTop + cityInput.offsetHeight}px`;
   }
 
+  function getOrCreateSessionId() {
+    try {
+      const cookieName = 'sessionId';
+      const cookies = document.cookie.split(';').map((c) => c.trim());
+      for (const c of cookies) {
+        if (c.startsWith(`${cookieName}=`)) return c.split('=')[1];
+      }
+      const id = `s_${Math.random().toString(36).slice(2, 10)}`;
+      // set cookie for 30 days
+      document.cookie = `${cookieName}=${id}; Path=/; Max-Age=${30 * 24 * 60 * 60}`;
+      return id;
+    } catch (e) {
+      return 'anon';
+    }
+  }
+
   function setActive(idx: number) {
     if (activeIndex >= 0 && items[activeIndex]) items[activeIndex].classList.remove('active');
     activeIndex = idx;
@@ -94,11 +110,16 @@ export function attachAutocomplete(
     cityInput.value = city;
     cityInput.dispatchEvent(new Event('input'));
 
-    // increment frequency (localStorage) so future suggestions are ordered by selection frequency
+    // increment frequency via server-side store (best-effort, non-blocking)
     try {
-      // dynamic import to avoid circular in some bundlers
-      const resolver = await import('../shared/city-uf-resolver');
-      if (resolver && resolver.incrementFrequency) resolver.incrementFrequency(city, uf);
+      const scopeId = getOrCreateSessionId();
+      fetch('/api/frequency/increment', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ scopeId, city, uf }),
+      }).catch(() => {
+        /* swallow errors, fail-safe */
+      });
     } catch (e) {
       // ignore
     }

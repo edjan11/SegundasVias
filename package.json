@@ -10,6 +10,7 @@
     "ui:watch": "echo 'ui: watch disabled — ui/ts is ignored'",
     "ui:bundle": "esbuild src/acts/nascimento/nascimento.ts src/acts/casamento/casamento.ts src/acts/obito/obito.ts --bundle --format=esm --target=es2019 --outdir=ui/js --entry-names=[name].bundle --sourcemap=external",
     "ui:bundle:watch": "esbuild src/acts/nascimento/nascimento.ts src/acts/casamento/casamento.ts src/acts/obito/obito.ts --bundle --format=esm --target=es2019 --outdir=ui/js --entry-names=[name].bundle --sourcemap=external --watch",
+    "ui:copy-data": "node tools/copy_public_data.js",
     "serve": "live-server ui --port=4180 --no-browser --watch=ui,ui/js",
     "dev": "npm-run-all --parallel watch ui:bundle:watch serve",
     "format": "prettier --write \"src/**/*.{ts,tsx,js,jsx,json,css,md}\"",
@@ -22,7 +23,8 @@
     "ci:quality": "npm run format && npm run lint:fix && npm run prune && npm run depcheck && npm run bundle:analyze",
     "test": "echo \"no tests\"",
     "test:prints": "npm run build && node tests/print-test.js",
-    "test:city": "npm run build && node tests/city-uf-resolver.test.js"
+    "test:city": "npm run build && node tests/city-uf-resolver.test.js",
+    "start:freq-server": "npm run build && node dist-src/server/frequencyServer.js"
   },
   "tools": {
     "import_names": "node tools/import_names.js",
@@ -32,9 +34,11 @@
     "@types/dotenv": "^6.1.1",
     "@types/node": "^25.0.9",
     "@types/pg": "^8.16.0",
+    "body-parser": "^2.2.2",
     "cpf-cnpj-validator": "^1.0.3",
     "dotenv": "^17.2.3",
     "electron": "^40.0.0",
+    "express": "^5.2.1",
     "papaparse": "^5.4.1",
     "pg": "^8.17.1",
     "zod": "^4.3.5"
