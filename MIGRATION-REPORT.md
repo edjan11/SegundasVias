@@ -89,5 +89,42 @@ Resumo conciso das mudanças, onde procurar e como operar / manter o código mig
 - Para mudar validações: editar `src/shared/validators/*` e reincluir no ato correspondente.
 - Para mudar texto/labels do painel: editar `ui/pages/*2Via.html` (se forem estáticos) ou o builder dinâmico em `ensureDrawer()` no ato `obito.ts` (que constrói painel dinamicamente se não existir).
 
+## 12) Notas técnicas detalhadas e riscos 🚨
+
+Abaixo há uma explicação ampliada sobre a lógica presente no código, pontos que merecem atenção (riscos, cenários não cobertos) e recomendações práticas para mitigar problemas.
+
+### Resumo da lógica crítica 🔧
+
+- **Seletor de ato (`setupActSelect`)**: inicializa `#ato-select`, aplica `defaultValue?`, anexa handlers `change` + `input` e usa delegação de eventos para tolerar remoções/recriações do DOM.
+- **Drawer / Painel**: criação delegada (fallback builder) e handlers globais para `drawer-toggle`/`drawer-close`. `panel-inline` move conteúdo para `#panel-inline` quando ativado.
+- **Persistência de preferências**: uso de `localStorage` para flags UI (`ui.enableCpfValidation`, `ui.panelInline`, etc.).
+- **Validators**: CPF, nome, data e horário são validados em `src/shared/validators/*`. `createNameValidator` contém heurísticas e modo de operação diferenciados (input/blur).
+- **Prints / PDF**: `buildNascimentoPdfHtmlTJ` gera HTML como string (contrato: JSON do `mapperHtmlToJson(document)`), carrega `html2pdf` dinamicamente e chama `html2pdf().from(...).save()`.
+- **Build/deploy**: `esbuild` gera `ui/js/*.bundle.js`; páginas estáticas `ui/pages/*2Via.html` incluem fallbacks inline simples para carregamento.
+
+### Pontos de risco / coisas perigosas a revisar ⚠️
+
+- **Geração de HTML por concatenação (prints)**
+  - `buildNascimentoPdfHtmlTJ` constrói HTML dinamicamente a partir de dados. Se algum campo do JSON pode conter conteúdo não confiável (por exemplo, inserido por usuário), isso abre risco de XSS ao imprimir ou ao abrir o HTML em contexto com permissões.
+  - Mitigação: *sanitizar* conteúdo (usar DOMPurify ou similar) ou construir DOM via text nodes/templates em vez de `innerHTML` indiscriminado.
+
+- **Uso de `innerHTML` / inserção de strings no DOM**
+  - Buscar e revisar todas as ocorrências de `innerHTML` e de concatenação de HTML — sempre preferir `textContent`, plantillas seguras, ou sanitização de inputs.
+
+- **LocalStorage para dados possivelmente sensíveis**
+  - `localStorage` é acessível a qualquer script no mesmo domínio e persiste entre sessões. Evitar armazenar CPF, RG, números sensíveis, ou minimamente criptografar/evitar armazenamento.
+
+- **Delegação document-level e handlers globais**
+  - Delegar eventos ao `document` facilita resistência a DOM recriado, porém pode capturar eventos indesejados ou expor comportamento em páginas onde o elemento não deveria estar ativo. Limitar seletores e validar alvos nos handlers.
+
+- **Type-safety / `any` / scripts**
+  - Observação: o uso de `any` e scripts de transformação nos arquivos `tools/` pode esconder erros; revisar e adicionar testes/typing.
+
+## 13) Limpeza de arquivos e localização dos logs 🧹
+
+- **Local:** `archive/logs-2026-01-20/` (os arquivos foram movidos para essa pasta e `archive/` está ignorada pelo `.gitignore`, portanto permanecem locais e não foram commitados).
+- **Arquivos movidos:** `.cleaned_files.log`, `autofix_catch.log`, `autofix_empty.log`, `autofix_regex.log`, `convert_any.log`, `convert_src_any.log`, `format.log`, `lintfix*.log`, `replace.log`, `replace_requires.log`.
+- **Próxima ação opcional:** apagar estes arquivos do sistema (se não quiser manter o archive), ou copiá-los para um local centralizado fora do repositório (ex: servidor de artefatos).
+
 --
 Arquivo gerado automaticamente para consulta rápida. Se quiser, eu gero versão com exemplos de edição (patches) para cada mudança listada.
