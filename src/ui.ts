@@ -607,23 +607,63 @@ function setMatriculaValue(value: string) {
   }
 }
 
+function ensureHoverHintForMatricula(matEl: HTMLInputElement | null, message: string) {
+  if (!matEl) return;
+  // find the container: .campo (templates use this), fallback to parentElement
+  const field = (matEl.closest('.campo') as HTMLElement | null) || (matEl.closest('.field') as HTMLElement | null) || (matEl.parentElement as HTMLElement | null);
+  if (!field) return;
+  field.classList.add('matricula-hover-hint');
+  let hint = field.querySelector('.hint') as HTMLElement | null;
+  if (!hint) {
+    hint = document.createElement('div');
+    hint.className = 'hint';
+    field.appendChild(hint);
+  }
+  // message will be visible only on :hover via CSS
+  hint.textContent = message || '';
+}
+
+function clearHoverHintForMatricula(matEl: HTMLInputElement | null) {
+  if (!matEl) return;
+  const field = (matEl.closest('.campo') as HTMLElement | null) || (matEl.closest('.field') as HTMLElement | null) || (matEl.parentElement as HTMLElement | null);
+  if (!field) return;
+  field.classList.remove('matricula-hover-hint');
+  const hint = field.querySelector('.hint') as HTMLElement | null;
+  if (hint) {
+    hint.textContent = '';
+  }
+}
+
 function markMissingForMatricula() {
-  // Lightweight visual hints for missing inputs (no popups)
+  const matEl = (document.getElementById('matricula') as HTMLInputElement | null);
   const cartorioSelect = (document.getElementById('cartorio-oficio') as HTMLSelectElement | null);
   const cnsInput = (document.querySelector('input[data-bind="certidao.cartorio_cns"]') as HTMLInputElement | null);
-  const livroEl = (document.getElementById('matricula-livro') as HTMLInputElement | null);
-  const folhaEl = (document.getElementById('matricula-folha') as HTMLInputElement | null);
-  const termoEl = (document.getElementById('matricula-termo') as HTMLInputElement | null);
+  const livroEl = (document.getElementById('matricula-livro') as HTMLInputElement | null) || (document.querySelector('input[name="livro"]') as HTMLInputElement | null);
+  const folhaEl = (document.getElementById('matricula-folha') as HTMLInputElement | null) || (document.querySelector('input[name="folha"]') as HTMLInputElement | null);
+  const termoEl = (document.getElementById('matricula-termo') as HTMLInputElement | null) || (document.querySelector('input[name="termo"]') as HTMLInputElement | null);
   const dateEl = (document.querySelector('input[name="dataRegistro"], input[name="dataTermo"], input[data-bind="registro.data_registro"]') as HTMLInputElement | null);
 
-  const missingMsg = 'Preencha para gerar matrícula';
+  const missing = !(
+    cartorioSelect && cartorioSelect.value && cartorioSelect.value !== '' &&
+    cnsInput && cnsInput.value && cnsInput.value.length === 6 &&
+    livroEl && String(livroEl.value || '').trim() &&
+    folhaEl && String(folhaEl.value || '').trim() &&
+    termoEl && String(termoEl.value || '').trim() &&
+    dateEl && String(dateEl.value || '').trim()
+  );
 
-  if (cartorioSelect && (!cartorioSelect.value || cartorioSelect.value === '')) setFieldError(cartorioSelect as any, missingMsg); else if (cartorioSelect) setFieldError(cartorioSelect as any, '');
-  if (cnsInput && (!cnsInput.value || cnsInput.value.length !== 6)) setFieldError(cnsInput as any, missingMsg); else if (cnsInput) setFieldError(cnsInput as any, '');
-  if (livroEl && !String(livroEl.value || '').trim()) setFieldError(livroEl as any, missingMsg); else if (livroEl) setFieldError(livroEl as any, '');
-  if (folhaEl && !String(folhaEl.value || '').trim()) setFieldError(folhaEl as any, missingMsg); else if (folhaEl) setFieldError(folhaEl as any, '');
-  if (termoEl && !String(termoEl.value || '').trim()) setFieldError(termoEl as any, missingMsg); else if (termoEl) setFieldError(termoEl as any, '');
-  if (dateEl && !String(dateEl.value || '').trim()) setFieldError(dateEl as any, missingMsg); else if (dateEl) setFieldError(dateEl as any, '');
+  if (matEl) {
+    matEl.classList.toggle('invalid', missing);
+    if (missing) {
+      ensureHoverHintForMatricula(matEl, 'Preencha Cartório / Livro / Folha / Termo / Data para gerar matrícula');
+      (matEl as any).setAttribute('aria-invalid', 'true');
+      (matEl as any).setAttribute('title', 'Campos faltantes — passe o cursor para ver quais');
+    } else {
+      clearHoverHintForMatricula(matEl);
+      (matEl as any).removeAttribute('aria-invalid');
+      (matEl as any).removeAttribute('title');
+    }
+  }
 }
 
 function updateMatricula() {
@@ -1725,7 +1765,38 @@ function setupMatriculaAutoListeners() {
   });
 
   const cartSelect = document.getElementById('cartorio-oficio') as HTMLSelectElement | null;
-  if (cartSelect) cartSelect.addEventListener('change', () => applyCartorioChange());
+  if (cartSelect) {
+    cartSelect.addEventListener('change', () => applyCartorioChange());
+
+    // Quick numeric entry: type digits while focused in the select to choose oficio quickly (supports multi-digit such as '12')
+    let buffer = '' as string;
+    let timer: number | null = null;
+    cartSelect.addEventListener('keydown', (e: KeyboardEvent) => {
+      const key = e.key;
+      if (key >= '0' && key <= '9') {
+        e.preventDefault();
+        buffer += key;
+        if (timer) window.clearTimeout(timer);
+        timer = window.setTimeout(() => {
+          buffer = '';
+        }, 700);
+        const match = Array.from(cartSelect.options).find((opt) => (opt as any).value === buffer);
+        if (match) {
+          (cartSelect as any).value = buffer;
+          cartSelect.dispatchEvent(new Event('input', { bubbles: true }));
+          cartSelect.dispatchEvent(new Event('change', { bubbles: true }));
+          buffer = '';
+          if (timer) { window.clearTimeout(timer); timer = null; }
+        }
+        return;
+      }
+      if (key === 'Backspace') {
+        e.preventDefault();
+        buffer = buffer.slice(0, -1);
+        return;
+      }
+    });
+  }
 
   const dateEls = Array.from(document.querySelectorAll('input[name="dataRegistro"], input[name="dataTermo"], input[data-bind="registro.data_registro"]')) as HTMLInputElement[];
   dateEls.forEach((d) => d.addEventListener('input', () => updateMatricula()));

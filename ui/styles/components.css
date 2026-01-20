@@ -341,6 +341,20 @@ a.type-btn {
   display: inline-flex;
 }
 
+/* Hover-only hint for matrícula: shown only when the matrícula field container has .matricula-hover-hint and is hovered */
+.matricula-hover-hint .hint { display: none; }
+.matricula-hover-hint:hover .hint {
+  display: inline-flex;
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* Make the matrícula input's invalid state a clear red box when incomplete */
+#matricula.invalid {
+  border-color: #dc2626;
+  box-shadow: 0 0 0 4px rgba(220,34,34,0.06);
+}
+
 /* Container do campo */
 .name-field { 
   position: relative; 
