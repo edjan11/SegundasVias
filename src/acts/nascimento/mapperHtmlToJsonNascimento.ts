@@ -60,168 +60,139 @@ function ajustarCNSMatricula(matricula) {
 }
 
 // =======
-// FUNÇÃO PRINCIPAL: monta JSON CRC
+// FUNÇÃO PRINCIPAL: monta JSON CRC (normalizado para NascimentoJson)
 // =======
+
+const CARTORIO_EMISSOR_CNS = "163659";
+const PLATAFORMA_ID = "certidao-eletronica";
+const TIPO_CERTIDAO_PADRAO = "Breve relato";
+
+function onlyDigits(v: any): string {
+  return String(v || "").replace(/\D+/g, '');
+}
+function normUpper(v: any): string {
+  return String(v || '').replace(/\u00A0/g, ' ').replace(/\s+/g, ' ').trim().toUpperCase();
+}
+function normHoraHHMM(v: any): string {
+  const s = String(v || '').trim();
+  const m = s.match(/(\d{1,2}):(\d{2})/);
+  if (!m) return '';
+  const hh = String(m[1]).padStart(2, '0');
+  const mm = String(m[2]);
+  return `${hh}:${mm}`;
+}
+function fallbackNaoConsta(v: any): string {
+  const t = normUpper(v);
+  return t ? t : 'NÃO CONSTA';
+}
+
 function montarJson() {
-  // ---- CAPTURA (ajuste os seletores conforme seu DOM real) ----
-  // Esses seletores são “plugáveis”: se no teu script você já tem funções que capturam,
-  // pode substituir só as linhas abaixo por suas variáveis atuais.
+  // Captura bruta
+  const nome_raw = texto('input[name="nomeCompleto"]') || texto('[data-bind="registro.nome_completo"]') || texto('#nomeCompleto');
+  const data_registro = normalizaDataBR(texto('input[name="dataRegistro"]') || texto('[data-bind="registro.data_registro"]') || texto('#dataRegistro')) || '';
 
-  const nome_completo = texto('input[name="nomeCompleto"]') || texto('[data-bind="registro.nome_completo"]') || texto('#nomeCompleto');
+  const data_nascimento = normalizaDataBR(texto('input[name="dataNascimento"]') || texto('[data-bind="registro.data_nascimento"]') || texto('#dataNascimento')) || '';
+  const data_nascimento_ignorada = !data_nascimento;
 
-  const data_registro = normalizaDataBR(
-    texto('input[name="dataRegistro"]') || texto('[data-bind="registro.data_registro"]') || texto('#dataRegistro')
-  );
+  const hora_raw = texto('input[name="horaNascimento"]') || texto('[data-bind="registro.hora_nascimento"]') || texto('#horaNascimento') || '';
+  const hora_nascimento = normHoraHHMM(hora_raw);
+  const hora_nascimento_ignorada = !hora_nascimento;
 
-  const data_nascimento_raw = normalizaDataBR(
-    texto('input[name="dataNascimento"]') || texto('[data-bind="registro.data_nascimento"]') || texto('#dataNascimento')
-  );
+  const municipio_naturalidade_raw = texto('input[name="municipioNaturalidade"]') || texto('input[name="naturalidade"]') || texto('[data-bind="registro.municipio_naturalidade"]') || '';
+  const municipio_nascimento_raw = texto('input[name="municipioNascimento"]') || texto('[data-bind="registro.municipio_nascimento"]') || '';
 
-  const hora_nascimento_raw = normalizaHoraComHoras(
-    texto('input[name="horaNascimento"]') || texto('[data-bind="registro.hora_nascimento"]') || texto('#horaNascimento')
-  );
+  const uf_naturalidade_raw = texto('select[name="ufNaturalidade"]') || texto('[data-bind="registro.uf_naturalidade"]') || '';
+  const uf_nascimento_raw = texto('select[name="ufNascimento"]') || texto('[data-bind="registro.uf_nascimento"]') || '';
 
-  const municipio_naturalidade =
-    texto('input[name="municipioNaturalidade"]') ||
-    texto('input[name="naturalidade"]') ||
-    texto('[data-bind="registro.municipio_naturalidade"]') ||
-    "";
+  const local_nascimento_raw = texto('input[name="localNascimento"]') || texto('[data-bind="registro.local_nascimento"]') || '';
 
-  const uf_naturalidade =
-    texto('select[name="ufNaturalidade"]') ||
-    texto('[data-bind="registro.uf_naturalidade"]') ||
-    "";
+  // sexo
+  const sexo_raw = (((CONTEXT_DOC as any).querySelector('input[name="sexo"]:checked') as HTMLInputElement | null)?.value) || texto('[data-bind="registro.sexo"]') || '';
+  const sexo_lower = String(sexo_raw || '').trim().toLowerCase();
+  let sexo: string = '';
+  if (sexo_lower === 'm' || sexo_lower === 'masculino') sexo = 'masculino';
+  else if (sexo_lower === 'f' || sexo_lower === 'feminino') sexo = 'feminino';
+  else if (sexo_lower === 'outros' || sexo_lower === 'outro') sexo = 'outros';
+  else if (sexo_lower === 'ignorado') sexo = 'ignorado';
+  else sexo = sexo_lower ? sexo_lower : '';
 
-  const local_nascimento =
-    texto('input[name="localNascimento"]') ||
-    texto('[data-bind="registro.local_nascimento"]') ||
-    "";
+  const sexo_outros = sexo === 'outros' ? (texto('input[name="sexoOutros"]') || texto('[data-bind="registro.sexo_outros"]') || '') : '';
 
-  const municipio_nascimento =
-    texto('input[name="municipioNascimento"]') ||
-    texto('[data-bind="registro.municipio_nascimento"]') ||
-    "";
-
-  const uf_nascimento =
-    texto('select[name="ufNascimento"]') ||
-    texto('[data-bind="registro.uf_nascimento"]') ||
-    "";
-
-  // sexo: se teu DOM dá "M/F", converte pra CRC; se já der "masculino/feminino", mantém
- const sexo_raw =
-  (
-    (((CONTEXT_DOC as any).querySelector('input[name="sexo"]:checked') as HTMLInputElement | null)?.value) ||
-    texto('[data-bind="registro.sexo"]') ||
-    ''
-  ).toLowerCase();
-
-  let sexo = "ignorado";
-  if (sexo_raw === "m" || sexo_raw === "masculino") sexo = "masculino";
-  else if (sexo_raw === "f" || sexo_raw === "feminino") sexo = "feminino";
-  else if (sexo_raw === "outros") sexo = "outros";
-  else if (sexo_raw === "ignorado") sexo = "ignorado";
-
-  const sexo_outros = sexo === "outros"
-    ? (texto('input[name="sexoOutros"]') || texto('[data-bind="registro.sexo_outros"]') || "")
-    : "";
-
-  // ===== CPF (aqui é a correção que você pediu) =====
-  // “quando o cpf for null tu bota oq ele mandar”:
-  // - se existir CPF no texto, manda como veio (com máscara)
-  // - se não existir, manda exatamente o que vier (geralmente "" ou "NÃO CONSTA")
-  // - e corrige cpf_sem_inscricao pra não ficar incoerente
-  const cpf_raw =
-    texto('input[name="cpf"]') ||
-    texto('[data-bind="registro.cpf"]') ||
-    texto('#cpf') ||
-    ""; // se teu script pega do TJ direto, coloque aqui esse valor
-
+  // CPF
+  const cpf_raw = texto('input[name="cpf"]') || texto('[data-bind="registro.cpf"]') || texto('#cpf') || '';
   const cpf_sem_inscricao = isCpfAusente(cpf_raw);
-  const cpf = cpf_sem_inscricao ? (cpf_raw || "") : cpf_raw; // mantém máscara quando existir
+  const cpf = cpf_sem_inscricao ? '' : onlyDigits(cpf_raw);
 
-  // matrícula (usa o que existir; se teu script calcula, substitui aqui pelo teu cálculo)
-  const matricula_raw =
-    texto('input[name="matricula"]') ||
-    texto('[data-bind="registro.matricula"]') ||
-    texto('#matricula') ||
-    "";
+  // matrícula
+  const matricula_raw = texto('input[name="matricula"]') || texto('[data-bind="registro.matricula"]') || texto('#matricula') || '';
+  const matricula = onlyDigits(ajustarCNSMatricula(matricula_raw));
 
-  const matricula = ajustarCNSMatricula(matricula_raw);
+  // gêmeos
+  const gemeos_qtd_raw = texto('input[name="gemeosQuantidade"]') || texto('[data-bind="registro.gemeos.quantidade"]') || '';
+  const gemeos_quantidade = limpa(gemeos_qtd_raw) ? String(limpa(gemeos_qtd_raw)) : '0';
 
-  // gemeos (garante contrato: quantidade string e nunca vazia)
-  const gemeos_qtd_raw =
-    texto('input[name="gemeosQuantidade"]') ||
-    texto('[data-bind="registro.gemeos.quantidade"]') ||
-    "";
+  // tenta coletar irmãos se existirem campos repetidos
+  let gemeos_irmao: Array<{ nome: string; matricula: string }> = [];
+  if (gemeos_quantidade !== '0') {
+    const nomes = Array.from((CONTEXT_DOC as Document).querySelectorAll('input[name="gemeoNome"], input[name="gemeosNome[]"], input[name="gemeosNome"]')).map((e: any) => String(e.value || '').trim()).filter(Boolean);
+    const mat = Array.from((CONTEXT_DOC as Document).querySelectorAll('input[name="gemeoMatricula"], input[name="gemeosMatricula[]"], input[name="gemeosMatricula"]')).map((e: any) => onlyDigits(e.value || ''));
+    gemeos_irmao = nomes.map((n, i) => ({ nome: normUpper(n), matricula: mat[i] || '' })).filter(g => g.nome || g.matricula);
+  }
 
-  const gemeos_quantidade = limpa(gemeos_qtd_raw) ? String(limpa(gemeos_qtd_raw)) : "0";
+  // filiação
+  let filiacao: Array<any> = [];
+  const nomesF = Array.from((CONTEXT_DOC as Document).querySelectorAll('input[name="filiacaoNome"], input[name="filiacaoNome[]"], input[name^="filiacao"]')).map((e: any) => String(e.value || '').trim()).filter(Boolean);
+  if (nomesF.length) {
+    filiacao = nomesF.map((n, i) => ({
+      nome: normUpper(n),
+      municipio_nascimento: normUpper(((CONTEXT_DOC as Document).querySelectorAll('input[name="filiacaoMunicipio"], input[name^="filiacaoMunicipio"]')[i] as any)?.value || ''),
+      uf_nascimento: ((CONTEXT_DOC as Document).querySelectorAll('input[name="filiacaoUf"], select[name^="filiacaoUf"]')[i] as any)?.value || '',
+      avos: normUpper(((CONTEXT_DOC as Document).querySelectorAll('input[name="filiacaoAvos"], input[name^="filiacaoAvos"]')[i] as any)?.value || ''),
+    })).filter(Boolean);
+  }
 
-  // se teu script preenche irmãos, substitui aqui; senão, fica coerente com quantidade
-  const gemeos_irmao = (gemeos_quantidade === "0")
-    ? []
-    : []; // você pode montar [{nome, matricula}] se tiver os campos
+  const numero_dnv = fallbackNaoConsta(texto('input[name="numeroDNV"]') || texto('[data-bind="registro.numero_dnv"]') || '');
+  const averbacao_anotacao = (texto('textarea[name="observacoes"]') || texto('[data-bind="registro.averbacao_anotacao"]') || '');
 
-  // filiacao (se teu script monta, substitui; senão, [] padrão CRC)
-  const filiacao = []; // ex.: [{nome, municipio_nascimento, uf_nascimento, avos}]
-
-  // número DNV e averbação/anotação
-  const numero_dnv =
-    texto('input[name="numeroDNV"]') ||
-    texto('[data-bind="registro.numero_dnv"]') ||
-    "";
-
-  const averbacao_anotacao =
-    texto('textarea[name="observacoes"]') ||
-    texto('[data-bind="registro.averbacao_anotacao"]') ||
-    "";
-
-  // documentos adicionais
-  const anotacoes_cadastro = []; // ex.: [{tipo, documento, orgao_emissor, uf_emissao, data_emissao}]
-
-  // flags de ignorado (se não tiver data/hora)
-  const data_nascimento_ignorada = !data_nascimento_raw;
-  const data_nascimento = data_nascimento_raw || "";
-  const hora_nascimento = hora_nascimento_raw || "";
-
-  // ---- MONTA PAYLOAD CRC EXATO (SOMENTE certidao + registro) ----
+  // monta final no formato pedido
   return {
     certidao: {
-      plataformaId: "certidao-eletronicA",
-      tipo_registro: "nascimento",
-      tipo_certidao: "",
+      plataformaId: PLATAFORMA_ID,
+      tipo_registro: 'nascimento',
+      tipo_certidao: texto('input[name="tipoCertidao"]') || TIPO_CERTIDAO_PADRAO,
       transcricao: true,
-      cartorio_cns: "163659",
-      selo: "",
-      cod_selo: "",
-      modalidade: "eletronica",
-      cota_emolumentos: "Cota",
-      cota_emolumentos_isento: false
+      cartorio_cns: CARTORIO_EMISSOR_CNS,
+      selo: texto('input[name="certidao.selo"]') || '',
+      cod_selo: texto('input[name="certidao.cod_selo"]') || '',
+      modalidade: (texto('select[name="certidao.modalidade"]') || 'eletronica') as 'eletronica' | 'fisica',
+      cota_emolumentos: texto('input[name="certidao.cota_emolumentos"]') || '',
+      cota_emolumentos_isento: !!(CONTEXT_DOC as any).querySelector('input[name="certidao.cota_emolumentos_isento"]')?.checked,
     },
     registro: {
-      nome_completo: nome_completo,
-      cpf_sem_inscricao: cpf_sem_inscricao,
+      nome_completo: normUpper(nome_raw),
+      cpf_sem_inscricao: !!cpf_sem_inscricao,
       cpf: cpf,
       matricula: matricula,
       data_registro: data_registro,
-      data_nascimento_ignorada: data_nascimento_ignorada,
+      data_nascimento_ignorada: !!data_nascimento_ignorada,
       data_nascimento: data_nascimento,
+      hora_nascimento_ignorada: !!hora_nascimento_ignorada,
       hora_nascimento: hora_nascimento,
-      municipio_naturalidade: municipio_naturalidade,
-      uf_naturalidade: uf_naturalidade,
-      local_nascimento: local_nascimento,
-      municipio_nascimento: municipio_nascimento,
-      uf_nascimento: uf_nascimento,
-      sexo: sexo,
-      sexo_outros: sexo_outros,
+      municipio_naturalidade: normUpper(municipio_naturalidade_raw),
+      uf_naturalidade: normUpper(uf_naturalidade_raw),
+      local_nascimento: normUpper(local_nascimento_raw),
+      municipio_nascimento: normUpper(municipio_nascimento_raw),
+      uf_nascimento: normUpper(uf_nascimento_raw),
+      sexo: sexo as any,
       gemeos: {
         quantidade: gemeos_quantidade,
-        irmao: gemeos_irmao
+        irmao: gemeos_irmao,
       },
       filiacao: filiacao,
       numero_dnv: numero_dnv,
       averbacao_anotacao: averbacao_anotacao,
-      anotacoes_cadastro: anotacoes_cadastro
-    }
+      anotacoes_cadastro: [],
+    },
   };
 }
 
