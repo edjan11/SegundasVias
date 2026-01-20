@@ -84,6 +84,19 @@ Resumo conciso das mudanças, onde procurar e como operar / manter o código mig
 3. Consolidar `setupDrawer` em um util único (separar criação/arranjo e apenas chamar no bootstrap do app).
 4. Revisar e remover scripts inline antigos após validação completa dos bundles em produção.
 
+### 10.1 Ações realizadas pelo time (lista curta)
+- Movi logs de ferramentas para `archive/logs-2026-01-20/` e atualizei `.gitignore`.
+- Adicionei `README-DEV.md` com guia de desenvolvimento e comandos úteis.
+- Adicionei notas técnicas ao `MIGRATION-REPORT.md` com riscos e recomendações.
+
+### 10.2 Dívida técnica e próximos passos de refactor (priorizados)
+- **Trocar `any` por tipos explícitos**: há muitas ocorrências (`@typescript-eslint/no-explicit-any`), começar por `src/shared/nameValidator`, `src/utils.ts`, `src/types/*` e `src/ui/*` (responsável: revisar e criar PRs por área).  
+- **Adicionar testes unitários** para `src/shared/validators/*` (CPF, nome, date/time) e `src/prints/*` (verificar geração de HTML sem conteúdo inseguro).  
+- **Sanitização de HTML**: revisar `buildNascimentoPdfHtmlTJ` e remover `innerHTML` onde aplicável; adicionar DOMPurify ou gerar apenas texto seguro.  
+- **Revisar `tools/`**: auditar scripts de transformação; reduzir geração excessiva de logs; colocar em workflow controlado.
+
+> Observação: comecei com ajustes de tipagem e pequenas correções (commits na branch atual). Recomendo criar issues separadas e priorizá-las para sprints menores.
+
 ## 11) Manutenção rápida (como editar)
 - Para alterar o comportamento do ato-select: editar [src/ui/setup-ui.ts](src/ui/setup-ui.ts).
 - Para mudar validações: editar `src/shared/validators/*` e reincluir no ato correspondente.

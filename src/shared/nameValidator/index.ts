@@ -104,7 +104,7 @@ async function loadCsvData() {
 		'/data/grupos.csv',
 		'/public/data/grupos.csv',
 	];
-	let tried = [];
+	const tried = [];
 	for (const p of nomesPaths) {
 		try {
 			nomesText = await fetchCsvText(p);
@@ -148,9 +148,11 @@ function buildNameList(data) {
 		.filter(Boolean);
 }
 
+export interface NameDictionaryOptions { storageKey?: string }
+
 export class NameDictionaryRepository {
 	storageKey: string;
-	constructor(opts: any = {}) {
+	constructor(opts: NameDictionaryOptions = {}) {
 		this.storageKey = opts.storageKey || 'certidao.nameDictionary.v1';
 	}
 
@@ -199,9 +201,16 @@ export class NameDictionaryRepository {
 	}
 }
 
-export function createNameValidator(opts: any = {}) {
-	const threshold = opts.threshold || 0.82;
-	const minLength = opts.minLength || 3;
+export interface CreateNameValidatorOptions {
+	threshold?: number;
+	minLength?: number;
+	repo?: NameDictionaryRepository;
+	baseNames?: string[];
+}
+
+export function createNameValidator(opts: CreateNameValidatorOptions = {}) {
+	const threshold = opts.threshold ?? 0.82;
+	const minLength = opts.minLength ?? 3;
 	const repo = opts.repo || new NameDictionaryRepository();
 	let base = (opts.baseNames || DEFAULT_NAMES).map((n) => normalizeName(n)).filter(Boolean);
 	let ready = false;

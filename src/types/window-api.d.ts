@@ -3,14 +3,14 @@ export {};
 declare global {
   interface Window {
     api?: {
-      dbSaveDraft?: (args?: any) => Promise<any>;
-      saveXml?: (opts?: any) => Promise<string>;
-      saveJson?: (opts?: any) => Promise<string>;
-      getConfig?: () => Promise<any>;
+      dbSaveDraft?: (args?: Record<string, unknown>) => Promise<unknown>;
+      saveXml?: (opts?: Record<string, unknown>) => Promise<string>;
+      saveJson?: (opts?: Record<string, unknown>) => Promise<string>;
+      getConfig?: () => Promise<Record<string, unknown>>;
       pickJsonDir?: () => Promise<string>;
       pickXmlDir?: () => Promise<string>;
-      dbSave?: (...args: any[]) => Promise<any>;
-      [key: string]: any;
+      dbSave?: (...args: unknown[]) => Promise<unknown>;
+      [key: string]: unknown;
     };
   }
 }

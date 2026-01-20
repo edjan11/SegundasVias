@@ -9,13 +9,13 @@ export function escapeXml(str: string): string {
     .replace(/'/g, '&apos;');
 }
 
-export function toXml(obj: any, nodeName: string, indent = 0): string {
+export function toXml(obj: unknown, nodeName: string, indent = 0): string {
   const pad = '  '.repeat(indent);
-  if (obj === null || obj === void 0) return `${pad}<${nodeName}></${nodeName}>`;
-  if (typeof obj !== 'object') return `${pad}<${nodeName}>${escapeXml(obj)}</${nodeName}>`;
+  if (obj === null || obj === undefined) return `${pad}<${nodeName}></${nodeName}>`;
+  if (typeof obj !== 'object' || obj instanceof Date || obj instanceof RegExp) return `${pad}<${nodeName}>${escapeXml(String(obj))}</${nodeName}>`;
   if (Array.isArray(obj)) return obj.map((item) => toXml(item, nodeName, indent)).join('\n');
-  const children = Object.keys(obj)
-    .map((key) => toXml(obj[key], key, indent + 1))
+  const children = Object.keys(obj as Record<string, unknown>)
+    .map((key) => toXml((obj as Record<string, unknown>)[key], key, indent + 1))
     .join('\n');
   return `${pad}<${nodeName}>\n${children}\n${pad}</${nodeName}>`;
 }
