@@ -31,4 +31,5 @@ Testing and validation:
 
 Notes:
 - The resolver is pure and can be re-used in server-side validation if needed (API boundary documented in `src/shared/city-uf-resolver.ts`).
-- Use `loadIndexFromProjectData()` to load `public/data/jsonCidades/estados-cidades.json` at startup for the UI.
+- Use `loadIndexFromProjectData()` to load `public/data/jsonCidades/estados-cidades.json` at startup for the UI (the browser bootstrap fetches `/data/jsonCidades/*.json`).
+- **Suggestion frequency:** selections are tracked in `localStorage` (`citySuggestionFreq`) and are used to boost frequently chosen entries. Reset with `localStorage.removeItem('citySuggestionFreq')` when necessary for testing or to clear personalization.

@@ -20,6 +20,8 @@ How to use in UI:
 Notes:
 - The resolver is purposely pure; it does not read or modify the DOM.
 - The resolver will not invent cities or infer when ambiguous — ambiguous results include the matching states.
+- **State-priority and frequency:** The suggestion engine supports a `statePriority` list (e.g., `['SE','AL','BA']`) that ranks entire UFs first; frequency of selections is also used to rank results within the chosen ordering. By default the UI bootstrap uses the ordering you requested (Sergipe, Alagoas, Bahia) and shows up to 5 suggestions.
+- **Storage:** Selection frequency is stored in `localStorage` under key `citySuggestionFreq` as a simple JSON map `{"City|UF": count}`. Use `localStorage.removeItem('citySuggestionFreq')` to reset counts during debugging.
 - Tests are run with `npm run test:city` (build + node test runner).
 
 Example: `npm run test:city` → runs the new unit tests.

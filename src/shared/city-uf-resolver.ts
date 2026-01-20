@@ -176,32 +176,98 @@ export function loadIndexFromProjectData(rootDir = process.cwd()): Map<string, C
 }
 
 /**
- * Find suggestions for a query string. Strategy:
- * 1) prefix matches (startWith) in normalized names
- * 2) then contains matches if fewer than `limit` results
- * Returns array of { city, uf }
+ * Load frequency map from localStorage (browser only)
  */
-export function findCitySuggestions(index: Map<string, CityMatch[]>, query: string, limit = 5) {
+export function loadFrequencyMapFromLocalStorage(key = 'citySuggestionFreq'): Map<string, number> {
+  if (typeof window === 'undefined') return new Map();
+  try {
+    const raw = localStorage.getItem(key);
+    if (!raw) return new Map();
+    const obj = JSON.parse(raw);
+    return new Map(Object.entries(obj));
+  } catch (e) {
+    return new Map();
+  }
+}
+
+export function saveFrequencyMapToLocalStorage(map: Map<string, number>, key = 'citySuggestionFreq') {
+  if (typeof window === 'undefined') return;
+  const obj = Object.fromEntries(map);
+  localStorage.setItem(key, JSON.stringify(obj));
+}
+
+export function incrementFrequency(city: string, uf: string, key = 'citySuggestionFreq') {
+  if (typeof window === 'undefined') return;
+  const map = loadFrequencyMapFromLocalStorage(key);
+  const mapKey = `${city}|${uf}`;
+  const prev = Number(map.get(mapKey) || 0);
+  map.set(mapKey, prev + 1);
+  saveFrequencyMapToLocalStorage(map, key);
+}
+
+/**
+ * Find suggestions for a query string with options.
+ * Options:
+ * - statePriority: array of UF codes in order to prefer (e.g. ['SE','AL','BA'])
+ * - frequencyMap: Map<string,number> with keys 'City|UF' to weight results by selection frequency
+ */
+export function findCitySuggestions(
+  index: Map<string, CityMatch[]>,
+  query: string,
+  limit = 5,
+  options?: { statePriority?: string[]; frequencyMap?: Map<string, number> }
+) {
   const q = normalizeCityName(query);
   if (!q) return [];
 
-  const prefix: CityMatch[] = [];
-  const contains: CityMatch[] = [];
+  const prefix: Array<{ m: CityMatch; type: 'prefix' | 'contains' }> = [];
+  const contains: Array<{ m: CityMatch; type: 'prefix' | 'contains' }> = [];
 
   for (const [norm, matches] of index) {
     if (norm.startsWith(q)) {
-      for (const m of matches) prefix.push(m);
+      for (const m of matches) prefix.push({ m, type: 'prefix' });
     } else if (norm.includes(q)) {
-      for (const m of matches) contains.push(m);
+      for (const m of matches) contains.push({ m, type: 'contains' });
     }
   }
 
   const combined = prefix.concat(contains);
 
-  // Deduplicate by 'city|uf'
+  // Build frequency map (options override localStorage)
+  let freqMap: Map<string, number> | undefined = options?.frequencyMap;
+  if (!freqMap && typeof window !== 'undefined') {
+    freqMap = loadFrequencyMapFromLocalStorage();
+  }
+
+  // State priority ranking
+  const priority = (options && options.statePriority) || [];
+  const priorityIndex = (uf: string) => {
+    const idx = priority.indexOf(uf);
+    return idx === -1 ? priority.length + 1 : idx;
+  };
+
+  // Sort by: state priority (lower better), frequency desc, prefix before contains, city name
+  combined.sort((a, b) => {
+    const pa = priorityIndex(a.m.uf);
+    const pb = priorityIndex(b.m.uf);
+    if (pa !== pb) return pa - pb;
+
+    const ka = `${a.m.city}|${a.m.uf}`;
+    const kb = `${b.m.city}|${b.m.uf}`;
+    const fa = Number(freqMap?.get(ka) || 0);
+    const fb = Number(freqMap?.get(kb) || 0);
+    if (fa !== fb) return fb - fa;
+
+    if (a.type !== b.type) return a.type === 'prefix' ? -1 : 1;
+
+    return a.m.city.localeCompare(b.m.city, 'pt', { sensitivity: 'base' });
+  });
+
+  // Deduplicate and cut to limit
   const seen = new Set();
   const out: CityMatch[] = [];
-  for (const m of combined) {
+  for (const it of combined) {
+    const m = it.m;
     const key = `${m.city}|${m.uf}`;
     if (!seen.has(key)) {
       seen.add(key);
@@ -219,5 +285,8 @@ export default {
   buildIndexFromData,
   resolveCityToUf,
   loadIndexFromProjectData,
-  findCitySuggestions
+  findCitySuggestions,
+  loadFrequencyMapFromLocalStorage,
+  saveFrequencyMapToLocalStorage,
+  incrementFrequency,
 };

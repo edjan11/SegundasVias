@@ -85,13 +85,24 @@ export function attachAutocomplete(
     }
   }
 
-  function selectSuggestion(idx: number) {
+  async function selectSuggestion(idx: number) {
     if (!items[idx]) return;
     const el = items[idx];
     const city = el.getAttribute('data-city') || '';
+    const uf = el.getAttribute('data-uf') || '';
     // set input value and trigger input event
     cityInput.value = city;
     cityInput.dispatchEvent(new Event('input'));
+
+    // increment frequency (localStorage) so future suggestions are ordered by selection frequency
+    try {
+      // dynamic import to avoid circular in some bundlers
+      const resolver = await import('../shared/city-uf-resolver');
+      if (resolver && resolver.incrementFrequency) resolver.incrementFrequency(city, uf);
+    } catch (e) {
+      // ignore
+    }
+
     // hide list and blur to trigger attachCityUfAutofill's blur handler
     hideSuggestions();
     setTimeout(() => cityInput.blur(), 0);
