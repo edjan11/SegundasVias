@@ -99,12 +99,13 @@ export function adjustMatricula(rawInput: string, averbacaoText?: string): strin
   // Special rule previously prompted for oficio. Now: prefer oficio found in averbacaoText; otherwise
   // proceed with candidate (no interactive prompt). Log warnings when CNS is suspicious or unknown.
   if (cnsAtual === '163659' && ano && ano < 2024) {
-    console.warn('Matrícula suspeita (CNS 163659 com ano < 2024). Proceeding with candidate without prompting.');
+    // do not spam console.warn in normal UI flows; use debug so developers can enable when needed
+    (console as any).debug && (console as any).debug('Matrícula suspeita (CNS 163659 com ano < 2024) — proceeding with candidate without prompting.');
   }
 
-  // Fallback: if CNS not recognized, log and proceed
+  // Fallback: if CNS not recognized, log debug and proceed
   if (!Object.values(oficioMap).includes(base30.slice(0, 6))) {
-    console.warn(`CNS não reconhecido (${base30.slice(0,6)}). Proceeding with candidate without prompting.`);
+    (console as any).debug && (console as any).debug(`CNS não reconhecido (${base30.slice(0,6)}) — proceeding with candidate without prompting.`);
   }
 
   // Recalculate DV and return final
