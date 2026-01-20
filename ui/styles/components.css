@@ -400,16 +400,23 @@ a.type-btn {
 .row { display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-end; }
 .row > .field { min-width: 0; }
 .row > .field.grow { flex: 1 1 auto; min-width: 0; }
+
+/* layout for name + sexo: make name take available space while sexo stays compact */
+.row.name-and-sex > .field:first-child { flex: 1 1 auto; }
+.row.name-and-sex > .field:last-child { flex: 0 0 150px; max-width: 150px; }
+@media (max-width: 680px) {
+  .row.name-and-sex > .field:last-child { flex: 0 0 120px; max-width: 120px; }
+}
  
 
-/* checkbox/label do "adicionar ao dicionário" vira um controle minimal (pequeno) */
+/* checkbox/label do "adicionar ao dicionário" vira um controle minimal (pequeno)
+   Hidden by default; shown only when the field is 'name-suspect' to avoid layout noise */
 .name-field .name-suggest {
-  display: inline-flex;
-  right: 8px;
-  top: 50%;
-  transform: translateY(-50%);
+  display: none; /* visible only when .name-suspect */
+  position: static;
+  transform: none;
   min-width: 30px;
-  height: 18px;
+  height: 20px;
   padding: 0 6px;
   border-radius: 9px;
   align-items: center;
@@ -420,15 +427,16 @@ a.type-btn {
   cursor: pointer;
   user-select: none;
   box-shadow: none;
-  transition: border-color 0.12s ease, background 0.12s ease;
-  font-size: 10px;
-  font-weight: 700;
+  transition: border-color 0.12s ease, background 0.12s ease, transform 0.12s ease;
+  font-size: 11px;
+  font-weight: 600;
+  gap:6px;
 }
+.name-field.name-suspect .name-suggest{ display: inline-flex !important; }
 .name-field .name-suggest:focus { outline: none; box-shadow: 0 0 0 3px rgba(16,185,129,0.05); }
 .name-field .name-suggest:hover { transform: none; }
 
-.name-field .name-suggest .name-suggest-text { font-size: 10px; padding-left: 2px; padding-right: 2px; }
-
+.name-field .name-suggest .name-suggest-text { font-size: 11px; padding-left: 4px; padding-right: 4px; }
 .name-field .name-suggest:has(.name-suggest-checkbox:checked) {
   background: rgba(16,185,129,0.12);
   border-color: rgba(16,185,129,0.18);

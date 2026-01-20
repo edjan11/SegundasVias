@@ -549,13 +549,13 @@ export function setupNameValidation(validator?: NameValidator, opts: NameValidat
 
       hint = document.createElement('label');
       hint.className = 'name-suggest';
-      hint.setAttribute('title', 'Adicionar ao dicionário (ao salvar)');
-      hint.setAttribute('data-tooltip', 'Adicionar ao dicionário');
+      hint.setAttribute('title', 'Incluir no vocabulário (ao salvar)');
+      hint.setAttribute('data-tooltip', 'Incluir no vocabulário (ao salvar)');
 
       const cb = document.createElement('input');
       cb.type = 'checkbox';
       cb.className = 'name-suggest-checkbox';
-      cb.setAttribute('aria-label', 'Marcar nome para adicionar ao dicionário');
+      cb.setAttribute('aria-label', 'Marcar nome para incluir no vocabulário');
       hint.appendChild(cb);
 
       // compact SVG plus icon
@@ -569,9 +569,15 @@ export function setupNameValidation(validator?: NameValidator, opts: NameValidat
       svg.innerHTML = '<path d="M19 11H13V5h-2v6H5v2h6v6h2v-6h6z" fill="currentColor"/>';
       hint.appendChild(svg);
 
+      // short visible label (compact)
+      const txt = document.createElement('span');
+      txt.className = 'name-suggest-text';
+      txt.textContent = 'Incluir';
+      hint.appendChild(txt);
+
       const sr = document.createElement('span');
       sr.className = 'sr-only';
-      sr.textContent = 'Marcar para adicionar';
+      sr.textContent = 'Marcar para incluir no vocabulário';
       hint.appendChild(sr);
 
       // append to labelRow (keeps suggest anchored to label and prevents layout breaking)
@@ -619,18 +625,32 @@ export function setupNameValidation(validator?: NameValidator, opts: NameValidat
 
     const runCheck = () => {
       sanitize();
-      const value = getValue(input);
+      const value = getValue(input).trim();
       const result = validator ? validator.check(value) : { suspicious: false };
-      // if Shift key is held globally, ignore validation marking (temporary bypass)
       const shiftHeld = typeof window._nameValidationShiftHeld === 'function' ? window._nameValidationShiftHeld() : false;
       const suspect = !shiftHeld && !!result?.suspicious;
+
+      // visual state on input and field
       if (isValueElement(input)) (input as HTMLInputElement).classList.toggle('invalid', suspect);
-      if (field) field.classList.toggle('name-suspect', suspect);
-      if (suspect) {
-        try { setFieldHint(field, 'Nome incorreto!'); } catch (err) { /* ignore */ }
-      } else {
-        try { clearFieldHint(field); } catch (err) { /* ignore */ }
+
+      if (field) {
+        field.classList.toggle('name-suspect', suspect);
+
+        // tooltip on the small '?' icon inside the field (non-intrusive)
+        const warn = field.querySelector('.name-warn') as HTMLElement | null;
+        if (suspect) {
+          if (warn) warn.setAttribute('data-tooltip', value ? `Nome incorreto: "${value}"` : 'Nome incorreto');
+          // show the add-control only when suspect
+          const suggest = field.querySelector('.name-suggest') as HTMLElement | null;
+          if (suggest) suggest.style.display = 'inline-flex';
+        } else {
+          if (warn) warn.setAttribute('data-tooltip', 'Nome incorreto');
+          const suggest = field.querySelector('.name-suggest') as HTMLElement | null;
+          if (suggest) suggest.style.display = 'none';
+        }
       }
+
+      // avoid using setFieldHint / toasts — lightweight non-blocking UX
     };
 
     input.addEventListener('input', () => {
@@ -643,7 +663,22 @@ export function setupNameValidation(validator?: NameValidator, opts: NameValidat
       const mode = localStorage.getItem('ui.nameValidationMode') || 'blur';
       if (mode === 'blur' || mode === 'input') runCheck();
     });
+
+    // Ensure add-control is hidden by default (will be shown only when suspect)
+    if (field) {
+      const suggest = field.querySelector('.name-suggest') as HTMLElement | null;
+      if (suggest) suggest.style.display = 'none';
+    }
   });
+
+  // If a row contains Nome completo + Sexo, make layout compact (name grows, sexo fixed)
+  try {
+    const nameInput = document.querySelector('[data-bind="registro.nome_completo"]') as Element | null;
+    if (nameInput) {
+      const r = (nameInput.closest('.row') as HTMLElement | null);
+      if (r && r.querySelector('select[name="sexo"], [data-bind="registro.sexo"]')) r.classList.add('name-and-sex');
+    }
+  } catch (e) { /* ignore */ }
 
   if (validator && validator.ready) {
     Promise.resolve(validator.ready)
@@ -657,6 +692,11 @@ export function setupNameValidation(validator?: NameValidator, opts: NameValidat
             const suspect = !!result?.suspicious;
             if (isValueElement(input)) (input as HTMLInputElement).classList.toggle('invalid', suspect);
             if (field) field.classList.toggle('name-suspect', suspect);
+            // ensure add-control visibility consistent
+            const suggest = field ? field.querySelector('.name-suggest') as HTMLElement | null : null;
+            if (suggest) suggest.style.display = suspect ? 'inline-flex' : 'none';
+            const warn = field ? field.querySelector('.name-warn') as HTMLElement | null : null;
+            if (warn && suspect) warn.setAttribute('data-tooltip', value ? `Nome incorreto: "${value}"` : 'Nome incorreto');
           }
         });
       })
