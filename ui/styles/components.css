@@ -409,50 +409,44 @@ a.type-btn {
 }
  
 
-/* checkbox/label do "adicionar ao dicionário" vira um controle minimal (pequeno)
-   Hidden by default; shown only when the field is 'name-suspect' to avoid layout noise */
+/* compact control: short label + small select (no padding that pushes inputs) */
 .name-field .name-suggest {
   display: none; /* visible only when .name-suspect */
   position: static;
   transform: none;
   min-width: 30px;
-  height: 20px;
-  padding: 0 6px;
-  border-radius: 9px;
+  height: auto;
+  padding: 0;
+  border-radius: 6px;
   align-items: center;
-  justify-content: center;
-  border: 1px solid rgba(6,95,70,0.08);
-  background: rgba(16,185,129,0.05);
+  justify-content: flex-start;
+  border: none;
+  background: transparent;
   color: #065f46;
-  cursor: pointer;
+  cursor: default;
   user-select: none;
   box-shadow: none;
-  transition: border-color 0.12s ease, background 0.12s ease, transform 0.12s ease;
+  transition: none;
   font-size: 11px;
   font-weight: 600;
-  gap:6px;
+  gap: 6px;
 }
 .name-field.name-suspect .name-suggest{ display: inline-flex !important; }
-.name-field .name-suggest:focus { outline: none; box-shadow: 0 0 0 3px rgba(16,185,129,0.05); }
-.name-field .name-suggest:hover { transform: none; }
+.name-field .name-suggest:focus { outline: none; }
 
-.name-field .name-suggest .name-suggest-text { font-size: 11px; padding-left: 4px; padding-right: 4px; }
-.name-field .name-suggest:has(.name-suggest-checkbox:checked) {
-  background: rgba(16,185,129,0.12);
-  border-color: rgba(16,185,129,0.18);
-} 
-/* esconde o checkbox real e mantém acessibilidade via label */
-.name-field .name-suggest-checkbox {
-  position: absolute;
-  opacity: 0;
-  pointer-events: none;
+.name-field .name-suggest .name-suggest-label { font-size: 12px; padding-right: 6px; color: #065f46; }
+.name-field .name-suggest .name-suggest-select { font-size: 11px; height: 26px; padding: 2px 6px; border-radius: 6px; border: 1px solid rgba(6,95,70,0.08); background: #fff; color: #065f46; }
+
+/* when marked, show subtle visual feedback (class toggled via JS) */
+.name-field .name-suggest.name-suggest-checked {
+  border-color: rgba(16,185,129,0.3);
+  background: rgba(16,185,129,0.04);
+  box-shadow: 0 0 4px rgba(16,185,129,0.06);
 }
 
-.name-field .name-suggest .name-suggest-icon {
-  width: 12px;
-  height: 12px;
-  display: block;
-  color: #065f46;
+/* Ensure the pill remains visible if the field was marked (data attribute) */
+.name-field[data-name-marked="true"] .name-suggest {
+  display: inline-flex !important;
 }
 
 /* small tooltip for the Add control */
@@ -480,7 +474,6 @@ a.type-btn {
 
 
 /* quando marcado, dá feedback visual levemente mais forte (suporta :has e a classe adicionada via JS) */
-.name-field .name-suggest:has(.name-suggest-checkbox:checked),
 .name-field .name-suggest.name-suggest-checked {
   border-color: rgba(16,185,129,0.3);
   background: rgba(16,185,129,0.14);
@@ -1115,40 +1108,29 @@ details.collapse summary {
   gap:10px;
 }
 
-/* + pequeno e discreto no label */
+/* compact label + select for suspect names (anchored in label-row) */
 .name-field .label-row .name-suggest{
   display:inline-flex;
   align-items:center;
-  justify-content:center;
-  width:18px;
-  height:18px;
-  border-radius:999px;
-  border:1px solid rgba(6,95,70,0.14);
-  background:rgba(16,185,129,0.06);
+  justify-content:flex-start;
+  min-height:18px;
+  border-radius:6px;
+  border: none;
+  background: transparent;
   color:#065f46;
-  cursor:pointer;
-  opacity:.75;
+  cursor: default;
+  opacity:1;
+  gap:6px;
+  padding: 0;
 }
 .name-field .label-row .name-suggest:hover{ opacity:1; }
 
-.name-field .label-row .name-suggest-icon{
-  width:10px;
-  height:10px;
-  display:block;
-}
+/* small select and label */
+.name-field .label-row .name-suggest .name-suggest-label{ font-size:12px; padding-right:6px; }
+.name-field .label-row .name-suggest .name-suggest-select{ font-size:11px; padding:2px 6px; height:26px; border-radius:6px; border:1px solid rgba(6,95,70,0.08); background:#fff; }
 
-.name-field .name-suggest-checkbox{
-  position:absolute;
-  opacity:0;
-  pointer-events:none;
-}
-
-/* marcado */
-.name-field .label-row .name-suggest:has(.name-suggest-checkbox:checked){
-  background:rgba(16,185,129,0.12);
-  border-color:rgba(16,185,129,0.28);
-  opacity:1;
-}
+/* when marked */
+.name-field .label-row .name-suggest.name-suggest-checked{ background: rgba(16,185,129,0.04); border-color: rgba(16,185,129,0.18); }
 
 /* só mostra quando suspeito */
 .name-field:not(.name-suspect) .label-row .name-suggest{ display:none; }
@@ -1328,14 +1310,15 @@ details.collapse summary {
 /* input always full for fields that had name validation */
 .name-field input[data-name-validate]{ width: 100%; }
 
-/* subtle inline checkbox styles */
-.name-suggest-checkbox{
+/* legacy inline checkbox removed — use compact select instead */
+.name-suggest-select {
   appearance: none;
-  width: 12px;
-  height: 12px;
-  border-radius: 3px;
-  border: 1px solid #ccc;
-  display:inline-block;
+  font-size: 11px;
+  height: 26px;
+  padding: 2px 6px;
+  border-radius: 6px;
+  border: 1px solid rgba(6,95,70,0.08);
+  background: #fff;
+  color: #065f46;
 }
-.name-suggest-checkbox:checked{ background: #0ea5a4; border-color: #0ea5a4; }
 

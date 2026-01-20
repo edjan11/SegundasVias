@@ -585,8 +585,10 @@ function setup(): void {
   })();
   setupActSelect('casamento');
   setupPrimaryShortcut(() => document.getElementById('btn-json') || document.getElementById('btn-xml'));
-  setupNameCopy('input[name="nomeSolteiro"]', 'input[name="nomeCasado"]');
-  setupNameCopy('input[name="nomeSolteira"]', 'input[name="nomeCasada"]');
+  if (localStorage.getItem('ui.enableParentNameCopy') === 'true') {
+    setupNameCopy('input[name="nomeSolteiro"]', 'input[name="nomeCasado"]');
+    setupNameCopy('input[name="nomeSolteira"]', 'input[name="nomeCasada"]');
+  }
   setupAutoNationality('input[name="nacionalidadeNoivo"]', 'BRASILEIRO');
   setupAutoNationality('input[name="nacionalidadeNoiva"]', 'BRASILEIRA');
   setupCasamentoDates();

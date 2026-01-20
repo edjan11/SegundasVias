@@ -718,52 +718,58 @@ function setupNameValidation() {
             field.classList.add('name-field');
         let hint = field ? field.querySelector('.name-suggest') : null;
         if (field && !hint) {
-            hint = document.createElement('button');
-            hint.type = 'button';
+            hint = document.createElement('div');
             hint.className = 'name-suggest';
-            hint.textContent = 'Parece incorreto - adicionar ao dicionario?';
+            // short label + select
+            const labelSpan = document.createElement('span');
+            labelSpan.className = 'name-suggest-label';
+            labelSpan.textContent = 'Adicionar nome incorreto ao vocabulário';
+            hint.appendChild(labelSpan);
+            const sel = document.createElement('select');
+            sel.className = 'name-suggest-select';
+            sel.setAttribute('aria-label', 'Ação para nome suspeito');
+            const o1 = document.createElement('option'); o1.value = ''; o1.textContent = '—'; sel.appendChild(o1);
+            const o2 = document.createElement('option'); o2.value = 'incluir'; o2.textContent = 'Incluir'; sel.appendChild(o2);
+            hint.appendChild(sel);
             field.appendChild(hint);
         }
         if (hint) {
-            hint.addEventListener('click', (e) => {
-                e.preventDefault();
+            const sel = hint.querySelector('.name-suggest-select');
+            if (sel) sel.addEventListener('change', (e) => {
+                const v = sel.value;
+                if (!v) { 
+                    if (field) field.setAttribute('data-name-marked', 'false');
+                    sel.value = '';
+                    return; 
+                }
                 const value = input.value;
-                if (!value)
-                    return;
-                validator.repo.addException(value);
-                input.classList.remove('invalid');
-                if (field)
-                    field.classList.remove('name-suspect');
-                const t = timers.get(input);
-                if (t)
-                    clearInterval(t);
-                timers.delete(input);
+                if (!value) { sel.value = ''; return; }
+                // mark for inclusion (no immediate add)
+                if (field) field.setAttribute('data-name-marked', 'true');
+                sel.classList.add('name-suggest-checked');
             });
         }
-        const runCheck = () => {
-            const value = input.value || '';
-            const result = validator.check(value);
-            const suspect = !!result.suspicious;
-            input.classList.toggle('invalid', suspect);
-            if (field)
-                field.classList.toggle('name-suspect', suspect);
-            if (suspect) {
-                showToast('Nome possivelmente incorreto');
-                if (!timers.has(input)) {
-                    const id = setInterval(() => {
-                        if (input.classList.contains('invalid'))
-                            showToast('Nome possivelmente incorreto');
-                    }, 180000);
-                    timers.set(input, id);
-                }
-            }
-            else {
-                const t = timers.get(input);
-                if (t)
-                    clearInterval(t);
-                timers.delete(input);
-            }
-        };
+   const runCheck = () => {
+  const value = (input.value || '').trim();
+  const result = validator ? validator.check(value) : { suspicious: false };
+  const suspect = !!result.suspicious;
+
+  // estado visual
+  input.classList.toggle('invalid', suspect);
+  if (field) field.classList.toggle('name-suspect', suspect);
+
+  // atualiza tooltip do "?" (se existir)
+  const warn = field ? field.querySelector('.name-warn') : null;
+  if (warn) {
+    warn.setAttribute(
+      'data-tooltip',
+      value ? `Nome incorreto: "${value}"` : 'Nome incorreto'
+    );
+  }
+
+  // sem toast, sem timer (não quebra layout, não irrita)
+};
+
         input.addEventListener('input', () => {
             if (nameValidationMode === 'input')
                 runCheck();
@@ -776,6 +782,17 @@ function setupNameValidation() {
     validator.ready.then(() => {
         fields.forEach((input) => {
             const field = input.closest('.field');
+            let warn = field ? field.querySelector('.name-warn') : null;
+
+            if (field && !warn) {
+            warn = document.createElement('span');
+            warn.className = 'name-warn';
+            warn.textContent = '?';
+            warn.setAttribute('aria-label', 'Nome possivelmente incorreto');
+            warn.setAttribute('data-tooltip', 'Nome incorreto');
+            field.appendChild(warn);
+            }
+
             if (field)
                 field.classList.remove('name-suspect');
             const value = input.value || '';
@@ -785,6 +802,14 @@ function setupNameValidation() {
                 input.classList.toggle('invalid', suspect);
                 if (field)
                     field.classList.toggle('name-suspect', suspect);
+                if (warn) {
+            const v = input.value || '';
+            warn.setAttribute(
+                'data-tooltip',
+                v ? `O nome "${v}" está incorreto.` : 'Nome incorreto.'
+            );
+            }
+
             }
         });
     });

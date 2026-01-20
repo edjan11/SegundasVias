@@ -692,7 +692,9 @@ function setup() {
   setupFocusEmphasis();
   setupAdminPanel();
   setupSettingsPanel();
-  setupNameCopy('input[data-bind="ui.mae_nome"]', 'input[data-bind="ui.pai_nome"]');
+  if (localStorage.getItem('ui.enableParentNameCopy') === 'true') {
+    setupNameCopy('input[data-bind="ui.mae_nome"]', 'input[data-bind="ui.pai_nome"]');
+  }
   setupAutoNationality('input[name="nacionalidade"]', 'BRASILEIRO');
   setupLiveOutputs();
   // wire ato selector change to navigate between acts

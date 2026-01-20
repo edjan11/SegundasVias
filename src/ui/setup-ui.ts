@@ -552,33 +552,40 @@ export function setupNameValidation(validator?: NameValidator, opts: NameValidat
       hint.setAttribute('title', 'Incluir no vocabulário (ao salvar)');
       hint.setAttribute('data-tooltip', 'Incluir no vocabulário (ao salvar)');
 
-      const cb = document.createElement('input');
-      cb.type = 'checkbox';
-      cb.className = 'name-suggest-checkbox';
-      cb.setAttribute('aria-label', 'Marcar nome para incluir no vocabulário');
-      hint.appendChild(cb);
+      // compact text + select (no SVG). Select choice marks field for later processing (non-blocking).
+      const labelSpan = document.createElement('span');
+      labelSpan.className = 'name-suggest-label';
+      labelSpan.textContent = 'Adicionar nome incorreto ao vocabulário';
+      hint.appendChild(labelSpan);
 
-      // compact SVG plus icon
-      const svgNS = 'http://www.w3.org/2000/svg';
-      const svg = document.createElementNS(svgNS, 'svg');
-      svg.setAttribute('viewBox', '0 0 24 24');
-      svg.setAttribute('width', '10');
-      svg.setAttribute('height', '10');
-      svg.setAttribute('aria-hidden', 'true');
-      svg.classList.add('name-suggest-icon');
-      svg.innerHTML = '<path d="M19 11H13V5h-2v6H5v2h6v6h2v-6h6z" fill="currentColor"/>';
-      hint.appendChild(svg);
+      const sel = document.createElement('select');
+      sel.className = 'name-suggest-select';
+      sel.setAttribute('aria-label', 'Ação para nome suspeito');
+      const optEmpty = document.createElement('option');
+      optEmpty.value = '';
+      optEmpty.textContent = '—';
+      sel.appendChild(optEmpty);
+      const optIncluir = document.createElement('option');
+      optIncluir.value = 'incluir';
+      optIncluir.textContent = 'Incluir';
+      sel.appendChild(optIncluir);
+      const optMarcar = document.createElement('option');
+      optMarcar.value = 'marcar';
+      optMarcar.textContent = 'Marcar';
+      sel.appendChild(optMarcar);
+      hint.appendChild(sel);
 
-      // short visible label (compact)
-      const txt = document.createElement('span');
-      txt.className = 'name-suggest-text';
-      txt.textContent = 'Incluir';
-      hint.appendChild(txt);
-
-      const sr = document.createElement('span');
-      sr.className = 'sr-only';
-      sr.textContent = 'Marcar para incluir no vocabulário';
-      hint.appendChild(sr);
+      sel.addEventListener('change', () => {
+        const v = sel.value;
+        if (!v) {
+          hint.classList.remove('name-suggest-checked');
+          if (field) field.setAttribute('data-name-marked', 'false');
+          return;
+        }
+        // selecting an action marks field for later processing (non-blocking)
+        hint.classList.add('name-suggest-checked');
+        if (field) field.setAttribute('data-name-marked', 'true');
+      });
 
       // append to labelRow (keeps suggest anchored to label and prevents layout breaking)
       try {
@@ -596,23 +603,21 @@ export function setupNameValidation(validator?: NameValidator, opts: NameValidat
       window._nameValidationShiftHeld = () => shiftHeld;
     }
 
-    if (hint) { 
-      const cb = hint.querySelector('.name-suggest-checkbox') as HTMLInputElement | null;
-      if (cb) {
-        cb.addEventListener('change', () => {
-          const checked = cb.checked;
-          // if checked, mark the field for later processing (do NOT auto-add or show popover)
-          if (checked) {
-            // require a value; if none, revert
-            const value = getValue(input).trim();
-            if (!value) { cb.checked = false; return; }
-            hint.classList.add('name-suggest-checked');
-            if (field) field.setAttribute('data-name-marked', 'true');
-          } else {
-            // unmark and keep UI available
+    if (hint) {
+      const sel = hint.querySelector('.name-suggest-select') as HTMLSelectElement | null;
+      if (sel) {
+        sel.addEventListener('change', () => {
+          const v = sel.value;
+          if (!v) {
             hint.classList.remove('name-suggest-checked');
             if (field) field.setAttribute('data-name-marked', 'false');
+            return;
           }
+          // selecting an action marks field for later processing (non-blocking)
+          const value = getValue(input).trim();
+          if (!value) { sel.value = ''; return; }
+          hint.classList.add('name-suggest-checked');
+          if (field) field.setAttribute('data-name-marked', 'true');
         });
       }
     }
@@ -737,8 +742,8 @@ export function processMarkedNames(validatorArg?: NameValidator): void {
     if (!field) return;
     if (field.getAttribute('data-name-marked') === 'true') {
       field.setAttribute('data-name-marked', 'false');
-      const cb = field.querySelector('.name-suggest-checkbox') as HTMLInputElement | null;
-      if (cb) cb.checked = false;
+      const sel = field.querySelector('.name-suggest-select') as HTMLSelectElement | null;
+      if (sel) sel.value = '';
       if (isValueElement(input)) (input as HTMLInputElement).classList.remove('invalid');
       try { clearFieldHint(field); } catch (e) { /* ignore */ }
     }

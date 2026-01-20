@@ -102,11 +102,28 @@
       <div class="section-divider"></div>
 
       <div class="section">
-        <div class="row">
-          <div class="field grow">
-            <label>Nome completo <span class="req">*</span></label>
-            <input data-bind="registro.nome_completo" data-required data-name-validate />
-          </div>
+        <div class="row row--fixed-2">
+          <div class="field grow name-field">
+          <label class="label-row">
+            <span>Nome completo <span class="req">*</span></span>
+
+            <!-- compact label + select to mark suspect names (non-blocking) -->
+            <label class="name-suggest" title="Adicionar ao vocabulário (ao salvar)" data-tooltip="Adicionar ao vocabulário">
+              <span class="name-suggest-label">Adicionar nome incorreto</span>
+              <select class="name-suggest-select" aria-label="Ação para nome suspeito">
+                <option value="">—</option>
+                <option value="incluir">Incluir</option>
+                <option value="marcar">Marcar</option>
+              </select>
+            </label>
+          </label>
+
+          <input data-bind="registro.nome_completo" data-required data-name-validate />
+
+          <!-- hint (só aparece quando suspeito) -->
+          <div class="hint"><span class="icon" aria-hidden="true">⚠</span><span class="hint-text">Nome incorreto!</span></div>
+        </div>
+
 
           <div class="field">
             <label>Sexo <span class="req">*</span></label>
