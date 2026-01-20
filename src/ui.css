@@ -358,3 +358,23 @@ details.collapse summary {
 .tab-pane.active {
   display: block;
 }
+
+/* City autocomplete styles */
+.city-autocomplete-list {
+  border: 1px solid var(--border);
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 8px 18px rgba(15, 23, 42, 0.08);
+  overflow: auto;
+  max-height: 220px;
+}
+.city-autocomplete-item {
+  padding: 8px 10px;
+  cursor: pointer;
+  font-size: 12px;
+  color: var(--text);
+}
+.city-autocomplete-item.active,
+.city-autocomplete-item:hover {
+  background: var(--bg2);
+}

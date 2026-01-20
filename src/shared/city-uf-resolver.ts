@@ -163,10 +163,49 @@ export function loadIndexFromProjectData(rootDir = process.cwd()): Map<string, C
   return new Map();
 }
 
+/**
+ * Find suggestions for a query string. Strategy:
+ * 1) prefix matches (startWith) in normalized names
+ * 2) then contains matches if fewer than `limit` results
+ * Returns array of { city, uf }
+ */
+export function findCitySuggestions(index: Map<string, CityMatch[]>, query: string, limit = 5) {
+  const q = normalizeCityName(query);
+  if (!q) return [];
+
+  const prefix: CityMatch[] = [];
+  const contains: CityMatch[] = [];
+
+  for (const [norm, matches] of index) {
+    if (norm.startsWith(q)) {
+      for (const m of matches) prefix.push(m);
+    } else if (norm.includes(q)) {
+      for (const m of matches) contains.push(m);
+    }
+  }
+
+  const combined = prefix.concat(contains);
+
+  // Deduplicate by 'city|uf'
+  const seen = new Set();
+  const out: CityMatch[] = [];
+  for (const m of combined) {
+    const key = `${m.city}|${m.uf}`;
+    if (!seen.has(key)) {
+      seen.add(key);
+      out.push(m);
+    }
+    if (out.length >= limit) break;
+  }
+
+  return out;
+}
+
 // Export default convenience object
 export default {
   normalizeCityName,
   buildIndexFromData,
   resolveCityToUf,
-  loadIndexFromProjectData
+  loadIndexFromProjectData,
+  findCitySuggestions
 };
