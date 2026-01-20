@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>2 via - atos</title>
+    <link rel="stylesheet" href="./styles/base.css" />
+    <link rel="stylesheet" href="./styles/layout.css" />
+    <link rel="stylesheet" href="./styles/components.css" />
+  </head>
+  <body>
+    <div class="container">
+      <div class="toolbar">
+        <div class="toolbar-left">
+          <div class="app-title">2ª Via de Certidão</div>
+        </div>
+        <div class="toolbar-right">
+          <span class="status">Escolha o ato</span>
+          <a id="btn-config" class="btn secondary" href="#" onclick="openConfig();return false;"
+            >Config</a
+          >
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="subTitle">Atos</div>
+        <div class="grid">
+          <div class="campo span-4">
+            <label class="label">Nascimento</label>
+            <button
+              class="btn secondary"
+              type="button"
+              onclick="openPage('./pages/Nascimento2Via.html')"
+            >
+              Abrir
+            </button>
+          </div>
+          <div class="campo span-4">
+            <label class="label">Casamento</label>
+            <button
+              class="btn secondary"
+              type="button"
+              onclick="openPage('./pages/Casamento2Via.html')"
+            >
+              Abrir
+            </button>
+          </div>
+          <div class="campo span-4">
+            <label class="label">Obito</label>
+            <button
+              class="btn secondary"
+              type="button"
+              onclick="openPage('./pages/Obito2Via.html')"
+            >
+              Abrir
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Config Modal -->
+    <div
+      id="config-modal"
+      style="
+        display: none;
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.4);
+        align-items: center;
+        justify-content: center;
+      "
+    >
+      <div
+        style="
+          background: #fff;
+          padding: 18px;
+          width: 320px;
+          margin: auto;
+          border-radius: 6px;
+          box-shadow: 0 6px 24px rgba(0, 0, 0, 0.2);
+        "
+      >
+        <h3 style="margin-top: 0">Configurações</h3>
+        <div style="margin: 10px 0">
+          <label><input type="checkbox" id="open-new-tab" /> Abrir páginas em nova aba</label>
+        </div>
+        <div style="text-align: right; margin-top: 12px">
+          <button class="btn secondary" type="button" onclick="closeConfig()">Fechar</button>
+          <button class="btn" type="button" onclick="saveConfig()" style="margin-left: 8px">
+            Salvar
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      (function () {
+        const key = 'ui.openInNewTab';
+        function openPage(path) {
+          const openInNewTab = localStorage.getItem(key) === 'true';
+          if (openInNewTab) {
+            window.open(path, '_blank');
+          } else {
+            window.location.href = path;
+          }
+        }
+        window.openPage = openPage;
+
+        window.openConfig = function () {
+          const modal = document.getElementById('config-modal');
+          const cb = document.getElementById('open-new-tab');
+          cb.checked = localStorage.getItem(key) === 'true';
+          modal.style.display = 'flex';
+        };
+
+        window.closeConfig = function () {
+          document.getElementById('config-modal').style.display = 'none';
+        };
+
+        window.saveConfig = function () {
+          const cb = document.getElementById('open-new-tab');
+          localStorage.setItem(key, cb.checked ? 'true' : 'false');
+          closeConfig();
+        };
+      })();
+    </script>
+  </body>
+</html>

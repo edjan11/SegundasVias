@@ -1,0 +1,55 @@
+{
+  "name": "segundas-vias",
+  "version": "0.1.0",
+  "description": "Painel local para emissao de 2 vias (JSON/XML) com atalho na bandeja.",
+  "private": true,
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "watch": "tsc -w -p tsconfig.json",
+    "ui:build": "echo 'ui: build disabled — ui/ts is ignored; use npm run ui:bundle'",
+    "ui:watch": "echo 'ui: watch disabled — ui/ts is ignored'",
+    "ui:bundle": "esbuild src/acts/nascimento/nascimento.ts src/acts/casamento/casamento.ts src/acts/obito/obito.ts --bundle --format=esm --target=es2019 --outdir=ui/js --entry-names=[name].bundle --sourcemap=external",
+    "ui:bundle:watch": "esbuild src/acts/nascimento/nascimento.ts src/acts/casamento/casamento.ts src/acts/obito/obito.ts --bundle --format=esm --target=es2019 --outdir=ui/js --entry-names=[name].bundle --sourcemap=external --watch",
+    "serve": "live-server ui --port=4180 --no-browser --watch=ui,ui/js",
+    "dev": "npm-run-all --parallel watch ui:bundle:watch serve",
+    "format": "prettier --write \"src/**/*.{ts,tsx,js,jsx,json,css,md}\"",
+    "lint": "eslint --ext .ts,.tsx,.js .",
+    "lint:fix": "eslint --fix --ext .ts,.tsx,.js .",
+    "prune:root": "ts-prune --project tsconfig.json",
+    "prune": "npm run prune:root",
+    "depcheck": "depcheck",
+    "bundle:analyze": "npx source-map-explorer ui/js/*.bundle.js",
+    "ci:quality": "npm run format && npm run lint:fix && npm run prune && npm run depcheck && npm run bundle:analyze",
+    "test": "echo \"no tests\""
+  },
+  "tools": {
+    "import_names": "node tools/import_names.js",
+    "ensure_names_gz": "node tools/ensure_names_gz.js"
+  },
+  "dependencies": {
+    "@types/dotenv": "^6.1.1",
+    "@types/node": "^25.0.9",
+    "@types/pg": "^8.16.0",
+    "cpf-cnpj-validator": "^1.0.3",
+    "dotenv": "^17.2.3",
+    "electron": "^40.0.0",
+    "papaparse": "^5.4.1",
+    "pg": "^8.17.1",
+    "zod": "^4.3.5"
+  },
+  "devDependencies": {
+    "@typescript-eslint/eslint-plugin": "^6.10.0",
+    "@typescript-eslint/parser": "^6.10.0",
+    "depcheck": "^1.4.2",
+    "esbuild": "^0.24.0",
+    "eslint": "^8.46.0",
+    "eslint-plugin-unused-imports": "^3.1.0",
+    "espree": "^11.0.0",
+    "live-server": "^1.2.2",
+    "npm-run-all": "^4.1.5",
+    "prettier": "^2.8.8",
+    "source-map-explorer": "^2.5.2",
+    "ts-prune": "^0.6.0",
+    "typescript": "^5.3.3"
+  }
+}

@@ -1,0 +1,24 @@
+{
+  "compilerOptions": {
+    "target": "ES2020",
+    "module": "ES2020",
+    "moduleResolution": "node",
+    "rootDir": "src",
+    "outDir": "dist-src",
+    "esModuleInterop": true,
+    "resolveJsonModule": true,
+    "skipLibCheck": true,
+    "noEmitOnError": false,
+    "strict": false
+  },
+  "include": ["src/**/*", "src/acts/**/*.ts"],
+  "exclude": [
+    "node_modules",
+    "dist-src",
+    "ui/ts",
+    "ui/js",
+    "tools",
+    "**/*.diff",
+    "tmp_*"
+  ]
+}

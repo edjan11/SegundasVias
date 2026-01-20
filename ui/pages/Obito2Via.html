@@ -1,0 +1,660 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>2 via obito</title>
+  <link rel="stylesheet" href="../styles/base.css" />
+  <link rel="stylesheet" href="../styles/layout.css" />
+  <link rel="stylesheet" href="../styles/components.css" />
+</head>
+<body>
+  <div class="container">
+    <div class="toolbar">
+      <div class="toolbar-left">
+        <div class="app-title">2ª Via de Certidão</div>
+        <div class="ato-picker">
+          <label class="label" for="ato-select">Ato</label>
+          <select id="ato-select" class="ato-select">
+            <option value="nascimento">Nascimento</option>
+            <option value="casamento">Casamento</option>
+            <option value="obito">Obito</option>
+          </select>
+        </div>
+      </div>
+      <div class="toolbar-right">
+        <button id="drawer-toggle" class="btn secondary">Painel</button>
+        <span id="statusText" class="status">Pronto</span>
+      </div>
+    </div>
+
+    <form id="form-obito">
+  <input type="hidden" name="idObitoNascidoVivo" value="" />
+  <input type="hidden" name="operacao" value="NOVO" />
+  <input type="hidden" name="tituloLivro" value="9º OFÍCIO DA COMARCA DE ARACAJU" />
+  <input type="hidden" name="idCartorio" value="263" />
+
+  <div class="card">
+
+    <!-- 1) REGISTRO (o que o operador mais confere) -->
+    <div class="section">
+      <div class="subTitulo">Registro (Livro / Assinante / Matrícula)</div>
+      <div class="grid">
+        <div class="campo span-3">
+          <label class="label">Data do termo <span class="obrigatorio">*</span></label>
+          <input data-bind="registro.data_registro" name="dataTermo" placeholder="DD/MM/AAAA" inputmode="tel" maxlength="10" autocomplete="off" data-date data-required />
+        </div>
+
+        <div class="campo span-3">
+          <label class="label">Nº Declaração</label>
+          <input name="numDeclaracao" maxlength="12" />
+        </div>
+
+        <div class="campo span-2">
+          <label class="label">Cartório (ofício)</label>
+          <select data-bind="ui.cartorio_oficio" id="cartorio-oficio" class="w-cartorio">
+            <option></option>
+            <option value="6">6</option>
+            <option value="9">9</option>
+            <option value="12">12</option>
+            <option value="13">13</option>
+            <option value="14">14</option>
+            <option value="15">15</option>
+          </select>
+        </div>
+
+        <div class="campo span-2">
+          <label class="label">Livro <span class="obrigatorio">*</span></label>
+          <input data-bind="ui.matricula_livro" name="livro" maxlength="5" data-required />
+        </div>
+
+        <div class="campo span-2">
+          <label class="label">Termo <span class="obrigatorio">*</span></label>
+          <input data-bind="ui.matricula_termo" name="termo" maxlength="8" data-required />
+        </div>
+
+        <div class="campo span-1">
+          <label class="label">Folha <span class="obrigatorio">*</span></label>
+          <input data-bind="ui.matricula_folha" name="folha" maxlength="3" data-required />
+        </div>
+
+        <div class="campo span-6">
+          <label class="label">Assinante <span class="obrigatorio">*</span></label>
+          <select name="idAssinante" data-required data-signer-select></select>
+        </div>
+
+        <div class="campo span-3">
+          <label class="label">Matrícula (gerada)</label>
+          <input id="matricula" data-bind="registro.matricula" readonly />
+        </div>
+      </div>
+    </div>
+
+    <div class="section-divider"></div>
+
+    <!-- 2) IDENTIFICAÇÃO DO FALECIDO -->
+    <div class="section">
+      <div class="subTitulo">Identificação do falecido</div>
+      <div class="grid">
+        <div class="campo span-8">
+          <label class="label">Falecido(a) <span class="obrigatorio">*</span></label>
+          <input name="nomePessoa" maxlength="70" data-name-validate data-required />
+        </div>
+
+        <div class="campo span-2">
+          <label class="label">Sexo <span class="obrigatorio">*</span></label>
+          <select name="sexo" data-required>
+            <option value=""></option>
+            <option value="M">MASCULINO</option>
+            <option value="F">FEMININO</option>
+            <option value="I">IGNORADO</option>
+            <option value="N">NÃO-BINÁRIO</option>
+          </select>
+        </div>
+
+        <div class="campo span-2">
+          <label class="label">Data nasc. <span class="obrigatorio">*</span></label>
+          <input name="dataNascimento" placeholder="DD/MM/AAAA" inputmode="tel" maxlength="10" autocomplete="off" data-date data-required />
+        </div>
+
+        <div class="campo span-3">
+          <label class="label">CPF</label>
+          <input data-bind="registro.cpf" name="CPFPessoa" maxlength="14" inputmode="numeric" data-cpf />
+        </div>
+
+        <div class="campo span-9">
+          <label class="label">Documento <span class="obrigatorio">*</span></label>
+          <input name="documento" maxlength="230" data-required />
+        </div>
+      </div>
+    </div>
+
+    <div class="section-divider"></div>
+
+    <!-- 3) INFORMAÇÕES CIVIS -->
+    <div class="section">
+      <div class="subTitulo">Informações civis</div>
+      <div class="grid">
+        <div class="campo span-3">
+          <label class="label">Nacionalidade</label>
+          <input name="nacionalidade" data-default="BRASILEIRO" class="input-locked" />
+        </div>
+
+        <div class="campo span-3">
+          <label class="label">Cor</label>
+          <input name="cor" maxlength="20" />
+        </div>
+
+        <div class="campo span-3">
+          <label class="label">Estado civil <span class="obrigatorio">*</span></label>
+          <select name="estadoCivil" data-required>
+            <option value=""></option>
+            <option value="SJ">SEPARADO(A) JUDICIALMENTE</option>
+            <option value="CA">CASADO(A)</option>
+            <option value="DE">DESQUITADO(A)</option>
+            <option value="DI">DIVORCIADO(A)</option>
+            <option value="SO">SOLTEIRO(A)</option>
+            <option value="VI">VIÚVO(A)</option>
+            <option value="IG">IGNORADO</option>
+          </select>
+        </div>
+
+        <div class="campo span-3">
+          <label class="label">Idade e tipo</label>
+          <input name="idade" maxlength="20" />
+        </div>
+      </div>
+    </div>
+
+    <div class="section-divider"></div>
+
+    <!-- 4) EVENTO DO ÓBITO -->
+    <div class="section">
+      <div class="subTitulo">Evento do óbito</div>
+      <div class="grid">
+        <div class="campo span-4">
+          <label class="label">Cidade de nascimento <span class="obrigatorio">*</span></label>
+          <input name="cidadeNascimento" maxlength="200" data-required />
+        </div>
+
+        <div class="campo span-2">
+          <label class="label">UF <span class="obrigatorio">*</span></label>
+          <select name="ufNascimento" data-required>
+            <option value=""></option>
+            <option value="AC">AC</option><option value="AL">AL</option><option value="AP">AP</option><option value="AM">AM</option>
+            <option value="BA">BA</option><option value="BR">BR</option><option value="CE">CE</option><option value="DF">DF</option>
+            <option value="ES">ES</option><option value="ET">ET</option><option value="GO">GO</option><option value="IG">IG</option>
+            <option value="MA">MA</option><option value="MT">MT</option><option value="MS">MS</option><option value="MG">MG</option>
+            <option value="PA">PA</option><option value="PB">PB</option><option value="PR">PR</option><option value="PE">PE</option>
+            <option value="PI">PI</option><option value="RJ">RJ</option><option value="RN">RN</option><option value="RS">RS</option>
+            <option value="RO">RO</option><option value="RR">RR</option><option value="SC">SC</option><option value="SP">SP</option>
+            <option value="SE">SE</option><option value="TO">TO</option>
+          </select>
+        </div>
+
+        <div class="campo span-3">
+          <label class="label">Data do óbito</label>
+          <input name="dataObito" maxlength="10" class="campo campo_data" autocomplete="off" data-date />
+        </div>
+
+        <div class="campo span-2">
+          <label class="label">Hora</label>
+          <input name="horaObito" maxlength="5" class="campo campo_hora" autocomplete="off" data-time />
+        </div>
+
+        <div class="campo span-1">
+          <label class="label">Eleitor <span class="obrigatorio">*</span></label>
+          <select name="eleitor" data-required>
+            <option value=""></option>
+            <option value="S">SIM</option>
+            <option value="N">NÃO</option>
+            <option value="I">IGNORADO</option>
+          </select>
+        </div>
+
+        <div class="campo span-12">
+          <label class="label">Causa do óbito <span class="obrigatorio">*</span></label>
+          <input name="causaObito" maxlength="1000" data-required />
+        </div>
+
+        <div class="campo span-6">
+          <label class="label">Médico</label>
+          <input name="nomeMedico" maxlength="70" data-name-validate />
+        </div>
+
+        <div class="campo span-6">
+          <label class="label">CRM</label>
+          <input name="crm" maxlength="7" />
+        </div>
+      </div>
+    </div>
+
+    <div class="section-divider"></div>
+
+    <!-- 5) LOCAL E SEPULTAMENTO -->
+    <div class="section">
+      <div class="subTitulo">Local e sepultamento</div>
+      <div class="grid">
+        <div class="campo span-3">
+          <label class="label">Local do óbito <span class="obrigatorio">*</span></label>
+          <select name="localObito" data-required>
+            <option value=""></option>
+            <option value="H">HOSPITAL</option>
+            <option value="S">OUTROS ESTABELECIMENTOS DE SAÚDE SEM INTERNAÇÃO</option>
+            <option value="D">DOMICÍLIO</option>
+            <option value="V">VIA PÚBLICA</option>
+            <option value="O">OUTROS</option>
+            <option value="I">IGNORADO</option>
+          </select>
+        </div>
+
+        <div class="campo span-5">
+          <label class="label">Descrição do local <span class="obrigatorio">*</span></label>
+          <input name="descricaoLocalObito" maxlength="150" data-required />
+        </div>
+
+        <div class="campo span-3">
+          <label class="label">Cidade do óbito <span class="obrigatorio">*</span></label>
+          <input name="municipioObito" maxlength="50" data-required />
+        </div>
+
+        <div class="campo span-1">
+          <label class="label">UF <span class="obrigatorio">*</span></label>
+          <select name="ufMunicipioObito" id="ufMunicipioObito" data-required>
+            <option value=""></option>
+            <option value="AC">AC</option><option value="AL">AL</option><option value="AP">AP</option><option value="AM">AM</option>
+            <option value="BA">BA</option><option value="BR">BR</option><option value="CE">CE</option><option value="DF">DF</option>
+            <option value="ES">ES</option><option value="ET">ET</option><option value="GO">GO</option><option value="IG">IG</option>
+            <option value="MA">MA</option><option value="MT">MT</option><option value="MS">MS</option><option value="MG">MG</option>
+            <option value="PA">PA</option><option value="PB">PB</option><option value="PR">PR</option><option value="PE">PE</option>
+            <option value="PI">PI</option><option value="RJ">RJ</option><option value="RN">RN</option><option value="RS">RS</option>
+            <option value="RO">RO</option><option value="RR">RR</option><option value="SC">SC</option><option value="SP">SP</option>
+            <option value="SE">SE</option><option value="TO">TO</option>
+          </select>
+        </div>
+
+        <div class="campo span-6">
+          <label class="label">Local do sepultamento</label>
+          <input name="sepultamento" maxlength="300" />
+        </div>
+
+        <div class="campo span-4">
+          <label class="label">Cidade sepultamento <span class="obrigatorio">*</span></label>
+          <input name="municipioSepultamento" maxlength="300" data-required />
+        </div>
+
+        <div class="campo span-2">
+          <label class="label">UF <span class="obrigatorio">*</span></label>
+          <select name="ufMunicipioSepultamento" id="ufMunicipioSepultamento" data-required>
+            <option value=""></option>
+            <option value="AC">AC</option><option value="AL">AL</option><option value="AP">AP</option><option value="AM">AM</option>
+            <option value="BA">BA</option><option value="BR">BR</option><option value="CE">CE</option><option value="DF">DF</option>
+            <option value="ES">ES</option><option value="ET">ET</option><option value="GO">GO</option><option value="IG">IG</option>
+            <option value="MA">MA</option><option value="MT">MT</option><option value="MS">MS</option><option value="MG">MG</option>
+            <option value="PA">PA</option><option value="PB">PB</option><option value="PR">PR</option><option value="PE">PE</option>
+            <option value="PI">PI</option><option value="RJ">RJ</option><option value="RN">RN</option><option value="RS">RS</option>
+            <option value="RO">RO</option><option value="RR">RR</option><option value="SC">SC</option><option value="SP">SP</option>
+            <option value="SE">SE</option><option value="TO">TO</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <div class="section-divider"></div>
+
+    <!-- 6) FAMÍLIA -->
+    <div class="section">
+      <div class="subTitulo">Família</div>
+      <div class="grid">
+        <div class="campo span-6">
+          <label class="label">Nome da mãe</label>
+          <input name="nomeMae" maxlength="70" data-name-validate />
+        </div>
+        <div class="campo span-6">
+          <label class="label">Nome do pai</label>
+          <input name="nomePai" maxlength="70" data-name-validate />
+        </div>
+
+        <div class="campo span-8">
+          <label class="label">Cônjuge</label>
+          <input name="conjuge" maxlength="1000" data-name-validate />
+        </div>
+
+        <div class="campo span-4">
+          <label class="label">Bens</label>
+          <select name="flagBens" id="flagBens">
+            <option value=""></option>
+            <option value="S">SIM</option>
+            <option value="N">NÃO</option>
+          </select>
+        </div>
+
+        <div class="campo span-12">
+          <label class="label">Filhos</label>
+          <textarea name="descricaoFilhos" maxlength="500"></textarea>
+        </div>
+      </div>
+    </div>
+
+    <div class="section-divider"></div>
+
+    <!-- 7) DECLARANTE / ENDEREÇO / OBS -->
+    <div class="section">
+      <div class="subTitulo">Endereço e declarante</div>
+      <div class="grid">
+        <div class="campo span-8">
+          <label class="label">Endereço</label>
+          <input name="endereco" maxlength="200" />
+        </div>
+        <div class="campo span-4">
+          <label class="label">Declarante <span class="obrigatorio">*</span></label>
+          <input name="declarante" maxlength="70" data-name-validate data-required />
+        </div>
+        <div class="campo span-12">
+          <label class="label">Observações / Averbações</label>
+          <textarea name="observacaoCertidao"></textarea>
+        </div>
+      </div>
+    </div>
+
+    <div class="section-divider"></div>
+
+    <!-- 8) DOCUMENTOS E EXTRAS (UNIFICADO, sem duplicidade de name=) -->
+    <details class="collapse">
+      <summary>Documentos e extras</summary>
+      <div class="subcard">
+        <div class="grid">
+          <div class="campo span-3">
+            <label class="label">RG</label>
+            <input name="numeroRG" maxlength="10" />
+          </div>
+          <div class="campo span-3">
+            <label class="label">Data Expedição</label>
+            <input name="dataExpedicaoRG" maxlength="10" class="campo campo_data" autocomplete="off" data-date />
+          </div>
+          <div class="campo span-6">
+            <label class="label">Órgão Expedidor</label>
+            <select name="idOrgaoExpedidorRG" id="orgaoExpedidorRG"></select>
+          </div>
+          <div class="campo span-3">
+            <label class="label">Data Validade</label>
+            <input name="dataValidadeRG" maxlength="10" class="campo campo_data somenteLeitura" readonly />
+          </div>
+
+          <div class="campo span-3">
+            <label class="label">PIS</label>
+            <input name="numeroPIS" maxlength="11" />
+          </div>
+          <div class="campo span-3">
+            <label class="label">Data Expedição PIS</label>
+            <input name="dataExpedicaoPIS" maxlength="10" class="campo campo_data" data-date />
+          </div>
+          <div class="campo span-6">
+            <label class="label">Órgão Expedidor PIS</label>
+            <select name="idOrgaoExpedidorPIS" id="orgaoExpedidorPIS"></select>
+          </div>
+
+          <div class="campo span-3">
+            <label class="label">Passaporte</label>
+            <input name="numeroPassaporte" maxlength="10" />
+          </div>
+          <div class="campo span-3">
+            <label class="label">Data Expedição Passaporte</label>
+            <input name="dataExpedicaoPassaporte" maxlength="10" class="campo campo_data" data-date />
+          </div>
+          <div class="campo span-6">
+            <label class="label">Órgão Expedidor Passaporte</label>
+            <select name="idOrgaoExpedidorPassaporte" id="orgaoExpedidorPassaporte"></select>
+          </div>
+
+          <div class="campo span-3">
+            <label class="label">CNS</label>
+            <input name="numeroCNS" maxlength="15" />
+          </div>
+          <div class="campo span-3">
+            <label class="label">Data Expedição CNS</label>
+            <input name="dataExpedicaoCNS" maxlength="10" class="campo campo_data somenteLeitura" readonly />
+          </div>
+          <div class="campo span-6">
+            <label class="label">Órgão Expedidor CNS</label>
+            <select name="idOrgaoExpedidorCNS" id="orgaoExpedidorCNS"></select>
+          </div>
+
+          <div class="campo span-3">
+            <label class="label">Título de Eleitor</label>
+            <input name="numeroTitulo" maxlength="12" />
+          </div>
+          <div class="campo span-3">
+            <label class="label">Zona / Seção</label>
+            <input name="zonaTitulo" maxlength="20" />
+          </div>
+          <div class="campo span-2">
+            <label class="label">UF Título</label>
+            <select name="ufTitulo" id="ufTitulo"></select>
+          </div>
+          <div class="campo span-4">
+            <label class="label">Município Título</label>
+            <input name="cidadeTitulo" maxlength="30" />
+          </div>
+
+          <div class="campo span-3">
+            <label class="label">CEP</label>
+            <input name="CEP" maxlength="8" />
+          </div>
+          <div class="campo span-3">
+            <label class="label">Grupo Sanguíneo</label>
+            <input name="grupoSanguineo" maxlength="3" />
+          </div>
+        </div>
+      </div>
+    </details>
+
+    <!-- 9) FINANCEIRO -->
+    <div style="margin-top:12px;" class="grid">
+      <div class="campo span-3">
+        <label class="label">Formato casa da moeda?</label>
+        <select name="moeda">
+          <option value="0">NÃO</option>
+          <option value="1">SIM</option>
+        </select>
+      </div>
+      <div class="campo span-3">
+        <label class="label">Pagou emolumentos?</label>
+        <select name="pagouEmolumentos">
+          <option value=""></option>
+          <option value="N">NÃO</option>
+          <option value="S">SIM</option>
+        </select>
+      </div>
+    </div>
+
+  </div>
+</form>
+
+  <!-- Seções inline: Certidão, Automações, Administração, Settings, Outputs -->
+  <div id="panel-inline">
+  <div class="card">
+    <div class="cardTitle">Certidão</div>
+    <div class="grid">
+      <div class="field span-3">
+        <label>plataformaId</label>
+        <input name="certidao.plataformaId" />
+      </div>
+      <div class="field span-3">
+        <label>tipo_registro</label>
+        <input name="certidao.tipo_registro" value="obito" readonly />
+      </div>
+      <div class="field span-3">
+        <label>tipo_certidao</label>
+        <select name="certidao.tipo_certidao">
+          <option></option><option>Breve relato</option><option>Inteiro teor</option>
+        </select>
+      </div>
+      <div class="field span-3">
+        <label>modalidade</label>
+        <select name="certidao.modalidade">
+          <option></option><option>eletronica</option><option>fisica</option>
+        </select>
+      </div>
+      <div class="field span-3">
+        <label>cartorio_cns</label>
+        <input name="certidao.cartorio_cns" />
+      </div>
+      <div class="field span-3">
+        <label>selo</label>
+        <input name="certidao.selo" />
+      </div>
+      <div class="field span-3">
+        <label>cod_selo</label>
+        <input name="certidao.cod_selo" />
+      </div>
+      <div class="field span-3">
+        <label>cota_emolumentos</label>
+        <input name="certidao.cota_emolumentos" />
+      </div>
+      <div class="field checkboxField span-2">
+        <input type="checkbox" name="certidao.transcricao" />
+        <label>transcricao</label>
+      </div>
+    </div>
+  </div>
+
+  <div class="section-divider"></div>
+
+  <div class="card">
+    <div class="cardTitle">Automações</div>
+    <div class="grid">
+      <div class="field span-12">
+        <label>Corretor de nome</label>
+        <div class="field-line">
+          <label class="inline-check">
+            <input type="radio" name="name-validation-mode" value="blur" />
+            Somente ao sair do input
+          </label>
+          <label class="inline-check">
+            <input type="radio" name="name-validation-mode" value="input" />
+            Durante a digitacao
+          </label>
+        </div>
+      </div>
+    </div>
+    <div class="toolbar-left" style="margin-top: 10px;">
+      <button id="config-save" class="btn" type="button">Salvar configuracao</button>
+    </div>
+  </div>
+
+  <div class="section-divider"></div>
+
+  <div class="card">
+    <div class="cardTitle">Administracao</div>
+    <div class="grid">
+      <div class="field span-9">
+        <label>Assinante</label>
+        <input id="admin-signer-name" placeholder="Nome do assinante" />
+      </div>
+      <div class="field span-3">
+        <label>&nbsp;</label>
+        <button id="admin-signer-add" class="btn secondary" type="button">Adicionar</button>
+      </div>
+      <div class="field span-12">
+        <div id="admin-signer-list"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="section-divider"></div>
+
+  <div class="card">
+    <div class="cardTitle">Settings</div>
+    <div class="grid">
+      <div class="field span-12">
+        <label>Exibir painel inline</label>
+        <div class="field-line">
+          <label class="inline-check"><input type="checkbox" id="settings-panel-inline" /> Exibir inline (se desmarcado, painel flutuante será usado)</label>
+        </div>
+      </div>
+      <div class="field span-6">
+        <label>Posicionamento do painel (não usado em modo inline)</label>
+        <select id="settings-drawer-position" class="campo">
+          <option value="bottom-right">Inferior direito</option>
+          <option value="top">Topo central</option>
+          <option value="side">Lateral</option>
+        </select>
+      </div>
+      <div class="field span-6">
+        <label>Preferencias</label>
+        <div class="field-line">
+          <label class="inline-check"><input type="checkbox" id="settings-enable-cpf" /> Validar CPF</label>
+          <label class="inline-check"><input type="checkbox" id="settings-enable-name" /> Validar Nomes</label>
+        </div>
+      </div>
+    </div>
+    <div style="margin-top:10px;" class="toolbar-left">
+      <button id="settings-save" class="btn" type="button">Salvar</button>
+      <button id="settings-apply" class="btn secondary" type="button">Aplicar sem salvar</button>
+    </div>
+  </div>
+
+  <div class="section-divider"></div>
+
+  <div class="card">
+    <div class="cardTitle">Outputs</div>
+    <div class="grid">
+      <div class="field span-12">
+        <label>JSON</label>
+        <textarea id="json-output" rows="6" readonly></textarea>
+        <div style="margin-top:6px;"><button id="btn-json" type="button" class="btn">Gerar JSON</button></div>
+      </div>
+      <div class="field span-12">
+        <label>XML</label>
+        <textarea id="xml-output" rows="6" readonly></textarea>
+        <div style="margin-top:6px;"><button id="btn-xml" type="button" class="btn">Gerar XML</button></div>
+      </div>
+      <div class="field span-12">
+        <label>HTML de impressao</label>
+        <textarea id="print-html" rows="6" readonly></textarea>
+        <div style="margin-top:6px;"><button id="btn-print" type="button" class="btn">Abrir para impressao</button></div>
+      </div>
+      <div class="field span-8">
+        <label>Base matricula</label>
+        <input id="debug-matricula-base" readonly />
+      </div>
+      <div class="field span-2">
+        <label>DV</label>
+        <input id="debug-matricula-dv" readonly />
+      </div>
+      <div class="field span-2">
+        <label>Final</label>
+        <input id="debug-matricula-final" readonly />
+      </div>
+      <div class="field span-12">
+        <label>Campos invalidos</label>
+        <textarea id="debug-invalid" rows="3" readonly></textarea>
+      </div>
+      <div class="field span-12">
+        <label>Alertas</label>
+        <textarea id="debug-alerts" rows="3" readonly></textarea>
+      </div>
+    </div>
+  </div>
+
+  </div> <!-- /#panel-inline -->
+
+  <script type="module" src="../js/obito.bundle.js"></script>
+  <script>
+    (function(){
+      try{
+        const sel = document.getElementById('ato-select');
+        if (!sel) return;
+        sel.addEventListener('change', ()=>{
+          try{
+            const map = { nascimento: './Nascimento2Via.html', casamento: './Casamento2Via.html', obito: './Obito2Via.html' };
+            const next = map[sel.value];
+            if (next) window.location.assign(next);
+          }catch(e){}
+        });
+      }catch(e){}
+    })();
+  </script>
+</body>
+</html>
