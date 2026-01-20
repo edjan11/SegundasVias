@@ -1,59 +1,59 @@
 // src/prints/nascimento/printNascimentoTj.ts
 type AnyJson = any;
 
-import { escapeHtml, sanitizeHref } from '../shared/print-utils';
+import { escapeHtml, sanitizeHref } from '../shared/print-utils.js';
 
 /**
  * Template EDITÁVEL do PDF.
  * Você cola aqui a estrutura do TJ e só troca os ${...}.
  */
 export function buildNascimentoPdfHtmlTJ(data: AnyJson, opts?: { cssHref?: string }) {
-  const cssHref = sanitizeHref(opts?.cssHref, "../assets/tj/certidao.css"); // copie o CSS do TJ pro seu projeto
+  const cssHref = sanitizeHref(opts?.cssHref, '../assets/tj/certidao.css'); // copie o CSS do TJ pro seu projeto
 
   // Pegue do seu JSON como já é hoje (sem mudar contrato)
   const reg = data?.registro ?? {};
   const cert = data?.certidao ?? {};
 
-  const nome = escapeHtml(reg.nome_completo ?? "");
-  const cpf = escapeHtml(reg.cpf ?? "");
-  const matricula = escapeHtml(reg.matricula ?? "");
-  const livro = escapeHtml(reg.livro ?? "");
-  const folha = escapeHtml(reg.folha ?? "");
-  const termo = escapeHtml(reg.termo ?? "");
-  const dnv = escapeHtml(reg.numero_dnv ?? "");
+  const nome = escapeHtml(reg.nome_completo ?? '');
+  const cpf = escapeHtml(reg.cpf ?? '');
+  const matricula = escapeHtml(reg.matricula ?? '');
+  const livro = escapeHtml(reg.livro ?? '');
+  const folha = escapeHtml(reg.folha ?? '');
+  const termo = escapeHtml(reg.termo ?? '');
+  const dnv = escapeHtml(reg.numero_dnv ?? '');
 
   // Ajuste esses binds conforme teu JSON real (sem inventar campos)
-  const dataNascExt = escapeHtml(reg.data_nascimento_extenso ?? "NÃO CONSTA");
-  const diaNasc = escapeHtml(reg.dia_nascimento ?? "");
-  const mesNasc = escapeHtml(reg.mes_nascimento ?? "");
-  const anoNasc = escapeHtml(reg.ano_nascimento ?? "");
-  const hora = escapeHtml(reg.hora_nascimento ?? "00:00 HORAS");
-  const sexo = escapeHtml(reg.sexo ?? "NÃO CONSTA");
+  const dataNascExt = escapeHtml(reg.data_nascimento_extenso ?? 'NÃO CONSTA');
+  const diaNasc = escapeHtml(reg.dia_nascimento ?? '');
+  const mesNasc = escapeHtml(reg.mes_nascimento ?? '');
+  const anoNasc = escapeHtml(reg.ano_nascimento ?? '');
+  const hora = escapeHtml(reg.hora_nascimento ?? '00:00 HORAS');
+  const sexo = escapeHtml(reg.sexo ?? 'NÃO CONSTA');
 
-  const naturalidade = escapeHtml(reg.naturalidade_municipio_uf ?? "NÃO CONSTA");
-  const ufNaturalidade = escapeHtml(reg.naturalidade_uf ?? "");
+  const naturalidade = escapeHtml(reg.naturalidade_municipio_uf ?? 'NÃO CONSTA');
+  const ufNaturalidade = escapeHtml(reg.naturalidade_uf ?? '');
 
-  const localNasc = escapeHtml(reg.local_nascimento ?? "NÃO CONSTA");
-  const municipioNasc = escapeHtml(reg.municipio_nascimento ?? "NÃO CONSTA");
-  const ufNasc = escapeHtml(reg.uf_nascimento ?? "");
+  const localNasc = escapeHtml(reg.local_nascimento ?? 'NÃO CONSTA');
+  const municipioNasc = escapeHtml(reg.municipio_nascimento ?? 'NÃO CONSTA');
+  const ufNasc = escapeHtml(reg.uf_nascimento ?? '');
 
-  const maeNome = escapeHtml(reg.mae_nome ?? "NÃO CONSTA");
-  const maeMun = escapeHtml(reg.mae_municipio ?? "NÃO CONSTA");
-  const maeUf = escapeHtml(reg.mae_uf ?? "");
-  const maeAvos = escapeHtml(reg.mae_avos ?? "");
+  const maeNome = escapeHtml(reg.mae_nome ?? 'NÃO CONSTA');
+  const maeMun = escapeHtml(reg.mae_municipio ?? 'NÃO CONSTA');
+  const maeUf = escapeHtml(reg.mae_uf ?? '');
+  const maeAvos = escapeHtml(reg.mae_avos ?? '');
 
-  const paiNome = escapeHtml(reg.pai_nome ?? "NÃO CONSTA");
-  const paiMun = escapeHtml(reg.pai_municipio ?? "NÃO CONSTA");
-  const paiUf = escapeHtml(reg.pai_uf ?? "");
-  const paiAvos = escapeHtml(reg.pai_avos ?? "");
+  const paiNome = escapeHtml(reg.pai_nome ?? 'NÃO CONSTA');
+  const paiMun = escapeHtml(reg.pai_municipio ?? 'NÃO CONSTA');
+  const paiUf = escapeHtml(reg.pai_uf ?? '');
+  const paiAvos = escapeHtml(reg.pai_avos ?? '');
 
-  const dataRegistroExt = escapeHtml(reg.data_registro_extenso ?? "NÃO CONSTA");
-  const gemeo = escapeHtml(reg.gemeo ?? "NÃO CONSTA");
+  const dataRegistroExt = escapeHtml(reg.data_registro_extenso ?? 'NÃO CONSTA');
+  const gemeo = escapeHtml(reg.gemeo ?? 'NÃO CONSTA');
 
-  const cns = escapeHtml(cert.cartorio_cns ?? "");
-  const cartorioCidadeUf = escapeHtml(cert.cartorio_cidade_uf ?? "");
-  const serventuario = escapeHtml(cert.serventuario_nome ?? "");
-  const serventuarioCargo = escapeHtml(cert.serventuario_cargo ?? "ESCREVENTE");
+  const cns = escapeHtml(cert.cartorio_cns ?? '');
+  const cartorioCidadeUf = escapeHtml(cert.cartorio_cidade_uf ?? '');
+  const serventuario = escapeHtml(cert.serventuario_nome ?? '');
+  const serventuarioCargo = escapeHtml(cert.serventuario_cargo ?? 'ESCREVENTE');
 
   // Estrutura baseada no HTML do TJ (do seu TXT) — você pode expandir/colar tudo aqui
   // Exemplo: fieldsets e tabelas com classes e textos iguais ao TJ. :contentReference[oaicite:2]{index=2}

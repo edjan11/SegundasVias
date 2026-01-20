@@ -1,4 +1,3 @@
-
 // Funções relacionadas à interface do usuário
 export function showToast(message: string): void {
   let container = document.getElementById('toast-container') as HTMLElement | null;
@@ -59,7 +58,6 @@ export function setFieldHint(field: HTMLElement | null, message: string): void {
     hint.classList.remove('visible');
   }
 }
-
 
 export function clearFieldHint(field: HTMLElement | null): void {
   setFieldHint(field, '');
@@ -124,8 +122,6 @@ let lastSavedId = '';
 let isDirty = true;
 let currentDirs = { jsonDir: '', xmlDir: '' };
 
-
-
 interface Registro {
   nome_completo?: string;
   sexo?: string;
@@ -166,7 +162,7 @@ import { adjustMatricula } from './shared/matricula/cnj';
 if (typeof window !== 'undefined') (window as any).__adjustMatricula = adjustMatricula;
 
 function setStatus(text: string, isError?: boolean) {
-  const el = (document.getElementById('statusText') as HTMLElement | null);
+  const el = document.getElementById('statusText') as HTMLElement | null;
   if (!el) return;
   el.textContent = text;
   (el as HTMLElement).style.color = isError ? '#dc2626' : '#64748b';
@@ -284,9 +280,9 @@ function bindInputs() {
 
 function updateTipoButtons() {
   const tipo = state.certidao.tipo_registro || 'nascimento';
-  const btnN = (document.getElementById('btn-nascimento') as HTMLElement | null);
-  const btnC = (document.getElementById('btn-casamento') as HTMLElement | null);
-  const btnO = (document.getElementById('btn-obito') as HTMLElement | null);
+  const btnN = document.getElementById('btn-nascimento') as HTMLElement | null;
+  const btnC = document.getElementById('btn-casamento') as HTMLElement | null;
+  const btnO = document.getElementById('btn-obito') as HTMLElement | null;
   if (btnN) btnN.classList.toggle('active', tipo === 'nascimento');
   if (btnC) btnC.classList.toggle('active', tipo === 'casamento');
   if (btnO) btnO.classList.toggle('active', tipo === 'obito');
@@ -294,7 +290,7 @@ function updateTipoButtons() {
     '[data-bind="certidao.tipo_registro"]',
   ) as HTMLInputElement | null;
   if (input) (input as any).value = tipo;
-  const casamentoWrap = (document.getElementById('casamento-tipo-wrap') as HTMLElement | null);
+  const casamentoWrap = document.getElementById('casamento-tipo-wrap') as HTMLElement | null;
   if (casamentoWrap) casamentoWrap.style.display = tipo === 'casamento' ? 'flex' : 'none';
 }
 
@@ -307,8 +303,10 @@ function setTipoRegistro(tipo: string) {
 
 function updateSexoOutros() {
   const sexo = state.registro.sexo;
-  const wrap = (document.getElementById('sexo-outros-wrap') as HTMLElement | null);
-  const input = (document.getElementById('sexo-outros') as HTMLElement | null) as HTMLInputElement | null;
+  const wrap = document.getElementById('sexo-outros-wrap') as HTMLElement | null;
+  const input = document.getElementById(
+    'sexo-outros',
+  ) as HTMLElement | null as HTMLInputElement | null;
   if (!wrap || !input) return;
   const enabled = sexo === 'outros';
   wrap.style.display = enabled ? 'flex' : 'none';
@@ -321,8 +319,8 @@ function updateSexoOutros() {
 function updateIgnoreFields() {
   const dnIgn = !!state.registro.data_nascimento_ignorada;
   const hnIgn = !!state.registro.hora_nascimento_ignorada;
-  const dn = (document.getElementById('dn') as HTMLElement | null) as HTMLInputElement | null;
-  const hn = (document.getElementById('hn') as HTMLElement | null) as HTMLInputElement | null;
+  const dn = document.getElementById('dn') as HTMLElement | null as HTMLInputElement | null;
+  const hn = document.getElementById('hn') as HTMLElement | null as HTMLInputElement | null;
   if (dn) {
     (dn as any).disabled = dnIgn;
     if (dnIgn) {
@@ -381,16 +379,18 @@ function syncNaturalidadeLockedToBirth() {
 
 function updateNaturalidadeVisibility(fromToggle: boolean) {
   const isDifferent = !!state.ui.naturalidade_diferente;
-  const row = (document.getElementById('naturalidade-extra') as HTMLElement | null);
+  const row = document.getElementById('naturalidade-extra') as HTMLElement | null;
   if (row) {
     row.classList.toggle('visible', isDifferent);
     (row as HTMLElement).style.display = isDifferent ? 'flex' : 'none';
     (row as HTMLElement).hidden = false;
   }
-  const copyBtn = (document.getElementById('copy-naturalidade') as HTMLElement | null) as HTMLButtonElement | null;
+  const copyBtn = document.getElementById(
+    'copy-naturalidade',
+  ) as HTMLElement | null as HTMLButtonElement | null;
   if (copyBtn) (copyBtn as any).disabled = !isDifferent;
-  const labelCity = (document.getElementById('label-municipio-principal') as HTMLElement | null);
-  const labelUf = (document.getElementById('label-uf-principal') as HTMLElement | null);
+  const labelCity = document.getElementById('label-municipio-principal') as HTMLElement | null;
+  const labelUf = document.getElementById('label-uf-principal') as HTMLElement | null;
   if (labelCity) {
     labelCity.textContent = isDifferent
       ? 'Municipio de nascimento'
@@ -440,16 +440,18 @@ function updateCpfState() {
   state.registro.cpf = cpfDigits;
   if (cpfDigits.length > 0) {
     state.registro.cpf_sem_inscricao = false;
-    const cpfSemEl = (document.getElementById('cpf-sem') as HTMLElement | null) as HTMLInputElement | null;
+    const cpfSemEl = document.getElementById(
+      'cpf-sem',
+    ) as HTMLElement | null as HTMLInputElement | null;
     if (cpfSemEl) (cpfSemEl as any).checked = false;
   }
-  const cpfEl = (document.getElementById('cpf') as HTMLElement | null) as HTMLInputElement | null;
+  const cpfEl = document.getElementById('cpf') as HTMLElement | null as HTMLInputElement | null;
   if (cpfEl) (cpfEl as any).value = formatCpf(cpfDigits);
 }
 
 function updateCpfFromToggle() {
   const cpfSem = !!state.registro.cpf_sem_inscricao;
-  const cpfEl = (document.getElementById('cpf') as HTMLElement | null) as HTMLInputElement | null;
+  const cpfEl = document.getElementById('cpf') as HTMLElement | null as HTMLInputElement | null;
   if (cpfSem && cpfEl) {
     (cpfEl as any).value = '';
     state.registro.cpf = '';
@@ -554,11 +556,15 @@ function yearFromDate(value: string) {
 }
 
 function tipoDigit() {
-  const registro = String(state.certidao && (state.certidao as any).tipo_registro || 'nascimento').toLowerCase();
+  const registro = String(
+    (state.certidao && (state.certidao as any).tipo_registro) || 'nascimento',
+  ).toLowerCase();
   if (registro === 'nascimento') return '1';
   if (registro === 'casamento') {
     // casamento: default to civil (2) when not explicitly selected
-    const selected = digitsOnly(state.ui && (state.ui as any).casamento_tipo ? String((state.ui as any).casamento_tipo) : '').slice(0, 1);
+    const selected = digitsOnly(
+      state.ui && (state.ui as any).casamento_tipo ? String((state.ui as any).casamento_tipo) : '',
+    ).slice(0, 1);
     return selected || '2';
   }
   if (registro === 'obito') return '4';
@@ -567,26 +573,84 @@ function tipoDigit() {
 
 function buildMatricula() {
   // prefer state values, but fallback to DOM inputs when state is not yet populated
-  let cns = digitsOnly(state.certidao && (state.certidao as any).cartorio_cns ? String((state.certidao as any).cartorio_cns) : '');
+  let cns = digitsOnly(
+    state.certidao && (state.certidao as any).cartorio_cns
+      ? String((state.certidao as any).cartorio_cns)
+      : '',
+  );
   if (!cns) {
-    try { cns = digitsOnly((document.querySelector('input[data-bind="certidao.cartorio_cns"]') as HTMLInputElement | null)?.value || ''); } catch (e) { void e; }
+    try {
+      cns = digitsOnly(
+        (
+          document.querySelector(
+            'input[data-bind="certidao.cartorio_cns"]',
+          ) as HTMLInputElement | null
+        )?.value || '',
+      );
+    } catch (e) {
+      void e;
+    }
   }
-  let ano = yearFromDate(state.registro && (state.registro as any).data_registro ? String((state.registro as any).data_registro) : '');
+  let ano = yearFromDate(
+    state.registro && (state.registro as any).data_registro
+      ? String((state.registro as any).data_registro)
+      : '',
+  );
   if (!ano) {
-    try { ano = yearFromDate((document.querySelector('input[data-bind="registro.data_registro"]') as HTMLInputElement | null)?.value || ''); } catch (e) { void e; }
+    try {
+      ano = yearFromDate(
+        (
+          document.querySelector(
+            'input[data-bind="registro.data_registro"]',
+          ) as HTMLInputElement | null
+        )?.value || '',
+      );
+    } catch (e) {
+      void e;
+    }
   }
   const tipo = tipoDigit();
-  let livro = padDigits(state.ui && (state.ui as any).matricula_livro ? String((state.ui as any).matricula_livro) : '', 5);
+  let livro = padDigits(
+    state.ui && (state.ui as any).matricula_livro ? String((state.ui as any).matricula_livro) : '',
+    5,
+  );
   if (!livro || livro === '') {
-    try { livro = padDigits((document.getElementById('matricula-livro') as HTMLInputElement | null)?.value || '', 5); } catch (e) { void e; }
+    try {
+      livro = padDigits(
+        (document.getElementById('matricula-livro') as HTMLInputElement | null)?.value || '',
+        5,
+      );
+    } catch (e) {
+      void e;
+    }
   }
-  let folha = padDigits(state.ui && (state.ui as any).matricula_folha ? String((state.ui as any).matricula_folha) : '', 3);
+  let folha = padDigits(
+    state.ui && (state.ui as any).matricula_folha ? String((state.ui as any).matricula_folha) : '',
+    3,
+  );
   if (!folha || folha === '') {
-    try { folha = padDigits((document.getElementById('matricula-folha') as HTMLInputElement | null)?.value || '', 3); } catch (e) { void e; }
+    try {
+      folha = padDigits(
+        (document.getElementById('matricula-folha') as HTMLInputElement | null)?.value || '',
+        3,
+      );
+    } catch (e) {
+      void e;
+    }
   }
-  let termo = padDigits(state.ui && (state.ui as any).matricula_termo ? String((state.ui as any).matricula_termo) : '', 7);
+  let termo = padDigits(
+    state.ui && (state.ui as any).matricula_termo ? String((state.ui as any).matricula_termo) : '',
+    7,
+  );
   if (!termo || termo === '') {
-    try { termo = padDigits((document.getElementById('matricula-termo') as HTMLInputElement | null)?.value || '', 7); } catch (e) { void e; }
+    try {
+      termo = padDigits(
+        (document.getElementById('matricula-termo') as HTMLInputElement | null)?.value || '',
+        7,
+      );
+    } catch (e) {
+      void e;
+    }
   }
 
   if (cns.length !== 6 || !ano || !tipo || !livro || !folha || !termo) return '';
@@ -601,7 +665,9 @@ function setMatriculaValue(value: string) {
   // only set when fully valid (32 digits). Otherwise, clear the generated field.
   const final = digits.length === 32 ? digits : '';
   state.registro.matricula = final;
-  const matEl = (document.getElementById('matricula') as HTMLElement | null) as HTMLInputElement | null;
+  const matEl = document.getElementById(
+    'matricula',
+  ) as HTMLElement | null as HTMLInputElement | null;
   if (matEl) {
     (matEl as any).value = final;
     // ensure readonly UI (generated field)
@@ -612,7 +678,10 @@ function setMatriculaValue(value: string) {
 function ensureHoverHintForMatricula(matEl: HTMLInputElement | null, message: string) {
   if (!matEl) return;
   // find the container: .campo (templates use this), fallback to parentElement
-  const field = (matEl.closest('.campo') as HTMLElement | null) || (matEl.closest('.field') as HTMLElement | null) || (matEl.parentElement as HTMLElement | null);
+  const field =
+    (matEl.closest('.campo') as HTMLElement | null) ||
+    (matEl.closest('.field') as HTMLElement | null) ||
+    (matEl.parentElement as HTMLElement | null);
   if (!field) return;
   field.classList.add('matricula-hover-hint');
   let hint = field.querySelector('.hint') as HTMLElement | null;
@@ -627,7 +696,10 @@ function ensureHoverHintForMatricula(matEl: HTMLInputElement | null, message: st
 
 function clearHoverHintForMatricula(matEl: HTMLInputElement | null) {
   if (!matEl) return;
-  const field = (matEl.closest('.campo') as HTMLElement | null) || (matEl.closest('.field') as HTMLElement | null) || (matEl.parentElement as HTMLElement | null);
+  const field =
+    (matEl.closest('.campo') as HTMLElement | null) ||
+    (matEl.closest('.field') as HTMLElement | null) ||
+    (matEl.parentElement as HTMLElement | null);
   if (!field) return;
   field.classList.remove('matricula-hover-hint');
   const hint = field.querySelector('.hint') as HTMLElement | null;
@@ -637,27 +709,48 @@ function clearHoverHintForMatricula(matEl: HTMLInputElement | null) {
 }
 
 function markMissingForMatricula() {
-  const matEl = (document.getElementById('matricula') as HTMLInputElement | null);
-  const cartorioSelect = (document.getElementById('cartorio-oficio') as HTMLSelectElement | null);
-  const cnsInput = (document.querySelector('input[data-bind="certidao.cartorio_cns"]') as HTMLInputElement | null);
-  const livroEl = (document.getElementById('matricula-livro') as HTMLInputElement | null) || (document.querySelector('input[name="livro"]') as HTMLInputElement | null);
-  const folhaEl = (document.getElementById('matricula-folha') as HTMLInputElement | null) || (document.querySelector('input[name="folha"]') as HTMLInputElement | null);
-  const termoEl = (document.getElementById('matricula-termo') as HTMLInputElement | null) || (document.querySelector('input[name="termo"]') as HTMLInputElement | null);
-  const dateEl = (document.querySelector('input[name="dataRegistro"], input[name="dataTermo"], input[data-bind="registro.data_registro"]') as HTMLInputElement | null);
+  const matEl = document.getElementById('matricula') as HTMLInputElement | null;
+  const cartorioSelect = document.getElementById('cartorio-oficio') as HTMLSelectElement | null;
+  const cnsInput = document.querySelector(
+    'input[data-bind="certidao.cartorio_cns"]',
+  ) as HTMLInputElement | null;
+  const livroEl =
+    (document.getElementById('matricula-livro') as HTMLInputElement | null) ||
+    (document.querySelector('input[name="livro"]') as HTMLInputElement | null);
+  const folhaEl =
+    (document.getElementById('matricula-folha') as HTMLInputElement | null) ||
+    (document.querySelector('input[name="folha"]') as HTMLInputElement | null);
+  const termoEl =
+    (document.getElementById('matricula-termo') as HTMLInputElement | null) ||
+    (document.querySelector('input[name="termo"]') as HTMLInputElement | null);
+  const dateEl = document.querySelector(
+    'input[name="dataRegistro"], input[name="dataTermo"], input[data-bind="registro.data_registro"]',
+  ) as HTMLInputElement | null;
 
   const missing = !(
-    cartorioSelect && cartorioSelect.value && cartorioSelect.value !== '' &&
-    cnsInput && cnsInput.value && cnsInput.value.length === 6 &&
-    livroEl && String(livroEl.value || '').trim() &&
-    folhaEl && String(folhaEl.value || '').trim() &&
-    termoEl && String(termoEl.value || '').trim() &&
-    dateEl && String(dateEl.value || '').trim()
+    cartorioSelect &&
+    cartorioSelect.value &&
+    cartorioSelect.value !== '' &&
+    cnsInput &&
+    cnsInput.value &&
+    cnsInput.value.length === 6 &&
+    livroEl &&
+    String(livroEl.value || '').trim() &&
+    folhaEl &&
+    String(folhaEl.value || '').trim() &&
+    termoEl &&
+    String(termoEl.value || '').trim() &&
+    dateEl &&
+    String(dateEl.value || '').trim()
   );
 
   if (matEl) {
     matEl.classList.toggle('invalid', missing);
     if (missing) {
-      ensureHoverHintForMatricula(matEl, 'Preencha Cartório / Livro / Folha / Termo / Data para gerar matrícula');
+      ensureHoverHintForMatricula(
+        matEl,
+        'Preencha Cartório / Livro / Folha / Termo / Data para gerar matrícula',
+      );
       (matEl as any).setAttribute('aria-invalid', 'true');
       (matEl as any).setAttribute('title', 'Campos faltantes — passe o cursor para ver quais');
     } else {
@@ -686,7 +779,9 @@ function applyCartorioChange() {
     return;
   }
   const cns = CNS_CARTORIOS[oficio];
-  const cnsInput = document.querySelector('[data-bind="certidao.cartorio_cns"]') as HTMLInputElement | null;
+  const cnsInput = document.querySelector(
+    '[data-bind="certidao.cartorio_cns"]',
+  ) as HTMLInputElement | null;
   if (cns) {
     state.certidao.cartorio_cns = cns;
     if (cnsInput) {
@@ -857,7 +952,7 @@ function computeSnapshot() {
 
 function setDirty(flag: boolean) {
   isDirty = !!flag;
-  const btn = (document.getElementById('btn-save') as HTMLElement | null);
+  const btn = document.getElementById('btn-save') as HTMLElement | null;
   if (!btn) return;
   if (isDirty) btn.classList.add('dirty');
   else btn.classList.remove('dirty');
@@ -974,8 +1069,6 @@ function setFieldError(input: HTMLInputElement | HTMLSelectElement, message: str
   hint.classList.toggle('visible', !!message);
 }
 
-
-
 function validateDateInputValue(value: string) {
   const digits = digitsOnly(value);
   if (!digits) return '';
@@ -1035,7 +1128,7 @@ function validateLiveField(path: string, input: HTMLInputElement | HTMLSelectEle
     return;
   }
   if (path === 'registro.cpf_sem_inscricao') {
-    const cpfEl = (document.getElementById('cpf') as HTMLElement | null) as HTMLInputElement | null;
+    const cpfEl = document.getElementById('cpf') as HTMLElement | null as HTMLInputElement | null;
     if (cpfEl) validateLiveField('registro.cpf', cpfEl);
   }
 }
@@ -1101,7 +1194,8 @@ function downloadFile(name: string, content: string, mime: string) {
     a.remove();
     URL.revokeObjectURL(url);
     return true;
-  } catch (e) { void e;
+  } catch (e) {
+    void e;
     return false;
   }
 }
@@ -1163,7 +1257,7 @@ async function generateFile(format: string) {
 }
 
 function updateBadge() {
-  const badge = (document.getElementById('outputDirBadge') as HTMLElement | null);
+  const badge = document.getElementById('outputDirBadge') as HTMLElement | null;
   if (!badge) return;
   const json = currentDirs.jsonDir || '...';
   const xml = currentDirs.xmlDir || '...';
@@ -1176,8 +1270,12 @@ async function refreshConfig() {
     const cfg = await window.api.getConfig();
     currentDirs = { jsonDir: cfg.jsonDir || '', xmlDir: cfg.xmlDir || '' };
     updateBadge();
-    const jsonEl = (document.getElementById('json-dir') as HTMLElement | null) as HTMLInputElement | null;
-    const xmlEl = (document.getElementById('xml-dir') as HTMLElement | null) as HTMLInputElement | null;
+    const jsonEl = document.getElementById(
+      'json-dir',
+    ) as HTMLElement | null as HTMLInputElement | null;
+    const xmlEl = document.getElementById(
+      'xml-dir',
+    ) as HTMLElement | null as HTMLInputElement | null;
     if (jsonEl) (jsonEl as any).value = currentDirs.jsonDir;
     if (xmlEl) (xmlEl as any).value = currentDirs.xmlDir;
   } catch (err) {
@@ -1186,12 +1284,14 @@ async function refreshConfig() {
 }
 
 function setupConfigModal() {
-  const modal = (document.getElementById('config-modal') as HTMLElement | null);
+  const modal = document.getElementById('config-modal') as HTMLElement | null;
   const open = async () => {
     await refreshConfig();
     if (modal) modal.classList.remove('hidden');
   };
-  const close = () => { if (modal) modal.classList.add('hidden'); };
+  const close = () => {
+    if (modal) modal.classList.add('hidden');
+  };
 
   (document.getElementById('btn-config') as HTMLElement | null)?.addEventListener('click', open);
   (document.getElementById('config-close') as HTMLElement | null)?.addEventListener('click', close);
@@ -1215,35 +1315,51 @@ function setupConfigModal() {
     btn.addEventListener('click', () => activateTab(btn.dataset.tab || 'tab-pastas')),
   );
 
-  (document.getElementById('pick-json') as HTMLElement | null)?.addEventListener('click', async () => {
-    if (!window.api || !window.api.pickJsonDir) return;
-    const dir = await window.api.pickJsonDir();
-    const jsonEl = (document.getElementById('json-dir') as HTMLElement | null) as HTMLInputElement | null;
-    if (jsonEl) (jsonEl as any).value = dir;
-    currentDirs.jsonDir = dir;
-    updateBadge();
-  });
-  (document.getElementById('pick-xml') as HTMLElement | null)?.addEventListener('click', async () => {
-    if (!window.api || !window.api.pickXmlDir) return;
-    const dir = await window.api.pickXmlDir();
-    const xmlEl = (document.getElementById('xml-dir') as HTMLElement | null) as HTMLInputElement | null;
-    if (xmlEl) (xmlEl as any).value = dir;
-    currentDirs.xmlDir = dir;
-    updateBadge();
-  });
+  (document.getElementById('pick-json') as HTMLElement | null)?.addEventListener(
+    'click',
+    async () => {
+      if (!window.api || !window.api.pickJsonDir) return;
+      const dir = await window.api.pickJsonDir();
+      const jsonEl = document.getElementById(
+        'json-dir',
+      ) as HTMLElement | null as HTMLInputElement | null;
+      if (jsonEl) (jsonEl as any).value = dir;
+      currentDirs.jsonDir = dir;
+      updateBadge();
+    },
+  );
+  (document.getElementById('pick-xml') as HTMLElement | null)?.addEventListener(
+    'click',
+    async () => {
+      if (!window.api || !window.api.pickXmlDir) return;
+      const dir = await window.api.pickXmlDir();
+      const xmlEl = document.getElementById(
+        'xml-dir',
+      ) as HTMLElement | null as HTMLInputElement | null;
+      if (xmlEl) (xmlEl as any).value = dir;
+      currentDirs.xmlDir = dir;
+      updateBadge();
+    },
+  );
 }
 
 function setupActions() {
   (document.getElementById('btn-save') as HTMLElement | null)?.addEventListener('click', saveDraft);
-  (document.getElementById('btn-json') as HTMLElement | null)?.addEventListener('click', () => generateFile('json'));
-  (document.getElementById('btn-xml') as HTMLElement | null)?.addEventListener('click', () => generateFile('xml'));
+  (document.getElementById('btn-json') as HTMLElement | null)?.addEventListener('click', () =>
+    generateFile('json'),
+  );
+  (document.getElementById('btn-xml') as HTMLElement | null)?.addEventListener('click', () =>
+    generateFile('xml'),
+  );
   document
     .getElementById('btn-nascimento')
     ?.addEventListener('click', () => setTipoRegistro('nascimento'));
   document
     .getElementById('btn-casamento')
     ?.addEventListener('click', () => setTipoRegistro('casamento'));
-  (document.getElementById('btn-obito') as HTMLElement | null)?.addEventListener('click', () => setTipoRegistro('obito'));
+  (document.getElementById('btn-obito') as HTMLElement | null)?.addEventListener('click', () =>
+    setTipoRegistro('obito'),
+  );
 }
 
 type PlaceCacheEntry = {
@@ -1268,7 +1384,8 @@ function getSafeStorage() {
     window.localStorage.setItem(key, '1');
     window.localStorage.removeItem(key);
     return window.localStorage;
-  } catch (e) { void e;
+  } catch (e) {
+    void e;
     return null;
   }
 }
@@ -1318,7 +1435,8 @@ class PlaceAutoFillCache {
     if (!key) return [];
     const data = this.readData();
     const queryTokens = this.tokenize(key);
-    return (Object as any).values(data.entries)
+    return (Object as any)
+      .values(data.entries)
       .map((entry) => {
         const entryKey = entry.key || '';
         const contains = entryKey.includes(key) || key.includes(entryKey);
@@ -1422,7 +1540,8 @@ class PlaceAutoFillCache {
       const parsed = JSON.parse(raw);
       if (!parsed || parsed.v !== 1 || !parsed.entries) return { v: 1, entries: {} };
       return parsed;
-    } catch (e) { void e;
+    } catch (e) {
+      void e;
       return { v: 1, entries: {} };
     }
   }
@@ -1432,7 +1551,8 @@ class PlaceAutoFillCache {
       try {
         this.storage.setItem(this.storageKey, JSON.stringify(data));
         return;
-      } catch (e) { void e;
+      } catch (e) {
+        void e;
         this.memoryData = data;
         return;
       }
@@ -1494,14 +1614,25 @@ function applyPlaceEntry(
 function setupCache() {
   (document.getElementById('cache-save') as HTMLElement | null)?.addEventListener('click', () => {
     const desc =
-      ((document.getElementById('cache-desc') as HTMLElement | null) as HTMLInputElement | null)?.value.trim() || '';
+      (
+        document.getElementById('cache-desc') as HTMLElement | null as HTMLInputElement | null
+      )?.value.trim() || '';
     const local =
-      ((document.getElementById('cache-local') as HTMLElement | null) as HTMLInputElement | null)?.value.trim() || '';
+      (
+        document.getElementById('cache-local') as HTMLElement | null as HTMLInputElement | null
+      )?.value.trim() || '';
     const cidade =
-      ((document.getElementById('cache-cidade') as HTMLElement | null) as HTMLInputElement | null)?.value.trim() || '';
-    const uf = ((document.getElementById('cache-uf') as HTMLElement | null) as HTMLInputElement | null)?.value.trim() || '';
+      (
+        document.getElementById('cache-cidade') as HTMLElement | null as HTMLInputElement | null
+      )?.value.trim() || '';
+    const uf =
+      (
+        document.getElementById('cache-uf') as HTMLElement | null as HTMLInputElement | null
+      )?.value.trim() || '';
     const naturalidade =
-      ((document.getElementById('cache-nat') as HTMLElement | null) as HTMLInputElement | null)?.value.trim() || '';
+      (
+        document.getElementById('cache-nat') as HTMLElement | null as HTMLInputElement | null
+      )?.value.trim() || '';
     const placeText = local || desc;
     if (!placeText || !cidade || !uf) return;
     placeCache.recordMapping({
@@ -1515,7 +1646,9 @@ function setupCache() {
   });
   (document.getElementById('cache-apply') as HTMLElement | null)?.addEventListener('click', () => {
     const desc =
-      ((document.getElementById('cache-desc') as HTMLElement | null) as HTMLInputElement | null)?.value.trim() || '';
+      (
+        document.getElementById('cache-desc') as HTMLElement | null as HTMLInputElement | null
+      )?.value.trim() || '';
     if (!desc) return;
     const entry = placeCache.getSuggestions(desc, 1)[0];
     if (!entry) {
@@ -1551,11 +1684,15 @@ function setupLocalAutofill() {
   const natUfEl = document.querySelector(
     '[data-bind="registro.uf_naturalidade"]',
   ) as HTMLSelectElement | null;
-  const suggestionWrap = (document.getElementById('local-suggestion') as HTMLElement | null);
-  const suggestionText = (document.getElementById('local-suggestion-text') as HTMLElement | null);
-  const suggestionApply = (document.getElementById('local-suggestion-apply') as HTMLElement | null);
-  const dataList = (document.getElementById('local-suggestions') as HTMLElement | null) as HTMLDataListElement | null;
-  const copyBtn = (document.getElementById('copy-naturalidade') as HTMLElement | null) as HTMLButtonElement | null;
+  const suggestionWrap = document.getElementById('local-suggestion') as HTMLElement | null;
+  const suggestionText = document.getElementById('local-suggestion-text') as HTMLElement | null;
+  const suggestionApply = document.getElementById('local-suggestion-apply') as HTMLElement | null;
+  const dataList = document.getElementById(
+    'local-suggestions',
+  ) as HTMLElement | null as HTMLDataListElement | null;
+  const copyBtn = document.getElementById(
+    'copy-naturalidade',
+  ) as HTMLElement | null as HTMLButtonElement | null;
   if (!localEl || !cityEl || !ufEl) return;
 
   const suggestionMap = new Map<string, PlaceCacheEntry>();
@@ -1678,7 +1815,9 @@ function setupLocalAutofill() {
 }
 
 function setupNaturalidadeToggle() {
-  const toggle = (document.getElementById('naturalidade-diferente') as HTMLElement | null) as HTMLInputElement | null;
+  const toggle = document.getElementById(
+    'naturalidade-diferente',
+  ) as HTMLElement | null as HTMLInputElement | null;
   if (!toggle) return;
   const handler = () => {
     state.ui.naturalidade_diferente = !!(toggle as any).checked;
@@ -1698,7 +1837,9 @@ function setupShortcuts() {
 }
 
 function setupCartorioTyping() {
-  const select = (document.getElementById('cartorio-oficio') as HTMLElement | null) as HTMLSelectElement | null;
+  const select = document.getElementById(
+    'cartorio-oficio',
+  ) as HTMLElement | null as HTMLSelectElement | null;
   if (!select) return;
   let buffer = '';
   let timer: number | null = null;
@@ -1766,7 +1907,9 @@ function setupMatriculaAutoListeners() {
   });
 
   // Inputs by name (used in casamento and some pages)
-  const namedInputs = Array.from(document.querySelectorAll('input[name="livro"], input[name="folha"], input[name="termo"]')) as HTMLInputElement[];
+  const namedInputs = Array.from(
+    document.querySelectorAll('input[name="livro"], input[name="folha"], input[name="termo"]'),
+  ) as HTMLInputElement[];
   namedInputs.forEach((ni) => {
     ni.addEventListener('input', () => {
       const sanitized = (ni.value || '').replace(/\D/g, '');
@@ -1797,7 +1940,10 @@ function setupMatriculaAutoListeners() {
           cartSelect.dispatchEvent(new Event('input', { bubbles: true }));
           cartSelect.dispatchEvent(new Event('change', { bubbles: true }));
           buffer = '';
-          if (timer) { window.clearTimeout(timer); timer = null; }
+          if (timer) {
+            window.clearTimeout(timer);
+            timer = null;
+          }
         }
         return;
       }
@@ -1809,23 +1955,39 @@ function setupMatriculaAutoListeners() {
     });
   }
 
-  const dateEls = Array.from(document.querySelectorAll('input[name="dataRegistro"], input[name="dataTermo"], input[data-bind="registro.data_registro"]')) as HTMLInputElement[];
+  const dateEls = Array.from(
+    document.querySelectorAll(
+      'input[name="dataRegistro"], input[name="dataTermo"], input[data-bind="registro.data_registro"]',
+    ),
+  ) as HTMLInputElement[];
   dateEls.forEach((d) => d.addEventListener('input', () => updateMatricula()));
 
   // re-calc when the document type changes (nascimento/casamento/obito)
-  const tipoInput = document.querySelector('input[data-bind="certidao.tipo_registro"]') as HTMLInputElement | null;
-  if (tipoInput) tipoInput.addEventListener('change', () => {
-    try { if (tipoInput.value) { (state.certidao as any).tipo_registro = tipoInput.value; } } catch(e) { /* ignore */ }
-    updateMatricula();
-  });
+  const tipoInput = document.querySelector(
+    'input[data-bind="certidao.tipo_registro"]',
+  ) as HTMLInputElement | null;
+  if (tipoInput)
+    tipoInput.addEventListener('change', () => {
+      try {
+        if (tipoInput.value) {
+          (state.certidao as any).tipo_registro = tipoInput.value;
+        }
+      } catch (e) {
+        /* ignore */
+      }
+      updateMatricula();
+    });
 
   // compute once at setup
   updateMatricula();
 }
 
 // Setup automatic listeners when running in browser
-try { if (typeof window !== 'undefined') setupMatriculaAutoListeners(); } catch (e) { /* ignore */ }
-
+try {
+  if (typeof window !== 'undefined') setupMatriculaAutoListeners();
+} catch (e) {
+  /* ignore */
+}
 
 async function bootstrap() {
   syncInputsFromState();
@@ -1838,10 +2000,14 @@ async function bootstrap() {
   setupNaturalidadeToggle();
   setupShortcuts();
   setupCartorioTyping();
-  try { (window as any).updateMatricula = updateMatricula; } catch (e) { /* ignore */ }
+  try {
+    (window as any).updateMatricula = updateMatricula;
+  } catch (e) {
+    /* ignore */
+  }
   setupBeforeUnload();
   await refreshConfig();
-  const cpfEl = (document.getElementById('cpf') as HTMLElement | null) as HTMLInputElement | null;
+  const cpfEl = document.getElementById('cpf') as HTMLElement | null as HTMLInputElement | null;
   if (cpfEl) validateLiveField('registro.cpf', cpfEl);
   const cartorioEl = document.querySelector(
     '[data-bind="ui.cartorio_oficio"]',

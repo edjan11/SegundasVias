@@ -1,13 +1,11 @@
-
 import path from 'path';
 import fs from 'fs';
 const { spawn } = require('child_process');
 import * as db from './db';
 
-
 const _db = db as any;
 function ensureElectron() {
-const mod = require('electron');
+  const mod = require('electron');
   const isElectronRuntime = !!(process.versions && process.versions.electron);
   const procType = (process as any).type || 'node';
   console.log(
@@ -26,7 +24,7 @@ const mod = require('electron');
 
   if (isElectronRuntime) {
     try {
-const mainMod = require('electron/main');
+      const mainMod = require('electron/main');
       if (mainMod && mainMod.app) return mainMod;
     } catch (err) {
       console.error('[segundas-vias] falha ao carregar electron/main:', err?.message || err);
@@ -65,8 +63,12 @@ try {
   if (app.setAppUserModelId) app.setAppUserModelId('com.local.2via');
   try {
     process.title = '2 Via';
-  } catch (e) { void e;}
-} catch (e) { void e;}
+  } catch (e) {
+    void e;
+  }
+} catch (e) {
+  void e;
+}
 
 // ========================================
 // CONFIG SIMPLES
@@ -157,7 +159,9 @@ const TRAY_ICON = (() => {
         const img = nativeImage.createFromPath(p);
         if (!img.isEmpty()) return img;
       }
-    } catch (e) { void e;}
+    } catch (e) {
+      void e;
+    }
   }
   const base64 =
     'iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAYAAACqaXHeAAABE0lEQVR4nO3XwQnCMBBA0Y8URqVE0iEcyPHff4O89ByiDubKXZOr79ouW4HGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYKDTx2gWQCMIJBCIIQQiCMEIgjBCIIwQgCMIIQgiiAEEIgjBCIIwQiCMEIgjBCIIwQiCMEIgjBCIIwQiCMEIgjBCIIwQiCMEIgjBCIIwQiCMEIgjBCIIwQiCMEIgjBCIIwQiCMEIgjBCIIwQiCMEIgjBCIIwQiCMEIgjBCIIwQiCMCIRFgBrz5b2M6iWRtxkbSZZGlpZvWoN1qDbqvu4d3lPvId7mXvId5i7yHeZr/8fyR/7P12uwYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBl4AbA0X9WZCGl8AAAAASUVORK5CYII=';
@@ -196,7 +200,9 @@ function createMainWindow() {
     .catch((err: unknown) => console.error('[segundas-vias] erro ao carregar UI:', err));
   try {
     win.center();
-  } catch (e) { void e;}
+  } catch (e) {
+    void e;
+  }
   win.on('ready-to-show', () => {
     try {
       console.log('[segundas-vias] ready-to-show');

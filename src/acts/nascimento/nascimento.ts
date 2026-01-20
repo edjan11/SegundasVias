@@ -1,4 +1,3 @@
-
 import '../../core/events';
 import { mapperHtmlToJson } from './mapperHtmlToJson';
 import { normalizeDate, validateDateDetailed } from '../../shared/validators/date';
@@ -17,9 +16,9 @@ import {
 import { setupNameCopy, setupAutoNationality } from '../../shared/productivity/index';
 import { setupAdminPanel } from '../../shared/ui/admin';
 import { setupActSelect } from '../../ui/setup-ui';
-import { buildNascimentoPdfHtmlTJ } from "../../prints/nascimento/printNascimentoTj";
-import { openHtmlAndSavePdf } from "../../prints/shared/openAndSavePdf";
-import { escapeHtml, sanitizeHref, sanitizeCss } from '../../prints/shared/print-utils';
+import { buildNascimentoPdfHtmlTJ } from '../../prints/nascimento/printNascimentoTj';
+import { openHtmlAndSavePdf } from '../../prints/shared/openAndSavePdf';
+import { escapeHtml, sanitizeHref, sanitizeCss } from '../../prints/shared/print-utils.js';
 
 const NAME_MODE_KEY = 'ui.nameValidationMode';
 const DRAWER_POS_KEY = 'ui.drawerPosition';
@@ -28,7 +27,7 @@ const ENABLE_NAME_KEY = 'ui.enableNameValidation';
 const PANEL_INLINE_KEY = 'ui.panelInline';
 
 function setStatus(text: string, isError?: boolean): void {
-  const el = (document.getElementById('statusText') as HTMLElement | null);
+  const el = document.getElementById('statusText') as HTMLElement | null;
   if (!el) return;
   el.textContent = text;
   el.style.color = isError ? '#dc2626' : '#64748b';
@@ -40,7 +39,7 @@ function setStatus(text: string, isError?: boolean): void {
 }
 
 function showToast(message: string): void {
-  let container = (document.getElementById('toast-container') as HTMLElement | null);
+  let container = document.getElementById('toast-container') as HTMLElement | null;
   if (!container) {
     container = document.createElement('div');
     container.id = 'toast-container';
@@ -85,7 +84,7 @@ function setFieldHint(field: Element | null, message?: string): void {
     txt.textContent = message;
     hint.appendChild(txt);
     hint.classList.add('visible');
-    let aria = (document.getElementById('aria-live-errors') as HTMLElement | null);
+    let aria = document.getElementById('aria-live-errors') as HTMLElement | null;
     if (!aria) {
       aria = document.createElement('div');
       aria.id = 'aria-live-errors';
@@ -112,7 +111,9 @@ function setupFocusEmphasis() {
     if (['INPUT', 'SELECT', 'TEXTAREA'].includes(el.tagName)) {
       try {
         el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      } catch (e) { void e;}
+      } catch (e) {
+        void e;
+      }
       el.classList.add('focus-emphasis');
     }
   });
@@ -149,11 +150,17 @@ function toXml(obj: any, nodeName: string, indent = 0): string {
 }
 
 function updateDebug(data) {
-  const cns = (document.querySelector('input[data-bind="certidao.cartorio_cns"]') as any)?.value || '';
-  const ano = ((document.getElementById('data-reg') as HTMLInputElement | null)?.value || '').slice(-4);
-  const livro = (document.getElementById('matricula-livro') as HTMLInputElement | null)?.value || '';
-  const folha = (document.getElementById('matricula-folha') as HTMLInputElement | null)?.value || '';
-  const termo = (document.getElementById('matricula-termo') as HTMLInputElement | null)?.value || '';
+  const cns =
+    (document.querySelector('input[data-bind="certidao.cartorio_cns"]') as any)?.value || '';
+  const ano = ((document.getElementById('data-reg') as HTMLInputElement | null)?.value || '').slice(
+    -4,
+  );
+  const livro =
+    (document.getElementById('matricula-livro') as HTMLInputElement | null)?.value || '';
+  const folha =
+    (document.getElementById('matricula-folha') as HTMLInputElement | null)?.value || '';
+  const termo =
+    (document.getElementById('matricula-termo') as HTMLInputElement | null)?.value || '';
   const base = buildMatriculaBase30({
     cns6: cns,
     ano,
@@ -169,22 +176,22 @@ function updateDebug(data) {
     base && dv
       ? base + dv
       : buildMatriculaFinal({ cns6: cns, ano, tipoAto: '1', livro, folha, termo });
-  const baseEl = (document.getElementById('debug-matricula-base') as HTMLElement | null);
+  const baseEl = document.getElementById('debug-matricula-base') as HTMLElement | null;
   if (baseEl) (baseEl as any).value = base || '';
-  const dvEl = (document.getElementById('debug-matricula-dv') as HTMLElement | null);
+  const dvEl = document.getElementById('debug-matricula-dv') as HTMLElement | null;
   if (dvEl) (dvEl as any).value = dv || '';
-  const finalEl = (document.getElementById('debug-matricula-final') as HTMLElement | null);
+  const finalEl = document.getElementById('debug-matricula-final') as HTMLElement | null;
   if (finalEl) (finalEl as any).value = final || '';
   const invalids = collectInvalidFields(document);
-  const invalidEl = (document.getElementById('debug-invalid') as HTMLElement | null);
+  const invalidEl = document.getElementById('debug-invalid') as HTMLElement | null;
   if (invalidEl) (invalidEl as any).value = invalids.join('\n');
 }
 
 function updateOutputs() {
   const data = mapperHtmlToJson(document);
-  const jsonEl = (document.getElementById('json-output') as HTMLElement | null);
+  const jsonEl = document.getElementById('json-output') as HTMLElement | null;
   if (jsonEl) (jsonEl as any).value = JSON.stringify(data, null, 2);
-  const xmlEl = (document.getElementById('xml-output') as HTMLElement | null);
+  const xmlEl = document.getElementById('xml-output') as HTMLElement | null;
   if (xmlEl) (xmlEl as any).value = toXml(data, 'certidao_nascimento', 0);
   updateDebug(data);
 }
@@ -194,7 +201,7 @@ function canProceed() {
   if (!invalids || invalids.length === 0) return true;
   setStatus(`${invalids.length} campo(s) inválido(s). Corrija antes de prosseguir.`, true);
   showToast('Existem campos inválidos — corrija antes de prosseguir');
-  const invalidEl = (document.getElementById('debug-invalid') as HTMLElement | null);
+  const invalidEl = document.getElementById('debug-invalid') as HTMLElement | null;
   if (invalidEl) (invalidEl as any).value = invalids.join('\n');
   return false;
 }
@@ -202,16 +209,16 @@ function canProceed() {
 function updateActionButtons() {
   const invalids = collectInvalidFields(document);
   const disabled = !!(invalids && invalids.length > 0);
-  const btnJson = (document.getElementById('btn-json') as HTMLElement | null);
+  const btnJson = document.getElementById('btn-json') as HTMLElement | null;
   if (btnJson) (btnJson as any).disabled = disabled;
-  const btnXml = (document.getElementById('btn-xml') as HTMLElement | null);
+  const btnXml = document.getElementById('btn-xml') as HTMLElement | null;
   if (btnXml) (btnXml as any).disabled = disabled;
-  const btnSave = (document.getElementById('btn-save') as HTMLElement | null);
+  const btnSave = document.getElementById('btn-save') as HTMLElement | null;
   if (btnSave) (btnSave as any).disabled = disabled;
-  const statusEl = (document.getElementById('statusText') as HTMLElement | null);
+  const statusEl = document.getElementById('statusText') as HTMLElement | null;
   if (statusEl && !disabled) statusEl.textContent = 'Pronto';
 
-  let summary = (document.getElementById('form-error-summary') as HTMLElement | null);
+  let summary = document.getElementById('form-error-summary') as HTMLElement | null;
   if (!summary) {
     summary = document.createElement('div');
     summary.id = 'form-error-summary';
@@ -223,7 +230,7 @@ function updateActionButtons() {
     summary.style.color = '#6b7280';
     summary.style.fontSize = '12px';
     summary.style.opacity = '0.85';
-    const container = (document.querySelector('.container') as HTMLElement | null);
+    const container = document.querySelector('.container') as HTMLElement | null;
     if (container) container.appendChild(summary);
   }
   if (disabled) {
@@ -233,7 +240,7 @@ function updateActionButtons() {
     summary.style.display = 'none';
   }
   // update aria-live for assistive tech
-  let aria = (document.getElementById('aria-live-errors') as HTMLElement | null);
+  let aria = document.getElementById('aria-live-errors') as HTMLElement | null;
   if (!aria) {
     aria = document.createElement('div');
     aria.id = 'aria-live-errors';
@@ -251,7 +258,7 @@ function generateJson() {
   if (!canProceed()) return;
   const data = mapperHtmlToJson(document);
   const json = JSON.stringify(data, null, 2);
-  const out = (document.getElementById('json-output') as HTMLElement | null);
+  const out = document.getElementById('json-output') as HTMLElement | null;
   if (out) (out as any).value = json;
   const name = `NASCIMENTO_${new Date().toISOString().slice(0, 19).replace(/[:T]/g, '')}.json`;
   try {
@@ -265,7 +272,8 @@ function generateJson() {
     a.remove();
     URL.revokeObjectURL(url);
     setStatus(`JSON baixado: ${name}`);
-  } catch (e) { void e;
+  } catch (e) {
+    void e;
     setStatus('Falha ao gerar JSON', true);
   }
 }
@@ -274,7 +282,7 @@ function generateXml() {
   if (!canProceed()) return;
   const data = mapperHtmlToJson(document);
   const xml = toXml(data, 'certidao_nascimento', 0);
-  const out = (document.getElementById('xml-output') as HTMLElement | null);
+  const out = document.getElementById('xml-output') as HTMLElement | null;
   if (out) (out as any).value = xml;
   const name = `NASCIMENTO_${new Date().toISOString().slice(0, 19).replace(/[:T]/g, '')}.xml`;
   try {
@@ -288,7 +296,8 @@ function generateXml() {
     a.remove();
     URL.revokeObjectURL(url);
     setStatus(`XML baixado: ${name}`);
-  } catch (e) { void e;
+  } catch (e) {
+    void e;
     setStatus('Falha ao gerar XML', true);
   }
 }
@@ -338,7 +347,7 @@ function setupValidation() {
   });
 
   // CPF (id cpf)
-  const cpfInput = (document.getElementById('cpf') as HTMLElement | null);
+  const cpfInput = document.getElementById('cpf') as HTMLElement | null;
   if (cpfInput) {
     const field = resolveField(cpfInput);
     const handler = () => {
@@ -356,7 +365,8 @@ function setupValidation() {
     cpfInput.addEventListener('blur', () => {
       handler();
       const digits = normalizeCpf((cpfInput as any).value);
-      if ((cpfInput as any).value && (!digits || !isValidCpf(digits))) setFieldHint(field, 'CPF inválido');
+      if ((cpfInput as any).value && (!digits || !isValidCpf(digits)))
+        setFieldHint(field, 'CPF inválido');
       else clearFieldHint(field);
     });
     handler();
@@ -388,17 +398,29 @@ function setupValidation() {
       const validator = (window as any)._nameValidator || createNameValidator();
       // sanitize name-like and city-like inputs globally for this act
       try {
-        document.querySelectorAll('input[name*="nome"], input[name*="cidade"], input[name*="nacionalidade"], input[name*="naturalidade"], input[name*="mae"], input[name*="pai"], input[name*="avo"]').forEach((inp) => {
-          try {
-            const el = inp as HTMLInputElement;
-            el.addEventListener('input', () => {
-              const s = (el.value || '').replace(/[^A-Za-zÀ-ÿ'\- ]/g, '');
-              if (s !== el.value) el.value = s;
-            });
-          } catch (e) { /* ignore */ }
-        });
-      } catch (e) { /* ignore */ }
-      try { if (!(window as any)._nameValidator) (window as any)._nameValidator = validator; } catch (e) { /* ignore */ }
+        document
+          .querySelectorAll(
+            'input[name*="nome"], input[name*="cidade"], input[name*="nacionalidade"], input[name*="naturalidade"], input[name*="mae"], input[name*="pai"], input[name*="avo"]',
+          )
+          .forEach((inp) => {
+            try {
+              const el = inp as HTMLInputElement;
+              el.addEventListener('input', () => {
+                const s = (el.value || '').replace(/[^A-Za-zÀ-ÿ'\- ]/g, '');
+                if (s !== el.value) el.value = s;
+              });
+            } catch (e) {
+              /* ignore */
+            }
+          });
+      } catch (e) {
+        /* ignore */
+      }
+      try {
+        if (!(window as any)._nameValidator) (window as any)._nameValidator = validator;
+      } catch (e) {
+        /* ignore */
+      }
       const fields = document.querySelectorAll('[data-name-validate]');
       const timers = new Map();
       fields.forEach((input) => {
@@ -423,7 +445,11 @@ function setupValidation() {
             const t = timers.get(input as any);
             if (t) clearInterval(t);
             timers.delete(input as any);
-            try { clearFieldHint(field); } catch (e) { /* ignore */ }
+            try {
+              clearFieldHint(field);
+            } catch (e) {
+              /* ignore */
+            }
           });
         }
         const sanitize = () => {
@@ -439,9 +465,17 @@ function setupValidation() {
           (input as HTMLElement).classList.toggle('invalid', suspect);
           if (field) field.classList.toggle('name-suspect', suspect);
           if (suspect) {
-            try { setFieldHint(field, 'Nome incorreto!'); } catch (e) { /* ignore */ }
+            try {
+              setFieldHint(field, 'Nome incorreto!');
+            } catch (e) {
+              /* ignore */
+            }
           } else {
-            try { clearFieldHint(field); } catch (e) { /* ignore */ }
+            try {
+              clearFieldHint(field);
+            } catch (e) {
+              /* ignore */
+            }
           }
         };
         input.addEventListener('input', () => {
@@ -455,19 +489,21 @@ function setupValidation() {
           if (mode === 'blur' || mode === 'input') runCheck();
         });
       });
-      validator.ready.then(() => {
-        fields.forEach((input) => {
-          const field = resolveField(input);
-          if (field) field.classList.remove('name-suspect');
-          const value = (input as HTMLInputElement).value || '';
-          if (value) {
-            const result = validator.check(value);
-            const suspect = !!result.suspicious;
-            (input as HTMLElement).classList.toggle('invalid', suspect);
-            if (field) field.classList.toggle('name-suspect', suspect);
-          }
-        });
-      }).catch(() => {});
+      validator.ready
+        .then(() => {
+          fields.forEach((input) => {
+            const field = resolveField(input);
+            if (field) field.classList.remove('name-suspect');
+            const value = (input as HTMLInputElement).value || '';
+            if (value) {
+              const result = validator.check(value);
+              const suspect = !!result.suspicious;
+              (input as HTMLElement).classList.toggle('invalid', suspect);
+              if (field) field.classList.toggle('name-suspect', suspect);
+            }
+          });
+        })
+        .catch(() => {});
     }
 
     setupNameValidationLocal();
@@ -475,7 +511,7 @@ function setupValidation() {
 }
 
 function setupLiveOutputs() {
-  const form = (document.querySelector('.container') as HTMLElement | null);
+  const form = document.querySelector('.container') as HTMLElement | null;
   const handler = () => updateOutputs();
   document.addEventListener('input', handler);
   document.addEventListener('change', handler);
@@ -495,13 +531,17 @@ function setup() {
   // ensure default cartorio CNS is set on load so automatic matrícula can be generated
   (function ensureDefaultCartorioCns() {
     try {
-      const cnsInput = document.querySelector('input[data-bind="certidao.cartorio_cns"]') as HTMLInputElement | null;
+      const cnsInput = document.querySelector(
+        'input[data-bind="certidao.cartorio_cns"]',
+      ) as HTMLInputElement | null;
       if (!cnsInput) return;
       if (!cnsInput.value) {
         cnsInput.value = '163659';
         cnsInput.readOnly = true;
         // trigger bound handlers so state is updated and matrícula recalculated
-        const dataReg = document.querySelector('input[data-bind="registro.data_registro"]') as HTMLInputElement | null;
+        const dataReg = document.querySelector(
+          'input[data-bind="registro.data_registro"]',
+        ) as HTMLInputElement | null;
         if (dataReg) {
           dataReg.dispatchEvent(new Event('input', { bubbles: true }));
           dataReg.dispatchEvent(new Event('change', { bubbles: true }));
@@ -509,12 +549,17 @@ function setup() {
           (window as any).updateMatricula();
         }
       }
-    } catch (e) { /* ignore */ }
+    } catch (e) {
+      /* ignore */
+    }
   })();
 
   // Print PDF button: build printable HTML from current form data or from
   // an existing certificate fragment on the page (preferred when present).
-  function buildNascimentoPrintHtml(data: any, srcDoc: Document | HTMLElement | null = document): string {
+  function buildNascimentoPrintHtml(
+    data: any,
+    srcDoc: Document | HTMLElement | null = document,
+  ): string {
     const reg = data?.registro || {};
     const cert = data?.certidao || {};
     const name = reg.nome_completo || '';
@@ -525,9 +570,15 @@ function setup() {
     const mae = (reg.filiacao || '').split(';')[1] || '';
     const pai = (reg.filiacao || '').split(';')[0] || '';
     const cartorio = cert.cartorio_cns || '';
-    const livro = ((document.getElementById('matricula-livro') as HTMLElement | null) as HTMLInputElement)?.value || '';
-    const folha = ((document.getElementById('matricula-folha') as HTMLElement | null) as HTMLInputElement)?.value || '';
-    const termo = ((document.getElementById('matricula-termo') as HTMLElement | null) as HTMLInputElement)?.value || '';
+    const livro =
+      (document.getElementById('matricula-livro') as HTMLElement | null as HTMLInputElement)
+        ?.value || '';
+    const folha =
+      (document.getElementById('matricula-folha') as HTMLElement | null as HTMLInputElement)
+        ?.value || '';
+    const termo =
+      (document.getElementById('matricula-termo') as HTMLElement | null as HTMLInputElement)
+        ?.value || '';
     const cpf = reg.cpf || '';
     const dnv = reg.numero_dnv || '';
 
@@ -563,7 +614,9 @@ function setup() {
           const elEl = el as Element;
           const st = (elEl.getAttribute && elEl.getAttribute('style')) || '';
           if (/position\s*:\s*fixed/iu.test(st)) elEl.remove();
-        } catch (e) { /* ignore */ }
+        } catch (e) {
+          /* ignore */
+        }
       });
 
       // Sanitize attributes on the cloned node: remove event handlers and unsafe href/src/style values
@@ -589,11 +642,11 @@ function setup() {
               else node.setAttribute('style', safeStyle);
             }
           });
-        } catch (e) { /* ignore */ }
+        } catch (e) {
+          /* ignore */
+        }
       });
-      return `<!doctype html><html><head><meta charset="utf-8"><title>Certidão Nascimento</title>${links}${styles}</head><body>${
-        cloned.outerHTML
-      }
+      return `<!doctype html><html><head><meta charset="utf-8"><title>Certidão Nascimento</title>${links}${styles}</head><body>${cloned.outerHTML}
 				<script>
 				(function(){
 					function runHtml2Pdf(){
@@ -695,21 +748,21 @@ function setup() {
 		</body></html>`;
   }
 
- (document.getElementById('btn-print') as HTMLElement | null)?.addEventListener('click', (e) => {
+  (document.getElementById('btn-print') as HTMLElement | null)?.addEventListener('click', (e) => {
     e.preventDefault();
     if (!canProceed()) return;
 
     const data = mapperHtmlToJson(document);
     const html = buildNascimentoPdfHtmlTJ(data, {
-      cssHref: "../assets/tj/certidao.css", // você coloca o arquivo local
+      cssHref: '../assets/tj/certidao.css', // você coloca o arquivo local
     });
 
     try {
-      openHtmlAndSavePdf(html, "NASCIMENTO_");
-      setStatus("Gerando PDF…");
+      openHtmlAndSavePdf(html, 'NASCIMENTO_');
+      setStatus('Gerando PDF…');
     } catch (err) {
-      showToast("Permita popups para imprimir/baixar PDF");
-      setStatus("Popup bloqueado", true);
+      showToast('Permita popups para imprimir/baixar PDF');
+      setStatus('Popup bloqueado', true);
     }
   });
   setupValidation();
@@ -730,11 +783,11 @@ function setup() {
 }
 
 function setupSettingsPanel() {
-  const select = (document.getElementById('settings-drawer-position') as HTMLElement | null);
-  const cbCpf = (document.getElementById('settings-enable-cpf') as HTMLElement | null);
-  const cbName = (document.getElementById('settings-enable-name') as HTMLElement | null);
-  const saveBtn = (document.getElementById('settings-save') as HTMLElement | null);
-  const applyBtn = (document.getElementById('settings-apply') as HTMLElement | null);
+  const select = document.getElementById('settings-drawer-position') as HTMLElement | null;
+  const cbCpf = document.getElementById('settings-enable-cpf') as HTMLElement | null;
+  const cbName = document.getElementById('settings-enable-name') as HTMLElement | null;
+  const saveBtn = document.getElementById('settings-save') as HTMLElement | null;
+  const applyBtn = document.getElementById('settings-apply') as HTMLElement | null;
 
   const pos = localStorage.getItem(DRAWER_POS_KEY) || 'bottom-right';
   const enableCpf = localStorage.getItem(ENABLE_CPF_KEY) !== 'false';
@@ -745,13 +798,13 @@ function setupSettingsPanel() {
   if (select) (select as any).value = pos;
   if (cbCpf) (cbCpf as any).checked = !!enableCpf;
   if (cbName) (cbName as any).checked = !!enableName;
-  const cbInline = (document.getElementById('settings-panel-inline') as HTMLElement | null);
+  const cbInline = document.getElementById('settings-panel-inline') as HTMLElement | null;
   if (cbInline) (cbInline as any).checked = !!panelInline;
 
   applyBtn?.addEventListener('click', () => {
     const newPos = (select as HTMLSelectElement | null)?.value || 'bottom-right';
     // apply only (no save)
-    const drawer = (document.getElementById('drawer') as HTMLElement | null);
+    const drawer = document.getElementById('drawer') as HTMLElement | null;
     if (drawer) {
       drawer.classList.remove('position-top', 'position-bottom-right', 'position-side');
       if (newPos === 'top') drawer.classList.add('position-top');
@@ -765,7 +818,10 @@ function setupSettingsPanel() {
     const newPos = (select as HTMLSelectElement | null)?.value || 'bottom-right';
     const newCpf = (cbCpf as HTMLInputElement | null)?.checked ? 'true' : 'false';
     const newName = (cbName as HTMLInputElement | null)?.checked ? 'true' : 'false';
-    const newInline = (document.getElementById('settings-panel-inline') as HTMLInputElement | null)?.checked ? 'true' : 'false';
+    const newInline = (document.getElementById('settings-panel-inline') as HTMLInputElement | null)
+      ?.checked
+      ? 'true'
+      : 'false';
     localStorage.setItem(DRAWER_POS_KEY, newPos);
     localStorage.setItem(ENABLE_CPF_KEY, newCpf);
     localStorage.setItem(ENABLE_NAME_KEY, newName);

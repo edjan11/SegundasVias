@@ -1,4 +1,3 @@
-
 import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
@@ -42,7 +41,9 @@ function readDb() {
     if (parsed && parsed.version === DB_VERSION && Array.isArray(parsed.certidoes)) {
       return parsed;
     }
-  } catch (e) { void e;}
+  } catch (e) {
+    void e;
+  }
   return {
     version: DB_VERSION,
     createdAt: nowIso(),

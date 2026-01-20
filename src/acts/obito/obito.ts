@@ -1,4 +1,3 @@
-
 import { mapperHtmlToJson } from './mapperHtmlToJson';
 import { normalizeDate } from '../../shared/validators/date';
 import { validateDateDetailed } from '../../shared/validators/date';
@@ -28,7 +27,7 @@ const ENABLE_NAME_KEY = 'ui.enableNameValidation';
 const PANEL_INLINE_KEY = 'ui.panelInline';
 
 function applyDrawerPosition(pos) {
-  const drawer = (document.getElementById('drawer') as HTMLElement | null);
+  const drawer = document.getElementById('drawer') as HTMLElement | null;
   if (!drawer) return;
   drawer.classList.remove('position-top', 'position-bottom-right', 'position-side');
   if (pos === 'top') drawer.classList.add('position-top');
@@ -37,7 +36,7 @@ function applyDrawerPosition(pos) {
 }
 
 function setStatus(text, isError?) {
-  const el = (document.getElementById('statusText') as HTMLElement | null);
+  const el = document.getElementById('statusText') as HTMLElement | null;
   if (!el) return;
   el.textContent = text;
   el.style.color = isError ? '#dc2626' : '#64748b';
@@ -54,7 +53,7 @@ function canProceed() {
   if (!invalids || invalids.length === 0) return true;
   setStatus(`${invalids.length} campo(s) inválido(s). Corrija antes de prosseguir.`, true);
   showToast('Existem campos inválidos — corrija antes de prosseguir');
-  const invalidEl = (document.getElementById('debug-invalid') as HTMLElement | null);
+  const invalidEl = document.getElementById('debug-invalid') as HTMLElement | null;
   if (invalidEl) (invalidEl as any).value = invalids.join('\n');
   return false;
 }
@@ -62,15 +61,15 @@ function canProceed() {
 function updateActionButtons() {
   const invalids = collectInvalidFields(document);
   const disabled = !!(invalids && invalids.length > 0);
-  const btnJson = (document.getElementById('btn-json') as HTMLElement | null);
+  const btnJson = document.getElementById('btn-json') as HTMLElement | null;
   if (btnJson) (btnJson as any).disabled = disabled;
-  const btnXml = (document.getElementById('btn-xml') as HTMLElement | null);
+  const btnXml = document.getElementById('btn-xml') as HTMLElement | null;
   if (btnXml) (btnXml as any).disabled = disabled;
-  const btnPrint = (document.getElementById('btn-print') as HTMLElement | null);
+  const btnPrint = document.getElementById('btn-print') as HTMLElement | null;
   if (btnPrint) (btnPrint as any).disabled = disabled;
-  const statusEl = (document.getElementById('statusText') as HTMLElement | null);
+  const statusEl = document.getElementById('statusText') as HTMLElement | null;
   if (statusEl && !disabled) statusEl.textContent = 'Pronto';
-  let summary = (document.getElementById('form-error-summary') as HTMLElement | null);
+  let summary = document.getElementById('form-error-summary') as HTMLElement | null;
   if (!summary) {
     summary = document.createElement('div');
     summary.id = 'form-error-summary';
@@ -82,7 +81,7 @@ function updateActionButtons() {
     summary.style.color = '#6b7280';
     summary.style.fontSize = '12px';
     summary.style.opacity = '0.85';
-    const container = (document.querySelector('.container') as HTMLElement | null);
+    const container = document.querySelector('.container') as HTMLElement | null;
     if (container) container.appendChild(summary);
   }
   if (disabled) {
@@ -91,7 +90,7 @@ function updateActionButtons() {
   } else if (summary) {
     summary.style.display = 'none';
   }
-  let aria = (document.getElementById('aria-live-errors') as HTMLElement | null);
+  let aria = document.getElementById('aria-live-errors') as HTMLElement | null;
   if (!aria) {
     aria = document.createElement('div');
     aria.id = 'aria-live-errors';
@@ -151,7 +150,8 @@ function downloadFile(name, content, mime) {
     a.remove();
     URL.revokeObjectURL(url);
     return true;
-  } catch (e) { void e;
+  } catch (e) {
+    void e;
     return false;
   }
 }
@@ -186,7 +186,7 @@ function generateJson() {
   if (!canProceed()) return;
   const data = mapperHtmlToJson(document);
   const json = JSON.stringify(data, null, 2);
-  const out = (document.getElementById('json-output') as HTMLElement | null);
+  const out = document.getElementById('json-output') as HTMLElement | null;
   if (out) (out as any).value = json;
   const name = buildFileName(data, 'json');
   if (downloadFile(name, json, 'application/json')) setStatus(`JSON baixado: ${name}`);
@@ -197,7 +197,7 @@ function generateXml() {
   if (!canProceed()) return;
   const data = mapperHtmlToJson(document);
   const xml = toXml(data, 'certidao_obito', 0);
-  const out = (document.getElementById('xml-output') as HTMLElement | null);
+  const out = document.getElementById('xml-output') as HTMLElement | null;
   if (out) (out as any).value = xml;
   const name = buildFileName(data, 'xml');
   if (downloadFile(name, xml, 'application/xml')) setStatus(`XML baixado: ${name}`);
@@ -215,13 +215,14 @@ function openPrintPreview() {
     (cidadeMatch ? cidadeMatch[1] : '') ||
     (document.querySelector('input[name="municipioObito"]') as any)?.value ||
     '';
-  const ufCartorio = (document.querySelector('select[name="ufMunicipioObito"]') as any)?.value || '';
+  const ufCartorio =
+    (document.querySelector('select[name="ufMunicipioObito"]') as any)?.value || '';
   const html = buildObitoPrintHtml(data, {
     assinante: assinante.trim(),
     cidadeCartorio: cidadeCartorio.trim(),
     ufCartorio,
   });
-  const out = (document.getElementById('print-html') as HTMLElement | null);
+  const out = document.getElementById('print-html') as HTMLElement | null;
   if (out) (out as any).value = html;
   const win = window.open('', '_blank');
   if (!win) {
@@ -236,7 +237,7 @@ function openPrintPreview() {
 }
 
 function showToast(message) {
-  let container = (document.getElementById('toast-container') as HTMLElement | null);
+  let container = document.getElementById('toast-container') as HTMLElement | null;
   if (!container) {
     container = document.createElement('div');
     container.id = 'toast-container';
@@ -270,11 +271,11 @@ function setupConfigPanel() {
 }
 
 function setupSettingsPanel() {
-  const select = (document.getElementById('settings-drawer-position') as HTMLElement | null);
-  const cbCpf = (document.getElementById('settings-enable-cpf') as HTMLElement | null);
-  const cbName = (document.getElementById('settings-enable-name') as HTMLElement | null);
-  const saveBtn = (document.getElementById('settings-save') as HTMLElement | null);
-  const applyBtn = (document.getElementById('settings-apply') as HTMLElement | null);
+  const select = document.getElementById('settings-drawer-position') as HTMLElement | null;
+  const cbCpf = document.getElementById('settings-enable-cpf') as HTMLElement | null;
+  const cbName = document.getElementById('settings-enable-name') as HTMLElement | null;
+  const saveBtn = document.getElementById('settings-save') as HTMLElement | null;
+  const applyBtn = document.getElementById('settings-apply') as HTMLElement | null;
 
   const pos = localStorage.getItem(DRAWER_POS_KEY) || 'bottom-right';
   const enableCpf = localStorage.getItem(ENABLE_CPF_KEY) !== 'false';
@@ -286,7 +287,7 @@ function setupSettingsPanel() {
   if (select) (select as any).value = pos;
   if (cbCpf) (cbCpf as any).checked = !!enableCpf;
   if (cbName) (cbName as any).checked = !!enableName;
-  const cbInline = (document.getElementById('settings-panel-inline') as HTMLElement | null);
+  const cbInline = document.getElementById('settings-panel-inline') as HTMLElement | null;
   if (cbInline) (cbInline as any).checked = !!panelInline;
 
   applyDrawerPosition(pos);
@@ -295,7 +296,10 @@ function setupSettingsPanel() {
     const newPos = (select as HTMLSelectElement | null)?.value || 'bottom-right';
     const newCpf = (cbCpf as HTMLInputElement | null)?.checked ? 'true' : 'false';
     const newName = (cbName as HTMLInputElement | null)?.checked ? 'true' : 'false';
-    const newInline = (document.getElementById('settings-panel-inline') as HTMLInputElement | null)?.checked ? 'true' : 'false';
+    const newInline = (document.getElementById('settings-panel-inline') as HTMLInputElement | null)
+      ?.checked
+      ? 'true'
+      : 'false';
     localStorage.setItem(DRAWER_POS_KEY, newPos);
     localStorage.setItem(ENABLE_CPF_KEY, newCpf);
     localStorage.setItem(ENABLE_NAME_KEY, newName);
@@ -314,7 +318,7 @@ function setupSettingsPanel() {
 }
 
 function ensureDrawer() {
-  let drawer = (document.getElementById('drawer') as HTMLElement | null);
+  let drawer = document.getElementById('drawer') as HTMLElement | null;
   if (drawer) return drawer;
   drawer = document.createElement('div');
   drawer.id = 'drawer';
@@ -373,7 +377,7 @@ function ensureDrawer() {
 
   // tab switching
   tabbar.addEventListener('click', (e) => {
-    const t = (e.target as Element | null);
+    const t = e.target as Element | null;
     if (!t || !(t instanceof Element)) return;
     const btn = t.closest('.tab-btn') as HTMLElement | null;
     if (!btn) return;
@@ -395,10 +399,10 @@ function arrangePanel() {
   const panelInlineStored = localStorage.getItem(PANEL_INLINE_KEY);
   // default to floating drawer as primary
   const useInline = panelInlineStored === null ? false : panelInlineStored === 'true';
-  const inline = (document.getElementById('panel-inline') as HTMLElement | null);
+  const inline = document.getElementById('panel-inline') as HTMLElement | null;
   if (!inline) return;
   const drawerPos = localStorage.getItem(DRAWER_POS_KEY) || 'bottom-right';
-  const existingDrawer = (document.getElementById('drawer') as HTMLElement | null);
+  const existingDrawer = document.getElementById('drawer') as HTMLElement | null;
 
   if (useInline) {
     // ensure content is inline
@@ -409,7 +413,7 @@ function arrangePanel() {
       }
       existingDrawer.remove();
     }
-    const toggle = (document.getElementById('drawer-toggle') as HTMLElement | null);
+    const toggle = document.getElementById('drawer-toggle') as HTMLElement | null;
     if (toggle) toggle.style.display = 'none';
   } else {
     // move inline content into drawer
@@ -441,7 +445,7 @@ function arrangePanel() {
         else body.appendChild(node);
       }
     }
-    const toggle = (document.getElementById('drawer-toggle') as HTMLElement | null);
+    const toggle = document.getElementById('drawer-toggle') as HTMLElement | null;
     if (toggle) toggle.style.display = 'inline-flex';
   }
 }
@@ -450,10 +454,10 @@ function arrangePanel__dup_2() {
   const panelInlineStored = localStorage.getItem(PANEL_INLINE_KEY);
   // default to floating drawer as primary
   const useInline = panelInlineStored === null ? false : panelInlineStored === 'true';
-  const inline = (document.getElementById('panel-inline') as HTMLElement | null);
+  const inline = document.getElementById('panel-inline') as HTMLElement | null;
   if (!inline) return;
   const drawerPos = localStorage.getItem(DRAWER_POS_KEY) || 'bottom-right';
-  const existingDrawer = (document.getElementById('drawer') as HTMLElement | null);
+  const existingDrawer = document.getElementById('drawer') as HTMLElement | null;
 
   if (useInline) {
     // ensure content is inline
@@ -464,7 +468,7 @@ function arrangePanel__dup_2() {
       }
       existingDrawer.remove();
     }
-    const toggle = (document.getElementById('drawer-toggle') as HTMLElement | null);
+    const toggle = document.getElementById('drawer-toggle') as HTMLElement | null;
     if (toggle) toggle.style.display = 'none';
   } else {
     // move inline content into drawer
@@ -496,22 +500,20 @@ function arrangePanel__dup_2() {
         else body.appendChild(node);
       }
     }
-    const toggle = (document.getElementById('drawer-toggle') as HTMLElement | null);
+    const toggle = document.getElementById('drawer-toggle') as HTMLElement | null;
     if (toggle) toggle.style.display = 'inline-flex';
   }
 }
 
 function setupDrawerToggle() {
-  const btn = (document.getElementById('drawer-toggle') as HTMLElement | null);
+  const btn = document.getElementById('drawer-toggle') as HTMLElement | null;
   if (!btn) return;
   btn.addEventListener('click', () => {
-    const drawer = (document.getElementById('drawer') as HTMLElement | null);
+    const drawer = document.getElementById('drawer') as HTMLElement | null;
     if (!drawer) return;
     drawer.classList.toggle('open');
   });
 }
-
-
 
 function populateOrgaoAndUf() {
   // opções de órgãos (copiado do template HTML)
@@ -577,7 +579,7 @@ function populateOrgaoAndUf() {
   });
 
   // popular ufTitulo
-  const ufSelect = (document.getElementById('ufTitulo') as HTMLElement | null);
+  const ufSelect = document.getElementById('ufTitulo') as HTMLElement | null;
   if (ufSelect) {
     ufSelect.innerHTML = '';
     const ufs = [
@@ -645,31 +647,40 @@ function updateDebug(data) {
     termo,
   });
   const dv = base ? calcDv2Digits(base) : '';
-  const candidate = base && dv ? base + dv : buildMatriculaFinal({ cns6: cns, ano, tipoAto: '4', livro, folha, termo });
-  const final = candidate ? adjustMatricula(candidate, (document.querySelector('textarea[name="observacoes"]') as HTMLTextAreaElement | null)?.value) || candidate : '';
+  const candidate =
+    base && dv
+      ? base + dv
+      : buildMatriculaFinal({ cns6: cns, ano, tipoAto: '4', livro, folha, termo });
+  const final = candidate
+    ? adjustMatricula(
+        candidate,
+        (document.querySelector('textarea[name="observacoes"]') as HTMLTextAreaElement | null)
+          ?.value,
+      ) || candidate
+    : '';
 
-  const baseEl = (document.getElementById('debug-matricula-base') as HTMLElement | null);
+  const baseEl = document.getElementById('debug-matricula-base') as HTMLElement | null;
   if (baseEl) (baseEl as any).value = base || '';
-  const dvEl = (document.getElementById('debug-matricula-dv') as HTMLElement | null);
+  const dvEl = document.getElementById('debug-matricula-dv') as HTMLElement | null;
   if (dvEl) (dvEl as any).value = dv || '';
-  const finalEl = (document.getElementById('debug-matricula-final') as HTMLElement | null);
+  const finalEl = document.getElementById('debug-matricula-final') as HTMLElement | null;
   if (finalEl) (finalEl as any).value = final || '';
 
   const invalids = collectInvalidFields(document);
-  const invalidEl = (document.getElementById('debug-invalid') as HTMLElement | null);
+  const invalidEl = document.getElementById('debug-invalid') as HTMLElement | null;
   if (invalidEl) (invalidEl as any).value = invalids.join('\n');
 
-  const alertsEl = (document.getElementById('debug-alerts') as HTMLElement | null);
+  const alertsEl = document.getElementById('debug-alerts') as HTMLElement | null;
   if (alertsEl) (alertsEl as any).value = '';
 }
 
 function updateOutputs() {
   const data = mapperHtmlToJson(document);
-  const jsonEl = (document.getElementById('json-output') as HTMLElement | null);
+  const jsonEl = document.getElementById('json-output') as HTMLElement | null;
   if (jsonEl) (jsonEl as any).value = JSON.stringify(data, null, 2);
-  const xmlEl = (document.getElementById('xml-output') as HTMLElement | null);
+  const xmlEl = document.getElementById('xml-output') as HTMLElement | null;
   if (xmlEl) (xmlEl as any).value = toXml(data, 'certidao_obito', 0);
-  const printEl = (document.getElementById('print-html') as HTMLElement | null);
+  const printEl = document.getElementById('print-html') as HTMLElement | null;
   if (printEl) {
     const assinante =
       document.querySelector('select[name="idAssinante"] option:checked')?.textContent || '';
@@ -679,7 +690,8 @@ function updateOutputs() {
       (cidadeMatch ? cidadeMatch[1] : '') ||
       (document.querySelector('input[name="municipioObito"]') as any)?.value ||
       '';
-    const ufCartorio = (document.querySelector('select[name="ufMunicipioObito"]') as any)?.value || '';
+    const ufCartorio =
+      (document.querySelector('select[name="ufMunicipioObito"]') as any)?.value || '';
     (printEl as any).value = buildObitoPrintHtml(data, {
       assinante: assinante.trim(),
       cidadeCartorio: cidadeCartorio.trim(),
@@ -690,7 +702,7 @@ function updateOutputs() {
 }
 
 function setupLiveOutputs() {
-  const form = (document.getElementById('form-obito') as HTMLElement | null);
+  const form = document.getElementById('form-obito') as HTMLElement | null;
   const handler = () => updateOutputs();
   form?.addEventListener('input', handler);
   form?.addEventListener('change', handler);
@@ -737,7 +749,7 @@ function setFieldHint(field, message) {
     hint.appendChild(txt);
     hint.classList.add('visible');
     // update aria-live region for screen-readers
-    let aria = (document.getElementById('aria-live-errors') as HTMLElement | null);
+    let aria = document.getElementById('aria-live-errors') as HTMLElement | null;
     if (!aria) {
       aria = document.createElement('div');
       aria.id = 'aria-live-errors';
@@ -764,7 +776,9 @@ function setupFocusEmphasis() {
     if (['INPUT', 'SELECT', 'TEXTAREA'].includes(el.tagName)) {
       try {
         el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      } catch (e) { void e;}
+      } catch (e) {
+        void e;
+      }
       el.classList.add('focus-emphasis');
     }
   });
@@ -861,7 +875,11 @@ function setupValidation() {
         (input as any).value = formatCpfInput((input as any).value);
         const digits = normalizeCpf((input as any).value);
         const isValid = !digits || isValidCpf(digits);
-        const state = getFieldState({ required, value: digits ? (input as any).value : '', isValid });
+        const state = getFieldState({
+          required,
+          value: digits ? (input as any).value : '',
+          isValid,
+        });
         applyState(input, field, state);
       };
       input.addEventListener('input', handler);
@@ -875,8 +893,6 @@ function setupValidation() {
       handler();
     });
   }
-
- 
 
   document
     .querySelectorAll('select[data-required], textarea[data-required], input[data-required]')
@@ -902,22 +918,34 @@ function setupValidation() {
 
 function setupNameValidation() {
   const validator = (window as any)._nameValidator || createNameValidator();
-  try { if (!(window as any)._nameValidator) (window as any)._nameValidator = validator; } catch (e) { /* ignore */ }
+  try {
+    if (!(window as any)._nameValidator) (window as any)._nameValidator = validator;
+  } catch (e) {
+    /* ignore */
+  }
   const fields = document.querySelectorAll('[data-name-validate]');
   const timers = new Map();
 
   // sanitize name-like and city-like inputs globally for this act
   try {
-    document.querySelectorAll('input[name*="nome"], input[name*="cidade"], input[name*="nacionalidade"], input[name*="naturalidade"], input[name*="mae"], input[name*="pai"], input[name*="avo"]').forEach((inp) => {
-      try {
-        const el = inp as HTMLInputElement;
-        el.addEventListener('input', () => {
-          const s = (el.value || '').replace(/[^A-Za-zÀ-ÿ'\- ]/g, '');
-          if (s !== el.value) el.value = s;
-        });
-      } catch (e) { /* ignore */ }
-    });
-  } catch (e) { /* ignore */ }
+    document
+      .querySelectorAll(
+        'input[name*="nome"], input[name*="cidade"], input[name*="nacionalidade"], input[name*="naturalidade"], input[name*="mae"], input[name*="pai"], input[name*="avo"]',
+      )
+      .forEach((inp) => {
+        try {
+          const el = inp as HTMLInputElement;
+          el.addEventListener('input', () => {
+            const s = (el.value || '').replace(/[^A-Za-zÀ-ÿ'\- ]/g, '');
+            if (s !== el.value) el.value = s;
+          });
+        } catch (e) {
+          /* ignore */
+        }
+      });
+  } catch (e) {
+    /* ignore */
+  }
 
   fields.forEach((input) => {
     const field = resolveField(input);
@@ -958,9 +986,17 @@ function setupNameValidation() {
       input.classList.toggle('invalid', suspect);
       if (field) field.classList.toggle('name-suspect', suspect);
       if (suspect) {
-        try { setFieldHint(field as Element | null, 'Nome incorreto!'); } catch (e) { /* ignore */ }
+        try {
+          setFieldHint(field as Element | null, 'Nome incorreto!');
+        } catch (e) {
+          /* ignore */
+        }
       } else {
-        try { clearFieldHint(field as Element | null); } catch (e) { /* ignore */ }
+        try {
+          clearFieldHint(field as Element | null);
+        } catch (e) {
+          /* ignore */
+        }
       }
     };
 
@@ -1017,15 +1053,23 @@ function setup() {
   setupDrawerToggle();
   setupActSelect('obito');
   setupPrimaryShortcut(
-    () => (document.getElementById('btn-json') as HTMLElement | null) || (document.getElementById('btn-xml') as HTMLElement | null),
+    () =>
+      (document.getElementById('btn-json') as HTMLElement | null) ||
+      (document.getElementById('btn-xml') as HTMLElement | null),
   );
   setupTogglePanels();
   setupLiveOutputs();
   setupFocusEmphasis();
   // ensure action buttons reflect current validity
   updateActionButtons();
-  (document.getElementById('form-obito') as HTMLElement | null)?.addEventListener('input', updateActionButtons);
-  (document.getElementById('form-obito') as HTMLElement | null)?.addEventListener('change', updateActionButtons);
+  (document.getElementById('form-obito') as HTMLElement | null)?.addEventListener(
+    'input',
+    updateActionButtons,
+  );
+  (document.getElementById('form-obito') as HTMLElement | null)?.addEventListener(
+    'change',
+    updateActionButtons,
+  );
 }
 
 setup();

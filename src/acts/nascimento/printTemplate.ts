@@ -1,4 +1,3 @@
-
 /**
  * Gera o HTML de impressão da certidão de nascimento.
  * @param {any} data Dados da certidão (registro e certidao)

@@ -18,7 +18,11 @@ export type AppState = {
   ui?: { naturalidade_diferente?: boolean };
 };
 
-export type RegisterHandlers = { onSave?: () => void; onPickJson?: () => void; onPickXml?: () => void };
+export type RegisterHandlers = {
+  onSave?: () => void;
+  onPickJson?: () => void;
+  onPickXml?: () => void;
+};
 export type ActionHandlers = { onSave?: () => void; onJson?: () => void; onXml?: () => void };
 
 declare global {
@@ -31,7 +35,7 @@ declare global {
     _nameValidationShiftHeld?: () => boolean;
     _nameSuggestPopoverDelegated?: boolean;
   }
-}  
+}
 
 export function setStatus(text: string, isError?: boolean): void {
   const el = document.getElementById('statusText') as HTMLElement | null;
@@ -43,7 +47,7 @@ export function setStatus(text: string, isError?: boolean): void {
   (el as HTMLElement & { _timer?: any })._timer = window.setTimeout(() => {
     el.textContent = 'Pronto';
     el.style.color = '#64748b';
-  }, 2000); 
+  }, 2000);
 }
 
 export function setDirty(flag: boolean): void {
@@ -51,39 +55,51 @@ export function setDirty(flag: boolean): void {
     const btn = document.getElementById('btn-save') as HTMLElement | null;
     if (!btn) return;
     btn.classList.toggle('dirty', !!flag);
-  } catch (e) { /* ignore */ }
+  } catch (e) {
+    /* ignore */
+  }
 }
 
 // ensure drawer toggle works even if per-act setup skipped or button recreated
 try {
   if (!window._drawerDelegated) {
     window._drawerDelegated = true;
-    document.addEventListener('click', (e) => {
-      try {
-        const target = e.target as HTMLElement | null;
-        if (!target) return;
-        if (target.id === 'drawer-toggle' || target.closest?.('#drawer-toggle')) {
-          const d = document.getElementById('drawer');
-          if (!d) return;
-          d.classList.toggle('open');
+    document.addEventListener(
+      'click',
+      (e) => {
+        try {
+          const target = e.target as HTMLElement | null;
+          if (!target) return;
+          if (target.id === 'drawer-toggle' || target.closest?.('#drawer-toggle')) {
+            const d = document.getElementById('drawer');
+            if (!d) return;
+            d.classList.toggle('open');
+          }
+          if (target.id === 'drawer-close' || target.closest?.('#drawer-close')) {
+            const d = document.getElementById('drawer');
+            if (!d) return;
+            d.classList.remove('open');
+          }
+        } catch (err) {
+          /* ignore */
         }
-        if (target.id === 'drawer-close' || target.closest?.('#drawer-close')) {
-          const d = document.getElementById('drawer');
-          if (!d) return;
-          d.classList.remove('open');
-        }
-      } catch (err) { /* ignore */ }
-    }, true);
+      },
+      true,
+    );
   }
-} catch (e) { /* ignore */ }
+} catch (e) {
+  /* ignore */
+}
 
 export function updateTipoButtons(state?: AppState): void {
   const tipo = (state && state.certidao && state.certidao.tipo_registro) || 'nascimento';
-  const input = document.querySelector('[data-bind="certidao.tipo_registro"]') as HTMLInputElement | null;
+  const input = document.querySelector(
+    '[data-bind="certidao.tipo_registro"]',
+  ) as HTMLInputElement | null;
   if (input) input.value = tipo;
   const casamentoWrap = document.getElementById('casamento-tipo-wrap') as HTMLElement | null;
   if (casamentoWrap) casamentoWrap.style.display = tipo === 'casamento' ? 'flex' : 'none';
-} 
+}
 
 export function updateSexoOutros(state?: AppState): void {
   const sexo = state && state.registro && state.registro.sexo;
@@ -96,7 +112,7 @@ export function updateSexoOutros(state?: AppState): void {
     input.value = '';
     if (state && state.registro) state.registro.sexo_outros = '';
   }
-} 
+}
 
 export function updateIgnoreFields(state?: AppState): void {
   const dnIgn = !!(state && state.registro && state.registro.data_nascimento_ignorada);
@@ -117,24 +133,32 @@ export function updateIgnoreFields(state?: AppState): void {
       if (state && state.registro) state.registro.hora_nascimento = '';
     }
   }
-} 
+}
 
 export function setupConfigPanel(registerHandlers?: RegisterHandlers): void {
   const NAME_MODE_KEY = 'ui.nameValidationMode';
   const NAME_MODE = localStorage.getItem(NAME_MODE_KEY) || 'blur';
-  const radios = Array.from(document.querySelectorAll('input[name="name-validation-mode"]')) as HTMLInputElement[];
+  const radios = Array.from(
+    document.querySelectorAll('input[name="name-validation-mode"]'),
+  ) as HTMLInputElement[];
   radios.forEach((radio) => {
     radio.checked = radio.value === NAME_MODE;
-  }); 
+  });
   const saveBtn = document.getElementById('config-save') as HTMLElement | null;
   if (saveBtn)
     saveBtn.addEventListener('click', () => {
-      const selected = document.querySelector('input[name="name-validation-mode"]:checked') as HTMLInputElement | null;
+      const selected = document.querySelector(
+        'input[name="name-validation-mode"]:checked',
+      ) as HTMLInputElement | null;
       if (selected && selected.value) {
         localStorage.setItem(NAME_MODE_KEY, selected.value);
       }
       // provide feedback and reload to apply immediately (consistent with other settings)
-      try { setStatus('Preferências salvas. Atualizando...', false); } catch (e) { /* ignore */ }
+      try {
+        setStatus('Preferências salvas. Atualizando...', false);
+      } catch (e) {
+        /* ignore */
+      }
       setTimeout(() => window.location.reload(), 250);
       if (registerHandlers && typeof registerHandlers.onSave === 'function')
         registerHandlers.onSave();
@@ -155,18 +179,29 @@ export function setupActions(handlers: ActionHandlers = {}): void {
   // internal: process marked names before the regular save handler runs
   if (btnSave) {
     // capture phase to run early
-    btnSave.addEventListener('click', () => {
-      try { processMarkedNames(window._nameValidator); } catch (e) { /* ignore */ }
-    }, true);
+    btnSave.addEventListener(
+      'click',
+      () => {
+        try {
+          processMarkedNames(window._nameValidator);
+        } catch (e) {
+          /* ignore */
+        }
+      },
+      true,
+    );
     if (typeof handlers.onSave === 'function') btnSave.addEventListener('click', handlers.onSave);
   }
 
-  if (btnJson && typeof handlers.onJson === 'function') btnJson.addEventListener('click', handlers.onJson);
-  if (btnXml && typeof handlers.onXml === 'function') btnXml.addEventListener('click', handlers.onXml);
+  if (btnJson && typeof handlers.onJson === 'function')
+    btnJson.addEventListener('click', handlers.onJson);
+  if (btnXml && typeof handlers.onXml === 'function')
+    btnXml.addEventListener('click', handlers.onXml);
 
   // add a small "Salvar local" button to trigger JSON download of the current form
   try {
-    const toolbar = document.querySelector('.toolbar-left') || document.querySelector('.toolbar-right');
+    const toolbar =
+      document.querySelector('.toolbar-left') || document.querySelector('.toolbar-right');
     if (toolbar && !document.getElementById('btn-save-local')) {
       const b = document.createElement('button');
       b.id = 'btn-save-local';
@@ -182,21 +217,28 @@ export function setupActions(handlers: ActionHandlers = {}): void {
           const data = collectFormData();
           const ts = new Date().toISOString().replace(/[:.]/g, '-');
           downloadJson(data, `certidao-${ts}.json`);
-        } catch (err) { /* ignore */ }
+        } catch (err) {
+          /* ignore */
+        }
       });
       toolbar.appendChild(b);
     }
-  } catch (e) { /* ignore */ }
-} 
+  } catch (e) {
+    /* ignore */
+  }
+}
 
-export function setupNaturalidadeToggle(state?: AppState, onChange?: (changed: boolean) => void): void {
+export function setupNaturalidadeToggle(
+  state?: AppState,
+  onChange?: (changed: boolean) => void,
+): void {
   const toggle = document.getElementById('naturalidade-diferente') as HTMLInputElement | null;
   if (!toggle) return;
   toggle.addEventListener('change', () => {
     if (state && state.ui) state.ui.naturalidade_diferente = !!toggle.checked;
     if (typeof onChange === 'function') onChange(true);
   });
-} 
+}
 
 export function setupShortcuts(saveHandler?: () => void): void {
   window.addEventListener('keydown', (e) => {
@@ -213,7 +255,9 @@ export function setupActSelect(defaultValue?: string): void {
   try {
     if (defaultValue) select.value = defaultValue;
     else select.value = select.value || 'nascimento';
-  } catch (e) { /* ignore */ }
+  } catch (e) {
+    /* ignore */
+  }
 
   const goTo = (val: string) => {
     try {
@@ -225,10 +269,16 @@ export function setupActSelect(defaultValue?: string): void {
       const next = map[val];
       if (next) {
         // small debug log to help trace issues in browser console
-        try { console.debug('setupActSelect -> navigating to', next); } catch (e) { /* ignore */ }
+        try {
+          console.debug('setupActSelect -> navigating to', next);
+        } catch (e) {
+          /* ignore */
+        }
         window.location.href = next;
       }
-    } catch (err) { /* ignore */ }
+    } catch (err) {
+      /* ignore */
+    }
   };
 
   // attach after a tiny delay to avoid being overwritten by other setup code
@@ -238,14 +288,15 @@ export function setupActSelect(defaultValue?: string): void {
 
     // quick-switch buttons (nascimento, casamento, obito) to improve navigation flow
     try {
-      const toolbar = document.querySelector('.toolbar-left') || document.querySelector('.toolbar-right');
+      const toolbar =
+        document.querySelector('.toolbar-left') || document.querySelector('.toolbar-right');
       if (toolbar && !document.getElementById('ato-switch')) {
         const wrap = document.createElement('div');
         wrap.id = 'ato-switch';
         wrap.style.display = 'inline-flex';
         wrap.style.gap = '6px';
         wrap.style.marginLeft = '8px';
-        const map: Record<string,string> = { nascimento: 'N', casamento: 'C', obito: 'O' };
+        const map: Record<string, string> = { nascimento: 'N', casamento: 'C', obito: 'O' };
         Object.keys(map).forEach((k) => {
           const b = document.createElement('button');
           b.type = 'button';
@@ -257,190 +308,286 @@ export function setupActSelect(defaultValue?: string): void {
         });
         toolbar.appendChild(wrap);
       }
-    } catch (e) { /* ignore */ }
+    } catch (e) {
+      /* ignore */
+    }
   }, 10);
 
   // delegation fallback: listen at document level so replaced/recreated select still triggers
   try {
     if (!window._atoSelectDelegated) {
       window._atoSelectDelegated = true;
-      document.addEventListener('change', (e) => {
-        try {
-          const target = e.target as HTMLElement | null;
-          if (!target) return;
-          if ((target.id && target.id === 'ato-select') || target.closest?.('#ato-select')) {
-            const val = ((document.getElementById('ato-select') as HTMLSelectElement | null)?.value) || '';
-            goTo(val);
+      document.addEventListener(
+        'change',
+        (e) => {
+          try {
+            const target = e.target as HTMLElement | null;
+            if (!target) return;
+            if ((target.id && target.id === 'ato-select') || target.closest?.('#ato-select')) {
+              const val =
+                (document.getElementById('ato-select') as HTMLSelectElement | null)?.value || '';
+              goTo(val);
+            }
+          } catch (err) {
+            /* ignore */
           }
-        } catch (err) { /* ignore */ }
-      }, true);
-      document.addEventListener('input', (e) => {
-        try {
-          const target = e.target as HTMLElement | null;
-          if (!target) return;
-          if ((target.id && target.id === 'ato-select') || target.closest?.('#ato-select')) {
-            const val = ((document.getElementById('ato-select') as HTMLSelectElement | null)?.value) || '';
-            goTo(val);
+        },
+        true,
+      );
+      document.addEventListener(
+        'input',
+        (e) => {
+          try {
+            const target = e.target as HTMLElement | null;
+            if (!target) return;
+            if ((target.id && target.id === 'ato-select') || target.closest?.('#ato-select')) {
+              const val =
+                (document.getElementById('ato-select') as HTMLSelectElement | null)?.value || '';
+              goTo(val);
+            }
+          } catch (err) {
+            /* ignore */
           }
-        } catch (err) { /* ignore */ }
-      }, true);
+        },
+        true,
+      );
     }
-  } catch (e) { /* ignore */ }
+  } catch (e) {
+    /* ignore */
+  }
 }
 
-  // Global settings save/apply fallback: persist validation prefs and panel inline/default
-  try {
-    if (!window._globalSettingsHandlers) {
-      window._globalSettingsHandlers = true;
-      // initialize checkbox states from localStorage when DOM is ready
-      const initSettings = () => {
+// Global settings save/apply fallback: persist validation prefs and panel inline/default
+try {
+  if (!window._globalSettingsHandlers) {
+    window._globalSettingsHandlers = true;
+    // initialize checkbox states from localStorage when DOM is ready
+    const initSettings = () => {
+      try {
+        const cbCpf = document.getElementById('settings-enable-cpf') as HTMLInputElement | null;
+        const cbName = document.getElementById('settings-enable-name') as HTMLInputElement | null;
+        const cbInline = document.getElementById(
+          'settings-panel-inline',
+        ) as HTMLInputElement | null;
+        const posSelect = document.getElementById(
+          'settings-drawer-position',
+        ) as HTMLSelectElement | null;
+        const ENABLE_CPF = localStorage.getItem('ui.enableCpfValidation') !== 'false';
+        const ENABLE_NAME = localStorage.getItem('ui.enableNameValidation') !== 'false';
+        const PANEL_INLINE = localStorage.getItem('ui.panelInline') === 'true';
+        const POS = localStorage.getItem('ui.drawerPosition') || 'bottom-right';
+        if (cbCpf) cbCpf.checked = !!ENABLE_CPF;
+        if (cbName) cbName.checked = !!ENABLE_NAME;
+        if (cbInline) cbInline.checked = !!PANEL_INLINE;
+        if (posSelect) posSelect.value = POS;
+        // ensure name-validation radios reflect stored mode (fallback if per-act setup not run)
         try {
-          const cbCpf = document.getElementById('settings-enable-cpf') as HTMLInputElement | null;
-          const cbName = document.getElementById('settings-enable-name') as HTMLInputElement | null;
-          const cbInline = document.getElementById('settings-panel-inline') as HTMLInputElement | null;
-          const posSelect = document.getElementById('settings-drawer-position') as HTMLSelectElement | null;
-          const ENABLE_CPF = localStorage.getItem('ui.enableCpfValidation') !== 'false';
-          const ENABLE_NAME = localStorage.getItem('ui.enableNameValidation') !== 'false';
-          const PANEL_INLINE = localStorage.getItem('ui.panelInline') === 'true';
-          const POS = localStorage.getItem('ui.drawerPosition') || 'bottom-right';
-          if (cbCpf) cbCpf.checked = !!ENABLE_CPF;
-          if (cbName) cbName.checked = !!ENABLE_NAME;
-          if (cbInline) cbInline.checked = !!PANEL_INLINE;
-          if (posSelect) posSelect.value = POS;
-          // ensure name-validation radios reflect stored mode (fallback if per-act setup not run)
-          try {
-            const NAME_MODE = localStorage.getItem('ui.nameValidationMode') || 'blur';
-            const radios = Array.from(document.querySelectorAll('input[name="name-validation-mode"]'));
-            radios.forEach((r) => { (r as HTMLInputElement).checked = ((r as HTMLInputElement).value === NAME_MODE); });
-          } catch (e) { /* ignore */ }
+          const NAME_MODE = localStorage.getItem('ui.nameValidationMode') || 'blur';
+          const radios = Array.from(
+            document.querySelectorAll('input[name="name-validation-mode"]'),
+          );
+          radios.forEach((r) => {
+            (r as HTMLInputElement).checked = (r as HTMLInputElement).value === NAME_MODE;
+          });
+        } catch (e) {
+          /* ignore */
+        }
 
-          // indicate whether name DB is accessible (always show a clear banner at top of config)
-          try {
-            let statusEl = document.getElementById('name-db-status');
-            const cfg = document.getElementById('tab-config');
-            if (!statusEl && cfg) {
-              statusEl = document.createElement('div');
-              statusEl.id = 'name-db-status';
-              // make it clearly visible
-              statusEl.style.display = 'block';
-              statusEl.style.margin = '6px 0 12px 0';
-              statusEl.style.padding = '6px 8px';
-              statusEl.style.borderRadius = '6px';
-              statusEl.style.fontWeight = '600';
-              statusEl.style.fontSize = '12px';
-              // insert as first child of the config pane so it's always visible
-              if (cfg.firstChild) cfg.insertBefore(statusEl, cfg.firstChild); else cfg.appendChild(statusEl);
-            }
-            const testPaths = ['/public/data/nomes.csv.gz', '/data/nomes.csv.gz', '/public/data/nomes.csv', '/data/nomes.csv'];
-            (async () => {
-              let found = false;
-              for (const p of testPaths) {
-                try {
-                  const r = await fetch(p, { method: 'HEAD' });
-                  if (r.ok) {
-                    if (statusEl) {
-                      statusEl.textContent = `Nome DB: disponível (${p})`;
-                      statusEl.style.background = '#ecfdf5';
-                      statusEl.style.color = '#065f46';
-                      statusEl.style.border = '1px solid #bbf7d0';
-                    }
-                    localStorage.setItem('ui.nameDbAvailable', 'true');
-                    console.log('name DB detected at', p);
-                    found = true;
-                    break;
+        // indicate whether name DB is accessible (always show a clear banner at top of config)
+        try {
+          let statusEl = document.getElementById('name-db-status');
+          const cfg = document.getElementById('tab-config');
+          if (!statusEl && cfg) {
+            statusEl = document.createElement('div');
+            statusEl.id = 'name-db-status';
+            // make it clearly visible
+            statusEl.style.display = 'block';
+            statusEl.style.margin = '6px 0 12px 0';
+            statusEl.style.padding = '6px 8px';
+            statusEl.style.borderRadius = '6px';
+            statusEl.style.fontWeight = '600';
+            statusEl.style.fontSize = '12px';
+            // insert as first child of the config pane so it's always visible
+            if (cfg.firstChild) cfg.insertBefore(statusEl, cfg.firstChild);
+            else cfg.appendChild(statusEl);
+          }
+          const testPaths = [
+            '/public/data/nomes.csv.gz',
+            '/data/nomes.csv.gz',
+            '/public/data/nomes.csv',
+            '/data/nomes.csv',
+          ];
+          (async () => {
+            let found = false;
+            for (const p of testPaths) {
+              try {
+                const r = await fetch(p, { method: 'HEAD' });
+                if (r.ok) {
+                  if (statusEl) {
+                    statusEl.textContent = `Nome DB: disponível (${p})`;
+                    statusEl.style.background = '#ecfdf5';
+                    statusEl.style.color = '#065f46';
+                    statusEl.style.border = '1px solid #bbf7d0';
                   }
-                } catch (e) { console.log('name DB head check failed for', p); }
-              }
-              if (!found) {
-                if (statusEl) {
-                  statusEl.textContent = 'Nome DB: não encontrado (usando nomes padrão, sem consulta)';
-                  statusEl.style.background = '#fff7f0';
-                  statusEl.style.color = '#7c2d12';
-                  statusEl.style.border = '1px solid #fed7aa';
+                  localStorage.setItem('ui.nameDbAvailable', 'true');
+                  console.log('name DB detected at', p);
+                  found = true;
+                  break;
                 }
-                localStorage.setItem('ui.nameDbAvailable', 'false');
-                console.log('name DB not found in any configured path');
+              } catch (e) {
+                console.log('name DB head check failed for', p);
               }
-            })();
+            }
+            if (!found) {
+              if (statusEl) {
+                statusEl.textContent =
+                  'Nome DB: não encontrado (usando nomes padrão, sem consulta)';
+                statusEl.style.background = '#fff7f0';
+                statusEl.style.color = '#7c2d12';
+                statusEl.style.border = '1px solid #fed7aa';
+              }
+              localStorage.setItem('ui.nameDbAvailable', 'false');
+              console.log('name DB not found in any configured path');
+            }
+          })();
 
-            // instantiate global name validator and install per-field behaviors if enabled
-            try {
-              const ENABLE_NAME = localStorage.getItem('ui.enableNameValidation') !== 'false';
-              // avoid creating multiple validators if already created by per-act code
-              if (ENABLE_NAME && !window._nameValidator) {
+          // instantiate global name validator and install per-field behaviors if enabled
+          try {
+            const ENABLE_NAME = localStorage.getItem('ui.enableNameValidation') !== 'false';
+            // avoid creating multiple validators if already created by per-act code
+            if (ENABLE_NAME && !window._nameValidator) {
+              try {
+                const validator = createNameValidator();
                 try {
-                  const validator = createNameValidator();
-                  try { window._nameValidator = validator; } catch(e) { /* ignore */ }
-                  // call exported setupNameValidation to wire hints and events
-                  try { setupNameValidation(validator); } catch(e) { /* ignore */ }
-                } catch (e) { console.debug('failed to create global name validator', e); }
+                  window._nameValidator = validator;
+                } catch (e) {
+                  /* ignore */
+                }
+                // call exported setupNameValidation to wire hints and events
+                try {
+                  setupNameValidation(validator);
+                } catch (e) {
+                  /* ignore */
+                }
+              } catch (e) {
+                console.debug('failed to create global name validator', e);
               }
-            } catch (e) { /* ignore */ }
+            }
+          } catch (e) {
+            /* ignore */
+          }
 
-            // also create quick-switch buttons in the toolbar (nascimento/casamento/obito)
-            try {
-              const toolbar = document.querySelector('.toolbar-left') || document.querySelector('.toolbar-right');
-              if (toolbar && !document.getElementById('ato-switch')) {
-                const wrap = document.createElement('div');
-                wrap.id = 'ato-switch';
-                wrap.style.display = 'inline-flex';
-                wrap.style.gap = '6px';
-                wrap.style.marginLeft = '8px';
-                const map: Record<string,string> = { nascimento: 'N', casamento: 'C', obito: 'O' };
-                Object.keys(map).forEach((k) => {
-                  const b = document.createElement('button');
-                  b.type = 'button';
-                  b.className = 'ato-btn';
-                  b.textContent = map[k];
-                  b.title = k;
-                  b.addEventListener('click', () => {
-                    const dest: Record<string,string> = {
-                      nascimento: './Nascimento2Via.html',
-                      casamento: './Casamento2Via.html',
-                      obito: './Obito2Via.html',
-                    };
-                    const next = dest[k] || '';
-                    if (next) window.location.href = next;
-                  });
-                  wrap.appendChild(b);
+          // also create quick-switch buttons in the toolbar (nascimento/casamento/obito)
+          try {
+            const toolbar =
+              document.querySelector('.toolbar-left') || document.querySelector('.toolbar-right');
+            if (toolbar && !document.getElementById('ato-switch')) {
+              const wrap = document.createElement('div');
+              wrap.id = 'ato-switch';
+              wrap.style.display = 'inline-flex';
+              wrap.style.gap = '6px';
+              wrap.style.marginLeft = '8px';
+              const map: Record<string, string> = { nascimento: 'N', casamento: 'C', obito: 'O' };
+              Object.keys(map).forEach((k) => {
+                const b = document.createElement('button');
+                b.type = 'button';
+                b.className = 'ato-btn';
+                b.textContent = map[k];
+                b.title = k;
+                b.addEventListener('click', () => {
+                  const dest: Record<string, string> = {
+                    nascimento: './Nascimento2Via.html',
+                    casamento: './Casamento2Via.html',
+                    obito: './Obito2Via.html',
+                  };
+                  const next = dest[k] || '';
+                  if (next) window.location.href = next;
                 });
-                toolbar.appendChild(wrap);
-              }
-            } catch (e) { /* ignore */ }
+                wrap.appendChild(b);
+              });
+              toolbar.appendChild(wrap);
+            }
+          } catch (e) {
+            /* ignore */
+          }
+        } catch (e) {
+          console.log('error while checking name DB', e);
+        }
+      } catch (e) {
+        /* ignore */
+      }
+    };
+    if (document.readyState === 'loading')
+      document.addEventListener('DOMContentLoaded', initSettings);
+    else initSettings();
 
-          } catch (e) { console.log('error while checking name DB', e); }
-        } catch (e) { /* ignore */ }
-      };
-      if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', initSettings); else initSettings();
-
-      document.addEventListener('click', (e) => {
+    document.addEventListener(
+      'click',
+      (e) => {
         try {
           const t = e.target as HTMLElement | null;
           if (!t) return;
           if (t.id === 'settings-save' || t.closest?.('#settings-save')) {
-            const pos = (document.getElementById('settings-drawer-position') as HTMLSelectElement | null)?.value || 'bottom-right';
-            const newCpf = (document.getElementById('settings-enable-cpf') as HTMLInputElement | null)?.checked ? 'true' : 'false';
-            const newName = (document.getElementById('settings-enable-name') as HTMLInputElement | null)?.checked ? 'true' : 'false';
-            const newInline = (document.getElementById('settings-panel-inline') as HTMLInputElement | null)?.checked ? 'true' : 'false';
+            const pos =
+              (document.getElementById('settings-drawer-position') as HTMLSelectElement | null)
+                ?.value || 'bottom-right';
+            const newCpf = (
+              document.getElementById('settings-enable-cpf') as HTMLInputElement | null
+            )?.checked
+              ? 'true'
+              : 'false';
+            const newName = (
+              document.getElementById('settings-enable-name') as HTMLInputElement | null
+            )?.checked
+              ? 'true'
+              : 'false';
+            const newInline = (
+              document.getElementById('settings-panel-inline') as HTMLInputElement | null
+            )?.checked
+              ? 'true'
+              : 'false';
             localStorage.setItem('ui.drawerPosition', pos);
             localStorage.setItem('ui.enableCpfValidation', newCpf);
             localStorage.setItem('ui.enableNameValidation', newName);
             localStorage.setItem('ui.panelInline', newInline);
-            try { console.debug('settings saved', { pos, newCpf, newName, newInline }); } catch (e) { /* ignore */ }
+            try {
+              console.debug('settings saved', { pos, newCpf, newName, newInline });
+            } catch (e) {
+              /* ignore */
+            }
             setTimeout(() => window.location.reload(), 250);
           }
           if (t.id === 'settings-apply' || t.closest?.('#settings-apply')) {
-            const pos = (document.getElementById('settings-drawer-position') as HTMLSelectElement | null)?.value || 'bottom-right';
-            try { const drawer = document.getElementById('drawer'); if (drawer) {
-              drawer.classList.remove('position-top','position-bottom-right','position-side');
-              if (pos === 'top') drawer.classList.add('position-top'); else if (pos === 'side') drawer.classList.add('position-side'); else drawer.classList.add('position-bottom-right');
-            } } catch (e) { /* ignore */ }
-            try { console.debug('settings applied', pos); } catch (e) { /* ignore */ }
+            const pos =
+              (document.getElementById('settings-drawer-position') as HTMLSelectElement | null)
+                ?.value || 'bottom-right';
+            try {
+              const drawer = document.getElementById('drawer');
+              if (drawer) {
+                drawer.classList.remove('position-top', 'position-bottom-right', 'position-side');
+                if (pos === 'top') drawer.classList.add('position-top');
+                else if (pos === 'side') drawer.classList.add('position-side');
+                else drawer.classList.add('position-bottom-right');
+              }
+            } catch (e) {
+              /* ignore */
+            }
+            try {
+              console.debug('settings applied', pos);
+            } catch (e) {
+              /* ignore */
+            }
           }
-        } catch (e) { /* ignore */ }
-      }, true);
-    }
-  } catch (e) { /* ignore */ }
+        } catch (e) {
+          /* ignore */
+        }
+      },
+      true,
+    );
+  }
+} catch (e) {
+  /* ignore */
+}
 
 export function setupCartorioTyping(): void {
   const select = document.getElementById('cartorio-oficio') as HTMLSelectElement | null;
@@ -489,26 +636,41 @@ type NameValidationOptions = {
   confirm?: boolean;
 };
 
-function isValueElement(el: Element): el is HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement {
-  return el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement || el instanceof HTMLSelectElement;
+function isValueElement(
+  el: Element,
+): el is HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement {
+  return (
+    el instanceof HTMLInputElement ||
+    el instanceof HTMLTextAreaElement ||
+    el instanceof HTMLSelectElement
+  );
 }
 
-export function setupNameValidation(validator?: NameValidator, opts: NameValidationOptions = { confirm: true }): void {
+export function setupNameValidation(
+  validator?: NameValidator,
+  opts: NameValidationOptions = { confirm: true },
+): void {
   // validator should provide: ready (Promise), check(value), repo.addException
   const fields = Array.from(document.querySelectorAll('[data-name-validate]')) as Element[];
 
+  const resolveField = (input: Element): HTMLElement | null =>
+    (input.closest('td') ||
+      input.closest('.campo') ||
+      input.closest('.field') ||
+      (input as HTMLElement).parentElement) as HTMLElement | null;
 
-  const resolveField = (input: Element): HTMLElement | null => (
-    (input.closest('td') || input.closest('.campo') || input.closest('.field') || (input as HTMLElement).parentElement) as HTMLElement | null
-  );
+  const isValueElement = (
+    el: Element,
+  ): el is HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement =>
+    el instanceof HTMLInputElement ||
+    el instanceof HTMLTextAreaElement ||
+    el instanceof HTMLSelectElement;
 
-  const isValueElement = (el: Element): el is HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement =>
-    el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement || el instanceof HTMLSelectElement;
-
-
-
-  const getValue = (el: Element): string => (isValueElement(el) ? ((el as HTMLInputElement).value || '') : '');
-  const setValue = (el: Element, v: string) => { if (isValueElement(el)) (el as HTMLInputElement).value = v; };
+  const getValue = (el: Element): string =>
+    isValueElement(el) ? (el as HTMLInputElement).value || '' : '';
+  const setValue = (el: Element, v: string) => {
+    if (isValueElement(el)) (el as HTMLInputElement).value = v;
+  };
   fields.forEach((input) => {
     const field = resolveField(input);
     if (field) field.classList.add('name-field');
@@ -590,15 +752,33 @@ export function setupNameValidation(validator?: NameValidator, opts: NameValidat
       // append to labelRow (keeps suggest anchored to label and prevents layout breaking)
       try {
         if (hint.parentElement !== labelRow) labelRow.appendChild(hint);
-      } catch (e) { /* ignore DOM errors */ }
+      } catch (e) {
+        /* ignore DOM errors */
+      }
     }
 
     // ensure shift-handling (while Shift held, validation is ignored temporarily)
     if (!window._nameValidatorShiftDelegated) {
       window._nameValidatorShiftDelegated = true;
       let shiftHeld = false;
-      document.addEventListener('keydown', (ev) => { if (ev.key === 'Shift') { shiftHeld = true; } }, true);
-      document.addEventListener('keyup', (ev) => { if (ev.key === 'Shift') { shiftHeld = false; } }, true);
+      document.addEventListener(
+        'keydown',
+        (ev) => {
+          if (ev.key === 'Shift') {
+            shiftHeld = true;
+          }
+        },
+        true,
+      );
+      document.addEventListener(
+        'keyup',
+        (ev) => {
+          if (ev.key === 'Shift') {
+            shiftHeld = false;
+          }
+        },
+        true,
+      );
       // hook into runCheck closure by attaching the flag on window for checks below
       window._nameValidationShiftHeld = () => shiftHeld;
     }
@@ -615,7 +795,10 @@ export function setupNameValidation(validator?: NameValidator, opts: NameValidat
           }
           // selecting an action marks field for later processing (non-blocking)
           const value = getValue(input).trim();
-          if (!value) { sel.value = ''; return; }
+          if (!value) {
+            sel.value = '';
+            return;
+          }
           hint.classList.add('name-suggest-checked');
           if (field) field.setAttribute('data-name-marked', 'true');
         });
@@ -632,7 +815,10 @@ export function setupNameValidation(validator?: NameValidator, opts: NameValidat
       sanitize();
       const value = getValue(input).trim();
       const result = validator ? validator.check(value) : { suspicious: false };
-      const shiftHeld = typeof window._nameValidationShiftHeld === 'function' ? window._nameValidationShiftHeld() : false;
+      const shiftHeld =
+        typeof window._nameValidationShiftHeld === 'function'
+          ? window._nameValidationShiftHeld()
+          : false;
       const suspect = !shiftHeld && !!result?.suspicious;
 
       // visual state on input and field
@@ -644,7 +830,11 @@ export function setupNameValidation(validator?: NameValidator, opts: NameValidat
         // tooltip on the small '?' icon inside the field (non-intrusive)
         const warn = field.querySelector('.name-warn') as HTMLElement | null;
         if (suspect) {
-          if (warn) warn.setAttribute('data-tooltip', value ? `Nome incorreto: "${value}"` : 'Nome incorreto');
+          if (warn)
+            warn.setAttribute(
+              'data-tooltip',
+              value ? `Nome incorreto: "${value}"` : 'Nome incorreto',
+            );
           // show the add-control only when suspect
           const suggest = field.querySelector('.name-suggest') as HTMLElement | null;
           if (suggest) suggest.style.display = 'inline-flex';
@@ -678,12 +868,17 @@ export function setupNameValidation(validator?: NameValidator, opts: NameValidat
 
   // If a row contains Nome completo + Sexo, make layout compact (name grows, sexo fixed)
   try {
-    const nameInput = document.querySelector('[data-bind="registro.nome_completo"]') as Element | null;
+    const nameInput = document.querySelector(
+      '[data-bind="registro.nome_completo"]',
+    ) as Element | null;
     if (nameInput) {
-      const r = (nameInput.closest('.row') as HTMLElement | null);
-      if (r && r.querySelector('select[name="sexo"], [data-bind="registro.sexo"]')) r.classList.add('name-and-sex');
+      const r = nameInput.closest('.row') as HTMLElement | null;
+      if (r && r.querySelector('select[name="sexo"], [data-bind="registro.sexo"]'))
+        r.classList.add('name-and-sex');
     }
-  } catch (e) { /* ignore */ }
+  } catch (e) {
+    /* ignore */
+  }
 
   if (validator && validator.ready) {
     Promise.resolve(validator.ready)
@@ -695,17 +890,26 @@ export function setupNameValidation(validator?: NameValidator, opts: NameValidat
           if (value) {
             const result = validator.check(value);
             const suspect = !!result?.suspicious;
-            if (isValueElement(input)) (input as HTMLInputElement).classList.toggle('invalid', suspect);
+            if (isValueElement(input))
+              (input as HTMLInputElement).classList.toggle('invalid', suspect);
             if (field) field.classList.toggle('name-suspect', suspect);
             // ensure add-control visibility consistent
-            const suggest = field ? field.querySelector('.name-suggest') as HTMLElement | null : null;
+            const suggest = field
+              ? (field.querySelector('.name-suggest') as HTMLElement | null)
+              : null;
             if (suggest) suggest.style.display = suspect ? 'inline-flex' : 'none';
-            const warn = field ? field.querySelector('.name-warn') as HTMLElement | null : null;
-            if (warn && suspect) warn.setAttribute('data-tooltip', value ? `Nome incorreto: "${value}"` : 'Nome incorreto');
+            const warn = field ? (field.querySelector('.name-warn') as HTMLElement | null) : null;
+            if (warn && suspect)
+              warn.setAttribute(
+                'data-tooltip',
+                value ? `Nome incorreto: "${value}"` : 'Nome incorreto',
+              );
           }
         });
       })
-      .catch(() => { /* ignore */ });
+      .catch(() => {
+        /* ignore */
+      });
   }
 }
 
@@ -714,7 +918,10 @@ export function collectMarkedNames(): string[] {
   const out: string[] = [];
   const fields = Array.from(document.querySelectorAll('[data-name-validate]')) as Element[];
   fields.forEach((input) => {
-    const field = (input.closest('td') || input.closest('.campo') || input.closest('.field') || (input as HTMLElement).parentElement) as HTMLElement | null;
+    const field = (input.closest('td') ||
+      input.closest('.campo') ||
+      input.closest('.field') ||
+      (input as HTMLElement).parentElement) as HTMLElement | null;
     if (!field) return;
     const marked = field.getAttribute('data-name-marked') === 'true';
     if (!marked) return;
@@ -733,19 +940,28 @@ export function processMarkedNames(validatorArg?: NameValidator): void {
       if (validatorToUse?.repo && typeof validatorToUse.repo.addException === 'function') {
         validatorToUse.repo.addException(v);
       }
-    } catch (e) { /* ignore */ }
+    } catch (e) {
+      /* ignore */
+    }
   });
   // cleanup UI: unmark fields and remove invalid classes and hints
   const fields = Array.from(document.querySelectorAll('[data-name-validate]')) as Element[];
   fields.forEach((input) => {
-    const field = (input.closest('td') || input.closest('.campo') || input.closest('.field') || (input as HTMLElement).parentElement) as HTMLElement | null;
+    const field = (input.closest('td') ||
+      input.closest('.campo') ||
+      input.closest('.field') ||
+      (input as HTMLElement).parentElement) as HTMLElement | null;
     if (!field) return;
     if (field.getAttribute('data-name-marked') === 'true') {
       field.setAttribute('data-name-marked', 'false');
       const sel = field.querySelector('.name-suggest-select') as HTMLSelectElement | null;
       if (sel) sel.value = '';
       if (isValueElement(input)) (input as HTMLInputElement).classList.remove('invalid');
-      try { clearFieldHint(field); } catch (e) { /* ignore */ }
+      try {
+        clearFieldHint(field);
+      } catch (e) {
+        /* ignore */
+      }
     }
   });
 }
@@ -772,5 +988,7 @@ function downloadJson(obj: Record<string, unknown>, filename: string): void {
     a.click();
     a.remove();
     URL.revokeObjectURL(url);
-  } catch (e) { console.error('failed to download json', e); }
+  } catch (e) {
+    console.error('failed to download json', e);
+  }
 }

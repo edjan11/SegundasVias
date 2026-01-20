@@ -12,7 +12,8 @@ export function escapeXml(str: string): string {
 export function toXml(obj: unknown, nodeName: string, indent = 0): string {
   const pad = '  '.repeat(indent);
   if (obj === null || obj === undefined) return `${pad}<${nodeName}></${nodeName}>`;
-  if (typeof obj !== 'object' || obj instanceof Date || obj instanceof RegExp) return `${pad}<${nodeName}>${escapeXml(String(obj))}</${nodeName}>`;
+  if (typeof obj !== 'object' || obj instanceof Date || obj instanceof RegExp)
+    return `${pad}<${nodeName}>${escapeXml(String(obj))}</${nodeName}>`;
   if (Array.isArray(obj)) return obj.map((item) => toXml(item, nodeName, indent)).join('\n');
   const children = Object.keys(obj as Record<string, unknown>)
     .map((key) => toXml((obj as Record<string, unknown>)[key], key, indent + 1))

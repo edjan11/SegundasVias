@@ -11,7 +11,12 @@ import {
   calcDv2Digits,
   buildMatriculaFinal,
 } from '../../shared/matricula/cnj';
-import { setupPrimaryShortcut, setupNameCopy, setupAutoNationality, setupCasamentoDates, } from '../../shared/productivity/index';
+import {
+  setupPrimaryShortcut,
+  setupNameCopy,
+  setupAutoNationality,
+  setupCasamentoDates,
+} from '../../shared/productivity/index';
 import { setupAdminPanel } from '../../shared/ui/admin';
 import { setupActSelect } from '../../ui/setup-ui';
 import { createNameValidator } from '../../shared/nameValidator';
@@ -37,7 +42,10 @@ function setupSettingsPanelCasamento(): void {
     const newPos = select?.value || 'bottom-right';
     const newCpf = cbCpf?.checked ? 'true' : 'false';
     const newName = cbName?.checked ? 'true' : 'false';
-    const newInline = (document.getElementById('settings-panel-inline') as HTMLInputElement | null)?.checked ? 'true' : 'false';
+    const newInline = (document.getElementById('settings-panel-inline') as HTMLInputElement | null)
+      ?.checked
+      ? 'true'
+      : 'false';
     localStorage.setItem('ui.drawerPosition', newPos);
     localStorage.setItem('ui.enableCpfValidation', newCpf);
     localStorage.setItem('ui.enableNameValidation', newName);
@@ -65,7 +73,7 @@ function setStatus(text: string, isError?: boolean): void {
 }
 
 function applyDrawerPosition(pos: string) {
-  const drawer = (document.getElementById('drawer') as HTMLElement | null);
+  const drawer = document.getElementById('drawer') as HTMLElement | null;
   if (!drawer) return;
   drawer.classList.remove('position-top', 'position-bottom-right', 'position-side');
   if (pos === 'top') drawer.classList.add('position-top');
@@ -128,7 +136,9 @@ function downloadFile(name: string, content: string, mime: string): boolean {
 function makeTimestamp(): string {
   const d = new Date();
   const pad = (n: number) => String(n).padStart(2, '0');
-  return `${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}_${pad(d.getHours())}${pad(d.getMinutes())}${pad(d.getSeconds())}`;
+  return `${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}_${pad(d.getHours())}${pad(
+    d.getMinutes(),
+  )}${pad(d.getSeconds())}`;
 }
 
 function buildFileName(ext: string): string {
@@ -182,14 +192,20 @@ function setupConfigPanel(): void {
   });
   const cbInline = document.getElementById('settings-panel-inline') as HTMLInputElement | null;
   const panelInlineStored = localStorage.getItem(PANEL_INLINE_KEY);
-  if (cbInline) cbInline.checked = panelInlineStored === null ? false : panelInlineStored === 'true';
+  if (cbInline)
+    cbInline.checked = panelInlineStored === null ? false : panelInlineStored === 'true';
   document.getElementById('config-save')?.addEventListener('click', () => {
-    const selected = document.querySelector('input[name="name-validation-mode"]:checked') as HTMLInputElement | null;
+    const selected = document.querySelector(
+      'input[name="name-validation-mode"]:checked',
+    ) as HTMLInputElement | null;
     if (selected && selected.value) {
       nameValidationMode = selected.value;
       localStorage.setItem(NAME_MODE_KEY, nameValidationMode);
     }
-    const newInline = (document.getElementById('settings-panel-inline') as HTMLInputElement | null)?.checked ? 'true' : 'false';
+    const newInline = (document.getElementById('settings-panel-inline') as HTMLInputElement | null)
+      ?.checked
+      ? 'true'
+      : 'false';
     localStorage.setItem(PANEL_INLINE_KEY, newInline);
   });
   setupAdminPanel();
@@ -242,7 +258,9 @@ function setupFocusEmphasis(): void {
     if (['INPUT', 'SELECT', 'TEXTAREA'].includes(el.tagName)) {
       try {
         el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      } catch (e) { void e; }
+      } catch (e) {
+        void e;
+      }
       el.classList.add('focus-emphasis');
     }
   });
@@ -252,8 +270,6 @@ function setupFocusEmphasis(): void {
     if (['INPUT', 'SELECT', 'TEXTAREA'].includes(el.tagName)) el.classList.remove('focus-emphasis');
   });
 }
-
-
 
 function yearFromDate(value: string): string {
   const normalized = normalizeDate(value);
@@ -274,13 +290,22 @@ function dateToTime(value: string): number | null {
 }
 
 function updateDebug(data: any): void {
-  const cns = (document.querySelector('input[name="certidao.cartorio_cns"]') as HTMLInputElement | null)?.value || '';
-  const ano = yearFromDate((document.querySelector('input[name="dataTermo"]') as HTMLInputElement | null)?.value || '');
-  const tipo = (document.querySelector('select[name="tipoCasamento"]') as HTMLSelectElement | null)?.value || '';
+  const cns =
+    (document.querySelector('input[name="certidao.cartorio_cns"]') as HTMLInputElement | null)
+      ?.value || '';
+  const ano = yearFromDate(
+    (document.querySelector('input[name="dataTermo"]') as HTMLInputElement | null)?.value || '',
+  );
+  const tipo =
+    (document.querySelector('select[name="tipoCasamento"]') as HTMLSelectElement | null)?.value ||
+    '';
   const tipoAto = tipo === 'R' ? '3' : tipo === 'C' ? '2' : '';
-  const livro = (document.querySelector('input[name="livro"]') as HTMLInputElement | null)?.value || '';
-  const folha = (document.querySelector('input[name="folha"]') as HTMLInputElement | null)?.value || '';
-  const termo = (document.querySelector('input[name="termo"]') as HTMLInputElement | null)?.value || '';
+  const livro =
+    (document.querySelector('input[name="livro"]') as HTMLInputElement | null)?.value || '';
+  const folha =
+    (document.querySelector('input[name="folha"]') as HTMLInputElement | null)?.value || '';
+  const termo =
+    (document.querySelector('input[name="termo"]') as HTMLInputElement | null)?.value || '';
   const base = buildMatriculaBase30({
     cns6: cns,
     ano,
@@ -292,7 +317,8 @@ function updateDebug(data: any): void {
     termo,
   });
   const dv = base ? calcDv2Digits(base) : '';
-  const candidate = base && dv ? base + dv : buildMatriculaFinal({ cns6: cns, ano, tipoAto, livro, folha, termo });
+  const candidate =
+    base && dv ? base + dv : buildMatriculaFinal({ cns6: cns, ano, tipoAto, livro, folha, termo });
   // For casamento: compute final matrícula directly from fields (no ofício/observações prompt).
   const final = candidate || '';
   const baseEl = document.getElementById('debug-matricula-base') as HTMLInputElement | null;
@@ -336,7 +362,11 @@ function setupLiveOutputs(): void {
 
 function setupNameValidation(): void {
   const validator = (window as any)._nameValidator || createNameValidator();
-  try { if (!(window as any)._nameValidator) (window as any)._nameValidator = validator; } catch (e) { /* ignore */ }
+  try {
+    if (!(window as any)._nameValidator) (window as any)._nameValidator = validator;
+  } catch (e) {
+    /* ignore */
+  }
   const fields = document.querySelectorAll('[data-name-validate]');
   const timers = new Map<any, number>();
   fields.forEach((input) => {
@@ -376,9 +406,17 @@ function setupNameValidation(): void {
       (input as HTMLElement).classList.toggle('invalid', suspect);
       if (field) field.classList.toggle('name-suspect', suspect);
       if (suspect) {
-        try { setFieldHint(field as Element | null, 'Nome incorreto!'); } catch (e) { /* ignore */ }
+        try {
+          setFieldHint(field as Element | null, 'Nome incorreto!');
+        } catch (e) {
+          /* ignore */
+        }
       } else {
-        try { clearFieldHint(field as Element | null); } catch (e) { /* ignore */ }
+        try {
+          clearFieldHint(field as Element | null);
+        } catch (e) {
+          /* ignore */
+        }
       }
     };
     input.addEventListener('input', () => {
@@ -415,8 +453,12 @@ function setup(): void {
   }
   const elTipo = document.querySelector('select[name="tipoCasamento"]') as HTMLSelectElement | null;
   const elDataTermo = document.querySelector('input[name="dataTermo"]') as HTMLInputElement | null;
-  const elDataCasamento = document.querySelector('input[name="dataCasamento"]') as HTMLInputElement | null;
-  const elRegimeBens = document.querySelector('select[name="regimeBens"]') as HTMLSelectElement | null;
+  const elDataCasamento = document.querySelector(
+    'input[name="dataCasamento"]',
+  ) as HTMLInputElement | null;
+  const elRegimeBens = document.querySelector(
+    'select[name="regimeBens"]',
+  ) as HTMLSelectElement | null;
   function syncDataCasamentoState() {
     if (!elTipo || !elDataTermo || !elDataCasamento) return;
     if (elTipo.value === '3') {
@@ -441,23 +483,33 @@ function setup(): void {
     triggerMatricula();
   }
   elTipo?.addEventListener('change', syncDataCasamentoState);
-  try { if (elTipo) elTipo.required = true; } catch (e) { /* ignore */ }
+  try {
+    if (elTipo) elTipo.required = true;
+  } catch (e) {
+    /* ignore */
+  }
   elDataTermo?.addEventListener('input', () => {
     if (elTipo?.value !== '3') {
       if (elDataCasamento) elDataCasamento.value = elDataTermo?.value || '';
-      if (elTipo?.value === '3') startEnforceUnlock(); else stopEnforceUnlock();
+      if (elTipo?.value === '3') startEnforceUnlock();
+      else stopEnforceUnlock();
       triggerMatricula();
     }
   });
   elDataCasamento?.addEventListener('input', () => {
-    if (elTipo?.value === '3' && elDataCasamento.value.length === 10 && elRegimeBens) elRegimeBens.focus();
+    if (elTipo?.value === '3' && elDataCasamento.value.length === 10 && elRegimeBens)
+      elRegimeBens.focus();
     triggerMatricula();
   });
   let enforceInterval: number | null = null;
   const dataCasamentoObserver = new MutationObserver((mutations) => {
     const tipoVal = elTipo?.value || '';
     if (tipoVal === '3') {
-      if (elDataCasamento.hasAttribute('readonly') || elDataCasamento.tabIndex === -1 || elDataCasamento.classList.contains('input-locked')) {
+      if (
+        elDataCasamento.hasAttribute('readonly') ||
+        elDataCasamento.tabIndex === -1 ||
+        elDataCasamento.classList.contains('input-locked')
+      ) {
         unlockDataCasamento();
       }
     } else {
@@ -469,19 +521,26 @@ function setup(): void {
   function startEnforceUnlock() {
     if (enforceInterval != null) return;
     enforceInterval = window.setInterval(() => {
-      if (elTipo?.value === '3') unlockDataCasamento(); else lockDataCasamento();
+      if (elTipo?.value === '3') unlockDataCasamento();
+      else lockDataCasamento();
     }, 350) as unknown as number;
   }
   function stopEnforceUnlock() {
-    if (enforceInterval != null) { clearInterval(enforceInterval as unknown as number); enforceInterval = null; }
+    if (enforceInterval != null) {
+      clearInterval(enforceInterval as unknown as number);
+      enforceInterval = null;
+    }
   }
   function lockDataCasamento() {
     try {
       elDataCasamento.setAttribute('readonly', 'readonly');
       elDataCasamento.tabIndex = -1;
       elDataCasamento.style.background = '#ddd';
-      if (!elDataCasamento.classList.contains('input-locked')) elDataCasamento.classList.add('input-locked');
-    } catch (e) { /* ignore */ }
+      if (!elDataCasamento.classList.contains('input-locked'))
+        elDataCasamento.classList.add('input-locked');
+    } catch (e) {
+      /* ignore */
+    }
   }
   function unlockDataCasamento() {
     try {
@@ -489,14 +548,20 @@ function setup(): void {
       elDataCasamento.tabIndex = 0;
       elDataCasamento.style.background = '';
       elDataCasamento.classList.remove('input-locked');
-    } catch (e) { /* ignore */ }
+    } catch (e) {
+      /* ignore */
+    }
   }
   function findMatriculaFieldLocal(): HTMLInputElement | null {
     const byId = document.getElementById('matricula') as HTMLInputElement | null;
     if (byId) return byId;
-    const byName = document.querySelector('input[name*="matricula"], input[id*="matricula"]') as HTMLInputElement | null;
+    const byName = document.querySelector(
+      'input[name*="matricula"], input[id*="matricula"]',
+    ) as HTMLInputElement | null;
     if (byName) return byName;
-    const byDataBind = Array.from(document.querySelectorAll('input[data-bind]')).find((i) => ((i.getAttribute('data-bind') || '').toLowerCase().includes('matricula'))) as HTMLInputElement | undefined;
+    const byDataBind = Array.from(document.querySelectorAll('input[data-bind]')).find((i) =>
+      (i.getAttribute('data-bind') || '').toLowerCase().includes('matricula'),
+    ) as HTMLInputElement | undefined;
     return byDataBind || null;
   }
   function fixMatriculaField(mEl: HTMLInputElement | null) {
@@ -510,7 +575,12 @@ function setup(): void {
     if (val[14] === desired) return;
     const newVal = val.slice(0, 14) + desired + val.slice(15);
     mEl.value = newVal;
-    try { mEl.dispatchEvent(new Event('input', { bubbles: true })); mEl.dispatchEvent(new Event('change', { bubbles: true })); } catch (e) { /* ignore */ }
+    try {
+      mEl.dispatchEvent(new Event('input', { bubbles: true }));
+      mEl.dispatchEvent(new Event('change', { bubbles: true }));
+    } catch (e) {
+      /* ignore */
+    }
   }
   function observeMatricula() {
     const mEl = findMatriculaFieldLocal();
@@ -520,19 +590,35 @@ function setup(): void {
     try {
       const mo = new MutationObserver(() => fixMatriculaField(mEl));
       mo.observe(mEl, { attributes: true, attributeFilter: ['value'] });
-    } catch (e) { /* ignore */ }
+    } catch (e) {
+      /* ignore */
+    }
     let last = mEl.value;
     let blockInterval: number | null = null;
     function startBlockingUntilTipo() {
       if (blockInterval != null) return;
       blockInterval = window.setInterval(() => {
         if ((elTipo?.value || '').trim() === '') {
-          if (mEl.value) { mEl.value = ''; try { mEl.dispatchEvent(new Event('input', { bubbles: true })); } catch (e) { /* ignore */ } }
+          if (mEl.value) {
+            mEl.value = '';
+            try {
+              mEl.dispatchEvent(new Event('input', { bubbles: true }));
+            } catch (e) {
+              /* ignore */
+            }
+          }
           mEl.setAttribute('readonly', 'readonly');
           mEl.placeholder = 'Selecione o tipo antes';
         } else {
-          if (blockInterval != null) { clearInterval(blockInterval as unknown as number); blockInterval = null; }
-          try { mEl.removeAttribute('readonly'); } catch (e) { /* ignore */ }
+          if (blockInterval != null) {
+            clearInterval(blockInterval as unknown as number);
+            blockInterval = null;
+          }
+          try {
+            mEl.removeAttribute('readonly');
+          } catch (e) {
+            /* ignore */
+          }
           mEl.placeholder = '';
           fixMatriculaField(mEl);
         }
@@ -540,7 +626,10 @@ function setup(): void {
     }
     if ((elTipo?.value || '').trim() === '') startBlockingUntilTipo();
     setInterval(() => {
-      if (mEl.value !== last) { last = mEl.value; fixMatriculaField(mEl); }
+      if (mEl.value !== last) {
+        last = mEl.value;
+        fixMatriculaField(mEl);
+      }
     }, 500);
   }
   ['cartorio-oficio', 'matricula-livro', 'matricula-folha', 'matricula-termo'].forEach((id) => {
@@ -555,11 +644,19 @@ function setup(): void {
         attributes: true,
         attributeFilter: ['readonly', 'class', 'tabindex', 'disabled', 'style'],
       });
-    } catch (e) { /* ignore */ }
+    } catch (e) {
+      /* ignore */
+    }
     observeMatricula();
   }, 50);
-  document.getElementById('btn-json')?.addEventListener('click', (e) => { e.preventDefault(); generateJson(); });
-  document.getElementById('btn-xml')?.addEventListener('click', (e) => { e.preventDefault(); generateXml(); });
+  document.getElementById('btn-json')?.addEventListener('click', (e) => {
+    e.preventDefault();
+    generateJson();
+  });
+  document.getElementById('btn-xml')?.addEventListener('click', (e) => {
+    e.preventDefault();
+    generateXml();
+  });
   setupValidation();
   setupNameValidation();
   setupConfigPanel();
@@ -581,10 +678,17 @@ function setup(): void {
       if (toggle) toggle.style.display = 'inline-flex';
     }
     const btn = document.getElementById('drawer-toggle');
-    if (btn) btn.addEventListener('click', () => { const d = document.getElementById('drawer'); if (!d) return; d.classList.toggle('open'); });
+    if (btn)
+      btn.addEventListener('click', () => {
+        const d = document.getElementById('drawer');
+        if (!d) return;
+        d.classList.toggle('open');
+      });
   })();
   setupActSelect('casamento');
-  setupPrimaryShortcut(() => document.getElementById('btn-json') || document.getElementById('btn-xml'));
+  setupPrimaryShortcut(
+    () => document.getElementById('btn-json') || document.getElementById('btn-xml'),
+  );
   if (localStorage.getItem('ui.enableParentNameCopy') === 'true') {
     setupNameCopy('input[name="nomeSolteiro"]', 'input[name="nomeCasado"]');
     setupNameCopy('input[name="nomeSolteira"]', 'input[name="nomeCasada"]');
@@ -607,7 +711,7 @@ function setupValidation(): void {
       applyDateMask(input as HTMLInputElement);
       clearFieldHint(field);
       const normalized = normalizeDate((input as HTMLInputElement).value);
-      const isValid = !( (input as HTMLInputElement).value ) || !!normalized;
+      const isValid = !(input as HTMLInputElement).value || !!normalized;
       const state = getFieldState({ required, value: (input as HTMLInputElement).value, isValid });
       applyFieldState(field as HTMLElement | null, state);
     };
@@ -615,11 +719,12 @@ function setupValidation(): void {
       applyDateMask(input as HTMLInputElement);
       const raw = (input as HTMLInputElement).value || '';
       const res = validateDateDetailed(raw);
-    setupActSelect('casamento');
+      setupActSelect('casamento');
       const isValid = res.ok;
       const state = getFieldState({ required, value: raw, isValid });
       applyFieldState(field as HTMLElement | null, state);
-      if (!isValid && raw) setFieldHint(field, res.message || 'Data inválida'); else clearFieldHint(field);
+      if (!isValid && raw) setFieldHint(field, res.message || 'Data inválida');
+      else clearFieldHint(field);
     };
     input.addEventListener('input', onInput);
     input.addEventListener('blur', onBlur);
@@ -630,7 +735,12 @@ function setupValidation(): void {
     const required = (input as HTMLElement).hasAttribute('data-required');
     const handler = () => {
       const res = validateName((input as HTMLInputElement).value, { minWords: 2 });
-      const state = getFieldState({ required, value: (input as HTMLInputElement).value, isValid: !res.invalid, warn: res.warn });
+      const state = getFieldState({
+        required,
+        value: (input as HTMLInputElement).value,
+        isValid: !res.invalid,
+        warn: res.warn,
+      });
       applyFieldState(field as HTMLElement | null, state);
     };
     input.addEventListener('input', handler);
@@ -644,28 +754,40 @@ function setupValidation(): void {
       (input as HTMLInputElement).value = formatCpfInput((input as HTMLInputElement).value);
       const digits = normalizeCpf((input as HTMLInputElement).value);
       const isValid = !digits || isValidCpf(digits);
-      const state = getFieldState({ required, value: digits ? (input as HTMLInputElement).value : '', isValid });
+      const state = getFieldState({
+        required,
+        value: digits ? (input as HTMLInputElement).value : '',
+        isValid,
+      });
       applyFieldState(field as HTMLElement | null, state);
     };
     input.addEventListener('input', handler);
     input.addEventListener('blur', () => {
       handler();
       const digits = normalizeCpf((input as HTMLInputElement).value);
-      if ((input as HTMLInputElement).value && (!digits || !isValidCpf(digits))) setFieldHint(field, 'CPF inválido'); else clearFieldHint(field);
+      if ((input as HTMLInputElement).value && (!digits || !isValidCpf(digits)))
+        setFieldHint(field, 'CPF inválido');
+      else clearFieldHint(field);
     });
     handler();
   });
 
   // sanitize name-like and city-like inputs (prevent digits and invalid chars)
-  document.querySelectorAll('input[name*="nome"], input[name*="cidade"], input[name*="nacionalidade"], input[name*="naturalidade"], input[name*="mae"], input[name*="pai"], input[name*="avo"]').forEach((inp) => {
-    try {
-      const el = inp as HTMLInputElement;
-      el.addEventListener('input', () => {
-        const s = (el.value || '').replace(/[^A-Za-zÀ-ÿ'\- ]/g, '');
-        if (s !== el.value) el.value = s;
-      });
-    } catch (e) { /* ignore */ }
-  });
+  document
+    .querySelectorAll(
+      'input[name*="nome"], input[name*="cidade"], input[name*="nacionalidade"], input[name*="naturalidade"], input[name*="mae"], input[name*="pai"], input[name*="avo"]',
+    )
+    .forEach((inp) => {
+      try {
+        const el = inp as HTMLInputElement;
+        el.addEventListener('input', () => {
+          const s = (el.value || '').replace(/[^A-Za-zÀ-ÿ'\- ]/g, '');
+          if (s !== el.value) el.value = s;
+        });
+      } catch (e) {
+        /* ignore */
+      }
+    });
 }
 
 function canProceed(): boolean {

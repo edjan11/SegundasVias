@@ -1,4 +1,3 @@
-
 import { normalizeDate } from '../../shared/validators/date';
 import { normalizeTime } from '../../shared/validators/time';
 import { normalizeCpf } from '../../shared/validators/cpf';
@@ -15,7 +14,8 @@ export function mapperHtmlToJson(doc) {
     const el = (doc as any).querySelector(sel);
     return el ? (el as any).value : '';
   };
-  const getAll = (sel) => Array.from((doc as any).querySelectorAll(sel)).map((el) => (el as any).value || '');
+  const getAll = (sel) =>
+    Array.from((doc as any).querySelectorAll(sel)).map((el) => (el as any).value || '');
 
   return {
     registro: {
@@ -33,8 +33,20 @@ export function mapperHtmlToJson(doc) {
       nacionalidade: get('input[name="nacionalidade"]'),
       nome_pai: get('input[name="nomePai"]'),
       nome_mae: get('input[name="nomeMae"]'),
-      cpf_sem_inscricao: (function(){ return !!(doc.querySelector('input[data-bind="registro.cpf_sem_inscricao"]')?.checked) || !!(doc.querySelector('#cpf-sem') as any)?.checked || false; })(),
-      cpf: (function(){ const sem = !!(doc.querySelector('input[data-bind="registro.cpf_sem_inscricao"]')?.checked) || !!(doc.querySelector('#cpf-sem') as any)?.checked || false; return sem ? '' : normalizeCpf(get('input[name="cpf"]')); })(),
+      cpf_sem_inscricao: (function () {
+        return (
+          !!doc.querySelector('input[data-bind="registro.cpf_sem_inscricao"]')?.checked ||
+          !!(doc.querySelector('#cpf-sem') as any)?.checked ||
+          false
+        );
+      })(),
+      cpf: (function () {
+        const sem =
+          !!doc.querySelector('input[data-bind="registro.cpf_sem_inscricao"]')?.checked ||
+          !!(doc.querySelector('#cpf-sem') as any)?.checked ||
+          false;
+        return sem ? '' : normalizeCpf(get('input[name="cpf"]'));
+      })(),
       rg: get('input[name="rg"]'),
       orgao_expedidor_rg: get('input[name="orgaoExpedidorRG"]'),
       titulo_eleitor: get('input[name="tituloEleitor"]'),
@@ -51,36 +63,53 @@ export function mapperHtmlToJson(doc) {
       folha: get('input[name="folha"]'),
       termo: get('input[name="termo"]'),
       data_termo: normalizeDate(get('input[name="dataTermo"]')),
-      cartorio_cns: get('input[name="certidao.cartorio_cns"]') || (doc.querySelector('input[data-bind="certidao.cartorio_cns"]')?.value || '163659'),
-      matricula: (function(){
-        const m = get('input[name="matricula"]') || (doc.querySelector('#matricula')?.value || (doc.querySelector('input[data-bind="registro.matricula"]')?.value || ''));
+      cartorio_cns:
+        get('input[name="certidao.cartorio_cns"]') ||
+        doc.querySelector('input[data-bind="certidao.cartorio_cns"]')?.value ||
+        '163659',
+      matricula: (function () {
+        const m =
+          get('input[name="matricula"]') ||
+          doc.querySelector('#matricula')?.value ||
+          doc.querySelector('input[data-bind="registro.matricula"]')?.value ||
+          '';
         if (m) return m;
-        try{
-          const digitsOnly = (v)=>String(v||'').replace(/\D/g,'');
-          const padLeft = (v,s)=>digitsOnly(v).padStart(s,'0').slice(-s);
-          const cns = digitsOnly((doc.querySelector('input[name="certidao.cartorio_cns"]')||{value:''}).value || '163659');
-          const dt = (doc.querySelector('input[name="dataTermo"]')||{value:''}).value || '';
-          const ano = (dt.match(/(\d{4})$/)||[])[1] || '';
-          const tipo = (doc.querySelector('select[name="tipoCasamento"]')||{value:''}).value || '';
+        try {
+          const digitsOnly = (v) => String(v || '').replace(/\D/g, '');
+          const padLeft = (v, s) => digitsOnly(v).padStart(s, '0').slice(-s);
+          const cns = digitsOnly(
+            (doc.querySelector('input[name="certidao.cartorio_cns"]') || { value: '' }).value ||
+              '163659',
+          );
+          const dt = (doc.querySelector('input[name="dataTermo"]') || { value: '' }).value || '';
+          const ano = (dt.match(/(\d{4})$/) || [])[1] || '';
+          const tipo =
+            (doc.querySelector('select[name="tipoCasamento"]') || { value: '' }).value || '';
           const tipoAto = tipo === 'R' ? '3' : tipo === 'C' ? '2' : '';
-          const livro = padLeft((doc.getElementById('matricula-livro')||{value:''}).value,5);
-          const folha = padLeft((doc.getElementById('matricula-folha')||{value:''}).value,3);
-          const termo = padLeft((doc.getElementById('matricula-termo')||{value:''}).value,7);
+          const livro = padLeft((doc.getElementById('matricula-livro') || { value: '' }).value, 5);
+          const folha = padLeft((doc.getElementById('matricula-folha') || { value: '' }).value, 3);
+          const termo = padLeft((doc.getElementById('matricula-termo') || { value: '' }).value, 7);
           const base30 = `${cns}01` + `55${ano}${tipoAto}${livro}${folha}${termo}`;
           if (!base30 || base30.length !== 30) return '';
           const calcDv = (base) => {
-            let s1=0; for(let i=0;i<30;i++) s1+=Number(base[i])*(31-i);
-            let d1=11-(s1%11); d1 = d1===11?0: d1===10?1:d1;
+            let s1 = 0;
+            for (let i = 0; i < 30; i++) s1 += Number(base[i]) * (31 - i);
+            let d1 = 11 - (s1 % 11);
+            d1 = d1 === 11 ? 0 : d1 === 10 ? 1 : d1;
             const seq31 = base + String(d1);
-            let s2=0; for(let i=0;i<31;i++) s2+=Number(seq31[i])*(32-i);
-            let d2=11-(s2%11); d2 = d2===11?0:d2===10?1:d2;
+            let s2 = 0;
+            for (let i = 0; i < 31; i++) s2 += Number(seq31[i]) * (32 - i);
+            let d2 = 11 - (s2 % 11);
+            d2 = d2 === 11 ? 0 : d2 === 10 ? 1 : d2;
             return `${d1}${d2}`;
           };
           const dv = calcDv(base30);
-          const candidate = dv ? base30+dv : '';
+          const candidate = dv ? base30 + dv : '';
           // For casamento: return computed candidate directly (no oficio/observacoes prompts)
           return candidate || '';
-        }catch(e){return '';}
+        } catch (e) {
+          return '';
+        }
       })(),
       observacoes: get('textarea[name="observacoes"]'),
       data_registro: normalizeDate(get('input[name="dataRegistro"]')),

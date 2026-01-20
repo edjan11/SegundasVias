@@ -1,7 +1,7 @@
 // src/prints/shared/openAndSavePdf.ts
 export function openHtmlAndSavePdf(html: string, filenamePrefix: string) {
-  const w = window.open("", "_blank", "width=900,height=1100");
-  if (!w) throw new Error("Popup bloqueado");
+  const w = window.open('', '_blank', 'width=900,height=1100');
+  if (!w) throw new Error('Popup bloqueado');
 
   w.document.open();
   w.document.write(html);
@@ -42,7 +42,7 @@ export function openHtmlAndSavePdf(html: string, filenamePrefix: string) {
       }
     })();
   `;
-  const s = w.document.createElement("script");
+  const s = w.document.createElement('script');
   s.textContent = code;
   w.document.body.appendChild(s);
 }
