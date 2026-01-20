@@ -6,7 +6,16 @@ function escapeHtml(s: unknown) {
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&apos;");
+}
+
+function sanitizeHref(href: string | undefined, fallback: string) {
+  if (!href) return fallback;
+  const trimmed = href.trim();
+  // disallow dangerous protocols like javascript: and data:
+  if (/^\s*(javascript|data):/i.test(trimmed)) return fallback;
+  return escapeHtml(trimmed);
 }
 
 /**
@@ -14,7 +23,7 @@ function escapeHtml(s: unknown) {
  * Você cola aqui a estrutura do TJ e só troca os ${...}.
  */
 export function buildNascimentoPdfHtmlTJ(data: AnyJson, opts?: { cssHref?: string }) {
-  const cssHref = opts?.cssHref ?? "../assets/tj/certidao.css"; // copie o CSS do TJ pro seu projeto
+  const cssHref = sanitizeHref(opts?.cssHref, "../assets/tj/certidao.css"); // copie o CSS do TJ pro seu projeto
 
   // Pegue do seu JSON como já é hoje (sem mudar contrato)
   const reg = data?.registro ?? {};
