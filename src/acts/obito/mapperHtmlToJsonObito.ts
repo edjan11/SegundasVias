@@ -3,7 +3,7 @@ import { normalizeTime } from '../../shared/validators/time';
 import { normalizeCpf } from '../../shared/validators/cpf';
 import { adjustMatricula } from '../../shared/matricula/cnj';
 
-export function mapperHtmlToJson(doc) {
+export function mapperHtmlToJsonObito(doc?: Document | HTMLElement) {
   const get = (sel) => (doc as any).querySelector(sel)?.value || '';
   const getText = (sel) => (doc as any).querySelector(sel)?.textContent || '';
   const getChecked = (sel) => !!(doc as any).querySelector(sel)?.checked;
@@ -36,15 +36,15 @@ export function mapperHtmlToJson(doc) {
       nome_mae: get('input[name="nomeMaeFalecido"]'),
       cpf_sem_inscricao: (function () {
         return (
-          !!doc.querySelector('input[data-bind="registro.cpf_sem_inscricao"]')?.checked ||
-          !!(doc.querySelector('#cpf-sem') as any)?.checked ||
+          !!(doc as any).querySelector('input[data-bind="registro.cpf_sem_inscricao"]')?.checked ||
+          !!((doc as any).querySelector('#cpf-sem') as any)?.checked ||
           false
         );
       })(),
       cpf: (function () {
         const sem =
-          !!doc.querySelector('input[data-bind="registro.cpf_sem_inscricao"]')?.checked ||
-          !!(doc.querySelector('#cpf-sem') as any)?.checked ||
+          !!(doc as any).querySelector('input[data-bind="registro.cpf_sem_inscricao"]')?.checked ||
+          !!((doc as any).querySelector('#cpf-sem') as any)?.checked ||
           false;
         return sem ? '' : normalizeCpf(get('input[name="cpfFalecido"]'));
       })(),
@@ -66,27 +66,27 @@ export function mapperHtmlToJson(doc) {
       data_termo: normalizeDate(get('input[name="dataTermo"]')),
       cartorio_cns:
         get('input[name="certidao.cartorio_cns"]') ||
-        doc.querySelector('input[data-bind="certidao.cartorio_cns"]')?.value ||
+        (doc as any).querySelector('input[data-bind="certidao.cartorio_cns"]')?.value ||
         '163659',
       matricula: (function () {
         const m =
           get('input[name="matricula"]') ||
-          doc.querySelector('#matricula')?.value ||
-          doc.querySelector('input[data-bind="registro.matricula"]')?.value ||
+          (doc as any).querySelector('#matricula')?.value ||
+          (doc as any).querySelector('input[data-bind="registro.matricula"]')?.value ||
           '';
         if (m) return m;
         try {
           const digitsOnly = (v) => String(v || '').replace(/\D/g, '');
           const padLeft = (v, s) => digitsOnly(v).padStart(s, '0').slice(-s);
           const cns = digitsOnly(
-            (doc.querySelector('input[name="certidao.cartorio_cns"]') || { value: '' }).value ||
+            ((doc as any).querySelector('input[name="certidao.cartorio_cns"]') || { value: '' }).value ||
               '163659',
           );
-          const dt = (doc.querySelector('input[name="dataTermo"]') || { value: '' }).value || '';
+          const dt = ((doc as any).querySelector('input[name="dataTermo"]') || { value: '' }).value || '';
           const ano = (dt.match(/(\d{4})$/) || [])[1] || '';
-          const livro = padLeft((doc.getElementById('matricula-livro') || { value: '' }).value, 5);
-          const folha = padLeft((doc.getElementById('matricula-folha') || { value: '' }).value, 3);
-          const termo = padLeft((doc.getElementById('matricula-termo') || { value: '' }).value, 7);
+          const livro = padLeft(((doc as any).getElementById('matricula-livro') || { value: '' }).value, 5);
+          const folha = padLeft(((doc as any).getElementById('matricula-folha') || { value: '' }).value, 3);
+          const termo = padLeft(((doc as any).getElementById('matricula-termo') || { value: '' }).value, 7);
           const base30 = `${cns}01` + `55${ano}4${livro}${folha}${termo}`;
           if (!base30 || base30.length !== 30) return '';
           const calcDv = (base) => {
@@ -107,7 +107,7 @@ export function mapperHtmlToJson(doc) {
             ? adjustMatricula
               ? adjustMatricula(
                   candidate,
-                  (doc.querySelector('textarea[name="observacoesFalecido"]') || { value: '' })
+                  ((doc as any).querySelector('textarea[name="observacoesFalecido"]') || { value: '' })
                     .value,
                 ) || candidate
               : candidate
@@ -205,8 +205,20 @@ export function mapperHtmlToJson(doc) {
       motivo_averbacao_cartorio: get('input[name="motivoAverbacaoCartorio"]'),
       observacoes_averbacao_cartorio: get('textarea[name="observacoesAverbacaoCartorio"]'),
       data_anotacao_cartorio: normalizeDate(get('input[name="dataAnotacaoCartorio"]')),
-      motivo_anotacao_cartorio: get('input[name="motivoAnotacaoCartorio"]'),
+      motivo_anotacao_cartorio: normalizeDate(get('input[name="motivoAnotacaoCartorio"]')),
       observacoes_anotacao_cartorio: get('textarea[name="observacoesAnotacaoCartorio"]'),
     },
   };
 }
+
+// Expose mapper in a safe way
+try {
+  const win = window || globalThis;
+  (win as any).App = (win as any).App || {};
+  (win as any).App.mapperHtmlToJson = (win as any).App.mapperHtmlToJson || mapperHtmlToJsonObito;
+} catch (e) {
+  // noop
+}
+
+export const mapperHtmlToJson = mapperHtmlToJsonObito;
+export default mapperHtmlToJsonObito;

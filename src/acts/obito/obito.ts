@@ -1,4 +1,4 @@
-import { mapperHtmlToJson } from './mapperHtmlToJson';
+import mapperHtmlToJson from './mapperHtmlToJsonObito';
 import { normalizeDate } from '../../shared/validators/date';
 import { validateDateDetailed } from '../../shared/validators/date';
 import { normalizeTime } from '../../shared/validators/time';

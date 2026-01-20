@@ -1,5 +1,5 @@
 import '../../core/events';
-import { mapperHtmlToJson } from './mapperHtmlToJson';
+import mapperHtmlToJson from './mapperHtmlToJsonCasamento';
 import { normalizeDate, validateDateDetailed } from '../../shared/validators/date';
 import { normalizeCpf, isValidCpf } from '../../shared/validators/cpf';
 import { validateName } from '../../shared/validators/name';
