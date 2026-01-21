@@ -34,6 +34,8 @@ const DRAWER_POS_KEY = 'ui.drawerPosition';
 const ENABLE_CPF_KEY = 'ui.enableCpfValidation';
 const ENABLE_NAME_KEY = 'ui.enableNameValidation';
 const PANEL_INLINE_KEY = 'ui.panelInline';
+const FIXED_LAYOUT_KEY = 'ui.fixedLayout';
+const INTERNAL_ZOOM_KEY = 'ui.internalZoom';
 const OUTPUT_DIR_KEY_JSON = 'outputDir.nascimento.json';
 const OUTPUT_DIR_KEY_XML = 'outputDir.nascimento.xml';
 
@@ -53,6 +55,32 @@ function setStatus(text: string, isError?: boolean): void {
     el.textContent = 'Pronto';
     el.style.color = '#64748b';
   }, 2000);
+}
+
+function applyFixedLayout(enabled: boolean): void {
+  document.body.classList.toggle('ui-fixed-layout', !!enabled);
+}
+
+function applyInternalZoom(value: number): void {
+  const container = document.querySelector('.container') as HTMLElement | null;
+  if (!container) return;
+  const raw = Number(value || 100);
+  const scale = Math.min(1.1, Math.max(0.8, raw / 100));
+  if (scale === 1) {
+    container.classList.remove('ui-zoomed');
+    container.style.transform = '';
+    container.style.width = '';
+    return;
+  }
+  container.classList.add('ui-zoomed');
+  container.style.transform = `scale(${scale})`;
+  container.style.width = `${100 / scale}%`;
+}
+
+function updateZoomLabel(label: HTMLElement | null, value: number): void {
+  if (!label) return;
+  const raw = Math.round(Number(value || 100));
+  label.textContent = `${raw}%`;
 }
 
 function showToast(message: string): void {
@@ -182,7 +210,14 @@ function withFixedCartorioCns<T>(data: T): T {
 
 function getNameValidationInputs(): HTMLInputElement[] {
   const inputs = Array.from(document.querySelectorAll<HTMLInputElement>('[data-name-validate]'));
-  ['input[data-bind="ui.mae_nome"]', 'input[data-bind="ui.pai_nome"]'].forEach((selector) => {
+  [
+    'input[data-bind="ui.mae_nome"]',
+    'input[data-bind="ui.pai_nome"]',
+    'input[data-bind="ui.mae_avo_materna"]',
+    'input[data-bind="ui.mae_avo_materno"]',
+    'input[data-bind="ui.pai_avo_paterna"]',
+    'input[data-bind="ui.pai_avo_paterno"]',
+  ].forEach((selector) => {
     const el = document.querySelector<HTMLInputElement>(selector);
     if (el && !inputs.includes(el)) {
       el.setAttribute('data-name-validate', '');
@@ -726,6 +761,9 @@ function setupSettingsPanel(): void {
   const select = document.getElementById('settings-drawer-position') as HTMLSelectElement | null;
   const cbCpf = document.getElementById('settings-enable-cpf') as HTMLInputElement | null;
   const cbName = document.getElementById('settings-enable-name') as HTMLInputElement | null;
+  const cbFixed = document.getElementById('settings-fixed-layout') as HTMLInputElement | null;
+  const zoomRange = document.getElementById('settings-zoom') as HTMLInputElement | null;
+  const zoomValue = document.getElementById('settings-zoom-value') as HTMLElement | null;
   const saveBtn = document.getElementById('settings-save') as HTMLButtonElement | null;
   const applyBtn = document.getElementById('settings-apply') as HTMLButtonElement | null;
 
@@ -734,13 +772,33 @@ function setupSettingsPanel(): void {
   const enableName = localStorage.getItem(ENABLE_NAME_KEY) !== 'false';
   const panelInlineStored = localStorage.getItem(PANEL_INLINE_KEY);
   const panelInline = panelInlineStored === null ? false : panelInlineStored === 'true';
+  const fixedLayout = localStorage.getItem(FIXED_LAYOUT_KEY) === 'true';
+  const zoomStored = Number(localStorage.getItem(INTERNAL_ZOOM_KEY) || '100') || 100;
 
   if (select) select.value = pos;
   if (cbCpf) cbCpf.checked = !!enableCpf;
   if (cbName) cbName.checked = !!enableName;
+  if (cbFixed) cbFixed.checked = !!fixedLayout;
+  if (zoomRange) zoomRange.value = String(zoomStored);
+  updateZoomLabel(zoomValue, zoomStored);
+  applyFixedLayout(fixedLayout);
+  applyInternalZoom(zoomStored);
 
   const cbInline = document.getElementById('settings-panel-inline') as HTMLInputElement | null;
   if (cbInline) cbInline.checked = !!panelInline;
+
+  cbFixed?.addEventListener('change', () => {
+    const enabled = !!cbFixed.checked;
+    applyFixedLayout(enabled);
+    localStorage.setItem(FIXED_LAYOUT_KEY, enabled ? 'true' : 'false');
+  });
+
+  zoomRange?.addEventListener('input', () => {
+    const value = Number(zoomRange.value || '100') || 100;
+    updateZoomLabel(zoomValue, value);
+    applyInternalZoom(value);
+    localStorage.setItem(INTERNAL_ZOOM_KEY, String(value));
+  });
 
   applyBtn?.addEventListener('click', () => {
     const newPos = select?.value || 'top';
@@ -760,6 +818,8 @@ function setupSettingsPanel(): void {
     localStorage.setItem(ENABLE_CPF_KEY, cbCpf?.checked ? 'true' : 'false');
     localStorage.setItem(ENABLE_NAME_KEY, cbName?.checked ? 'true' : 'false');
     localStorage.setItem(PANEL_INLINE_KEY, cbInline?.checked ? 'true' : 'false');
+    if (cbFixed) localStorage.setItem(FIXED_LAYOUT_KEY, cbFixed.checked ? 'true' : 'false');
+    if (zoomRange) localStorage.setItem(INTERNAL_ZOOM_KEY, String(zoomRange.value || '100'));
     setStatus('Preferências salvas. Atualizando...', false);
     setTimeout(() => window.location.reload(), 300);
   });

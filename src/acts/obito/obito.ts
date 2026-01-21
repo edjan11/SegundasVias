@@ -30,6 +30,8 @@ const PANEL_INLINE_KEY = 'ui.panelInline';
 const OUTPUT_DIR_KEY_JSON = 'outputDir.obito.json';
 const OUTPUT_DIR_KEY_XML = 'outputDir.obito.xml';
 const FIXED_CARTORIO_CNS = '110742';
+const FIXED_LAYOUT_KEY = 'ui.fixedLayout';
+const INTERNAL_ZOOM_KEY = 'ui.internalZoom';
 
 let outputDirs = { json: '', xml: '' };
 
@@ -52,6 +54,32 @@ function setStatus(text, isError?) {
     el.textContent = 'Pronto';
     el.style.color = '#64748b';
   }, 2000);
+}
+
+function applyFixedLayout(enabled) {
+  document.body.classList.toggle('ui-fixed-layout', !!enabled);
+}
+
+function applyInternalZoom(value) {
+  const container = document.querySelector('.container') as HTMLElement | null;
+  if (!container) return;
+  const raw = Number(value || 100);
+  const scale = Math.min(1.1, Math.max(0.8, raw / 100));
+  if (scale === 1) {
+    container.classList.remove('ui-zoomed');
+    container.style.transform = '';
+    container.style.width = '';
+    return;
+  }
+  container.classList.add('ui-zoomed');
+  container.style.transform = `scale(${scale})`;
+  container.style.width = `${100 / scale}%`;
+}
+
+function updateZoomLabel(label, value) {
+  if (!label) return;
+  const raw = Math.round(Number(value || 100));
+  label.textContent = `${raw}%`;
 }
 
 // helper to prevent actions when there are invalid fields (module-level)
@@ -347,6 +375,9 @@ function setupSettingsPanel() {
   const select = document.getElementById('settings-drawer-position') as HTMLElement | null;
   const cbCpf = document.getElementById('settings-enable-cpf') as HTMLElement | null;
   const cbName = document.getElementById('settings-enable-name') as HTMLElement | null;
+  const cbFixed = document.getElementById('settings-fixed-layout') as HTMLInputElement | null;
+  const zoomRange = document.getElementById('settings-zoom') as HTMLInputElement | null;
+  const zoomValue = document.getElementById('settings-zoom-value') as HTMLElement | null;
   const saveBtn = document.getElementById('settings-save') as HTMLElement | null;
   const applyBtn = document.getElementById('settings-apply') as HTMLElement | null;
 
@@ -356,12 +387,32 @@ function setupSettingsPanel() {
   const panelInlineStored = localStorage.getItem(PANEL_INLINE_KEY);
   // default: floating drawer is primary (false)
   const panelInline = panelInlineStored === null ? false : panelInlineStored === 'true';
+  const fixedLayout = localStorage.getItem(FIXED_LAYOUT_KEY) === 'true';
+  const zoomStored = Number(localStorage.getItem(INTERNAL_ZOOM_KEY) || '100') || 100;
 
   if (select) (select as any).value = pos;
   if (cbCpf) (cbCpf as any).checked = !!enableCpf;
   if (cbName) (cbName as any).checked = !!enableName;
+  if (cbFixed) cbFixed.checked = !!fixedLayout;
+  if (zoomRange) zoomRange.value = String(zoomStored);
+  updateZoomLabel(zoomValue, zoomStored);
+  applyFixedLayout(fixedLayout);
+  applyInternalZoom(zoomStored);
   const cbInline = document.getElementById('settings-panel-inline') as HTMLElement | null;
   if (cbInline) (cbInline as any).checked = !!panelInline;
+
+  cbFixed?.addEventListener('change', () => {
+    const enabled = !!cbFixed.checked;
+    applyFixedLayout(enabled);
+    localStorage.setItem(FIXED_LAYOUT_KEY, enabled ? 'true' : 'false');
+  });
+
+  zoomRange?.addEventListener('input', () => {
+    const value = Number(zoomRange.value || '100') || 100;
+    updateZoomLabel(zoomValue, value);
+    applyInternalZoom(value);
+    localStorage.setItem(INTERNAL_ZOOM_KEY, String(value));
+  });
 
   applyDrawerPosition(pos);
 
@@ -377,6 +428,8 @@ function setupSettingsPanel() {
     localStorage.setItem(ENABLE_CPF_KEY, newCpf);
     localStorage.setItem(ENABLE_NAME_KEY, newName);
     localStorage.setItem(PANEL_INLINE_KEY, newInline);
+    if (cbFixed) localStorage.setItem(FIXED_LAYOUT_KEY, cbFixed.checked ? 'true' : 'false');
+    if (zoomRange) localStorage.setItem(INTERNAL_ZOOM_KEY, String(zoomRange.value || '100'));
     applyDrawerPosition(newPos);
     // reload to rebind validators cleanly
     setStatus('Prefer\u00eancias salvas. Atualizando...', false);

@@ -34,6 +34,8 @@ const PANEL_INLINE_KEY = 'ui.panelInline';
 const OUTPUT_DIR_KEY_JSON = 'outputDir.casamento.json';
 const OUTPUT_DIR_KEY_XML = 'outputDir.casamento.xml';
 const FIXED_CARTORIO_CNS = '110742';
+const FIXED_LAYOUT_KEY = 'ui.fixedLayout';
+const INTERNAL_ZOOM_KEY = 'ui.internalZoom';
 
 let outputDirs = { json: '', xml: '' };
 const TEMPLATE_CACHE = new Map<string, string>();
@@ -43,14 +45,24 @@ function setupSettingsPanelCasamento(): void {
   const select = document.getElementById('settings-drawer-position') as HTMLSelectElement | null;
   const cbCpf = document.getElementById('settings-enable-cpf') as HTMLInputElement | null;
   const cbName = document.getElementById('settings-enable-name') as HTMLInputElement | null;
+  const cbFixed = document.getElementById('settings-fixed-layout') as HTMLInputElement | null;
+  const zoomRange = document.getElementById('settings-zoom') as HTMLInputElement | null;
+  const zoomValue = document.getElementById('settings-zoom-value') as HTMLElement | null;
   const saveBtn = document.getElementById('settings-save') as HTMLElement | null;
   const applyBtn = document.getElementById('settings-apply') as HTMLElement | null;
   const pos = localStorage.getItem('ui.drawerPosition') || 'top';
   const enableCpf = localStorage.getItem('ui.enableCpfValidation') !== 'false';
   const enableName = localStorage.getItem('ui.enableNameValidation') !== 'false';
+  const fixedLayout = localStorage.getItem(FIXED_LAYOUT_KEY) === 'true';
+  const zoomStored = Number(localStorage.getItem(INTERNAL_ZOOM_KEY) || '100') || 100;
   if (select) select.value = pos;
   if (cbCpf) cbCpf.checked = !!enableCpf;
   if (cbName) cbName.checked = !!enableName;
+  if (cbFixed) cbFixed.checked = !!fixedLayout;
+  if (zoomRange) zoomRange.value = String(zoomStored);
+  updateZoomLabel(zoomValue, zoomStored);
+  applyFixedLayout(fixedLayout);
+  applyInternalZoom(zoomStored);
   saveBtn?.addEventListener('click', () => {
     const newPos = select?.value || 'top';
     const newCpf = cbCpf?.checked ? 'true' : 'false';
@@ -63,6 +75,8 @@ function setupSettingsPanelCasamento(): void {
     localStorage.setItem('ui.enableCpfValidation', newCpf);
     localStorage.setItem('ui.enableNameValidation', newName);
     localStorage.setItem(PANEL_INLINE_KEY, newInline);
+    if (cbFixed) localStorage.setItem(FIXED_LAYOUT_KEY, cbFixed.checked ? 'true' : 'false');
+    if (zoomRange) localStorage.setItem(INTERNAL_ZOOM_KEY, String(zoomRange.value || '100'));
     setStatus('Preferências salvas. Atualizando...', false);
     setTimeout(() => window.location.reload(), 300);
   });
@@ -70,6 +84,19 @@ function setupSettingsPanelCasamento(): void {
     const newPos = select?.value || 'top';
     applyDrawerPosition(newPos);
     setStatus('Posição aplicada (não salva)', false);
+  });
+
+  cbFixed?.addEventListener('change', () => {
+    const enabled = !!cbFixed.checked;
+    applyFixedLayout(enabled);
+    localStorage.setItem(FIXED_LAYOUT_KEY, enabled ? 'true' : 'false');
+  });
+
+  zoomRange?.addEventListener('input', () => {
+    const value = Number(zoomRange.value || '100') || 100;
+    updateZoomLabel(zoomValue, value);
+    applyInternalZoom(value);
+    localStorage.setItem(INTERNAL_ZOOM_KEY, String(value));
   });
 }
 
@@ -83,6 +110,32 @@ function setStatus(text: string, isError?: boolean): void {
     el.textContent = 'Pronto';
     el.style.color = '#64748b';
   }, 2000);
+}
+
+function applyFixedLayout(enabled: boolean): void {
+  document.body.classList.toggle('ui-fixed-layout', !!enabled);
+}
+
+function applyInternalZoom(value: number): void {
+  const container = document.querySelector('.container') as HTMLElement | null;
+  if (!container) return;
+  const raw = Number(value || 100);
+  const scale = Math.min(1.1, Math.max(0.8, raw / 100));
+  if (scale === 1) {
+    container.classList.remove('ui-zoomed');
+    container.style.transform = '';
+    container.style.width = '';
+    return;
+  }
+  container.classList.add('ui-zoomed');
+  container.style.transform = `scale(${scale})`;
+  container.style.width = `${100 / scale}%`;
+}
+
+function updateZoomLabel(label: HTMLElement | null, value: number): void {
+  if (!label) return;
+  const raw = Math.round(Number(value || 100));
+  label.textContent = `${raw}%`;
 }
 
 function applyDrawerPosition(pos: string) {
@@ -205,7 +258,14 @@ function isValidCasamentoXml(xml: string): boolean {
 }
 
 async function generateJson(): Promise<void> {
-  if (!canProceed()) return;
+  try {
+    console.debug('casamento: generateJson invoked');
+    showToast('Gerando JSON...');
+  } catch (err) {}
+  if (!canProceed()) {
+    showToast('Existem campos inválidos. Corrija antes de gerar.');
+    return;
+  }
   const data = mapperHtmlToJson(document as any);
   const json = JSON.stringify(withFixedCartorioCns(data), null, 2);
   const out = document.getElementById('json-output') as any;
@@ -219,13 +279,21 @@ async function generateJson(): Promise<void> {
     }
     if (downloadFile(name, json, 'application/json')) setStatus(`JSON baixado: ${name}`);
     else setStatus('Falha ao gerar JSON', true);
-  } catch {
+  } catch (e) {
+    console.error('generateJson error', e);
     setStatus('Falha ao gerar JSON', true);
   }
 }
 
 async function generateXml(): Promise<void> {
-  if (!canProceed()) return;
+  try {
+    console.debug('casamento: generateXml invoked');
+    showToast('Gerando XML...');
+  } catch (err) {}
+  if (!canProceed()) {
+    showToast('Existem campos inválidos. Corrija antes de gerar.');
+    return;
+  }
   const data = mapperHtmlToJson(document as any);
   const cns = onlyDigits(data?.certidao?.cartorio_cns) || onlyDigits(data?.registro?.matricula).slice(0, 6);
   const template = await fetchCasamentoTemplate(cns);
@@ -249,7 +317,8 @@ async function generateXml(): Promise<void> {
     }
     if (downloadFile(name, xml, 'application/xml')) setStatus(`XML baixado: ${name}`);
     else setStatus('Falha ao gerar XML', true);
-  } catch {
+  } catch (e) {
+    console.error('generateXml error', e);
     setStatus('Falha ao gerar XML', true);
   }
 }
@@ -630,14 +699,30 @@ function setupCasamentoNationalityDefaults(): void {
 }
 
 function setupOutputButtons(): void {
-  document.getElementById('btn-json')?.addEventListener('click', (e) => {
-    e.preventDefault();
-    void generateJson();
-  });
-  document.getElementById('btn-xml')?.addEventListener('click', (e) => {
-    e.preventDefault();
-    void generateXml();
-  });
+  const btnJson = document.getElementById('btn-json') as HTMLElement | null;
+  const btnXml = document.getElementById('btn-xml') as HTMLElement | null;
+
+  if (btnJson) {
+    btnJson.addEventListener('click', (e) => {
+      e.preventDefault();
+      try {
+        console.debug('casamento: btn-json clicked');
+        showToast('Gerando JSON...');
+      } catch (err) {}
+      void generateJson();
+    });
+  }
+
+  if (btnXml) {
+    btnXml.addEventListener('click', (e) => {
+      e.preventDefault();
+      try {
+        console.debug('casamento: btn-xml clicked');
+        showToast('Gerando XML...');
+      } catch (err) {}
+      void generateXml();
+    });
+  }
 }
 
 function setupMatriculaFieldTriggers(triggerMatricula: () => void): void {

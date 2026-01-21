@@ -235,10 +235,12 @@ export function buildCasamentoXmlFromJson(templateXml: string, data: CasamentoJs
   const c1 = conj[0] || {};
   const c2 = conj[1] || {};
 
-  // pc_004: CNS do cartório
-  const cns = onlyDigits(data?.certidao?.cartorio_cns) || onlyDigits(r.matricula).slice(0, 6);
-  if (cns) xml = setTag(xml, "pc_004", cns, 1, true, warnings);
-  else warnings.push("FALTANTE_NO_JSON: certidao.cartorio_cns (sem fallback confiável)");
+  // pc_004: CNS do cartório -> PRIORITIZE os 6 primeiros dígitos da matrícula
+  const matricula6 = onlyDigits(r.matricula).slice(0, 6);
+  const cns = matricula6 || onlyDigits(data?.certidao?.cartorio_cns) || '';
+  if (matricula6) xml = setTag(xml, "pc_004", matricula6, 1, true, warnings);
+  else if (cns) xml = setTag(xml, "pc_004", cns, 1, true, warnings);
+  else warnings.push("FALTANTE: não foi possível determinar pc_004 (matrícula e certidao.cartorio_cns ausentes)");
 
   // pc_006: anotações/averbações (pode ser vazio)
   if (r.averbacao_anotacao !== undefined) {

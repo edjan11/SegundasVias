@@ -99,7 +99,7 @@ function buildMatriculaCasamento(root: Root): string {
 
     // CNS usado na matrícula pode ser diferente do cartório emissor (acervo), então aqui usamos o input do formulário
     const cns = digitsOnly(
-      ((root as any).querySelector('input[name="certidao.cartorio_cns"]') || { value: '' }).value || '163659',
+      ((root as any).querySelector('input[name="certidao.cartorio_cns"]') || { value: '' }).value || '110742',
     );
 
     const dt = ((root as any).querySelector('input[name="dataTermo"]') || { value: '' }).value || '';
@@ -233,7 +233,8 @@ export function mapperHtmlToCrcJson(root: Root = document) {
       tipo_registro: 'casamento',
       tipo_certidao,
       transcricao,
-      cartorio_cns: cartorioCnsEmissor,
+      // JSON deve manter CNS fixo
+      cartorio_cns: '110742',
       selo,
       cod_selo,
       modalidade,
