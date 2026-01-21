@@ -169,11 +169,11 @@ export function mapperHtmlToJsonNascimento(doc?: DocLike) {
   const sexo_outros_raw = v(d, '#sexo-outros') || v(d, '[data-bind="registro.sexo_outros"]');
   const sexo_outros = sexo === 'outros' ? String(sexo_outros_raw || '').trim() : '';
 
-  // local nascimento (support multiple selector variants: kebab-case id, camelCase id, select[name], or data-bind)
+  // local nascimento: prioriza select[name="localNascimento"] (quando informado) para permitir
+  // escolha do tipo/código do local (H, S, D, V, O, I). Se não houver seleção, usa o campo de texto.
   const local_nascimento = upper(
-    v(d, '#local-nascimento') ||
-    v(d, '#localNascimento') ||
     v(d, 'select[name="localNascimento"]') ||
+    v(d, '#local-nascimento') ||
     v(d, '[data-bind="registro.local_nascimento"]')
   );
 

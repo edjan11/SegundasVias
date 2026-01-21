@@ -1756,8 +1756,30 @@ function setupLocalAutofill() {
   const suggestionWrap = document.getElementById('local-suggestion') as HTMLElement | null;
   const suggestionText = document.getElementById('local-suggestion-text') as HTMLElement | null;
   const suggestionApply = document.getElementById('local-suggestion-apply') as HTMLElement | null;
+  const localSelect = document.getElementById('localNascimento') as HTMLSelectElement | null;
   const copyBtn = document.getElementById(
     'copy-naturalidade',
+  );
+
+  // Sync select -> input: when a type is selected, populate the input with the option label
+  if (localSelect) {
+    localSelect.addEventListener('change', () => {
+      const sel = localSelect.selectedOptions?.[0];
+      const localElInput = document.getElementById('local-nascimento') as HTMLInputElement | null;
+      if (sel && sel.value) {
+        // set visible text to option label for clarity; the mapper will prefer the select value
+        if (localElInput) localElInput.value = sel.textContent?.trim() || '';
+      }
+    });
+  }
+
+  // If user edits the textual local, clear the select so the free text takes precedence
+  const localElInput = document.getElementById('local-nascimento') as HTMLInputElement | null;
+  if (localElInput && localSelect) {
+    localElInput.addEventListener('input', () => {
+      if (localSelect.value) localSelect.value = '';
+    });
+  }
   ) as HTMLElement | null as HTMLButtonElement | null;
   if (!localEl || !cityEl || !ufEl) return;
 

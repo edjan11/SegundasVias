@@ -150,13 +150,26 @@
         <div class="row row-place">
           <div class="field w-local-wide">
             <label>Local de nascimento <span class="req">*</span></label>
-            <input
-              id="local-nascimento"
-              data-bind="registro.local_nascimento"
-              data-required
-              placeholder="Ex: Na Clínica Santa Helena, Aracaju/SE"
-              autocomplete="off"
-            />
+            <div style="display:flex;gap:8px;align-items:center">
+              <input
+                id="local-nascimento"
+                data-bind="registro.local_nascimento"
+                data-required
+                placeholder="Ex: Na Clínica Santa Helena, Aracaju/SE"
+                autocomplete="off"
+                style="flex:1"
+              />
+              <!-- Seleção do tipo de local (define o código usado no XML) -->
+              <select name="localNascimento" class="campo" id="localNascimento" style="width:220px">
+                <option value=""></option>
+                <option value="H">HOSPITAL</option>
+                <option value="S">OUTROS ESTABELECIMENTOS DE SAÚDE SEM INTERNAÇÃO</option>
+                <option value="D">DOMICÍLIO</option>
+                <option value="V">VIA PÚBLICA</option>
+                <option value="O">OUTROS</option>
+                <option value="I">IGNORADO</option>
+              </select>
+            </div>
             <div id="local-suggestion" class="suggestion-bar">
               <span id="local-suggestion-text" class="suggestion-text"></span>
               <button type="button" class="btn secondary tiny" id="local-suggestion-apply">Aplicar sugestao</button>
