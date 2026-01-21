@@ -279,7 +279,7 @@ function setupSettingsPanel() {
   const saveBtn = document.getElementById('settings-save') as HTMLElement | null;
   const applyBtn = document.getElementById('settings-apply') as HTMLElement | null;
 
-  const pos = localStorage.getItem(DRAWER_POS_KEY) || 'bottom-right';
+  const pos = localStorage.getItem(DRAWER_POS_KEY) || 'top';
   const enableCpf = localStorage.getItem(ENABLE_CPF_KEY) !== 'false';
   const enableName = localStorage.getItem(ENABLE_NAME_KEY) !== 'false';
   const panelInlineStored = localStorage.getItem(PANEL_INLINE_KEY);
@@ -295,7 +295,7 @@ function setupSettingsPanel() {
   applyDrawerPosition(pos);
 
   saveBtn?.addEventListener('click', () => {
-    const newPos = (select as HTMLSelectElement | null)?.value || 'bottom-right';
+    const newPos = (select as HTMLSelectElement | null)?.value || 'top';
     const newCpf = (cbCpf as HTMLInputElement | null)?.checked ? 'true' : 'false';
     const newName = (cbName as HTMLInputElement | null)?.checked ? 'true' : 'false';
     const newInline = (document.getElementById('settings-panel-inline') as HTMLInputElement | null)
@@ -313,9 +313,23 @@ function setupSettingsPanel() {
   });
 
   applyBtn?.addEventListener('click', () => {
-    const newPos = (select as HTMLSelectElement | null)?.value || 'bottom-right';
+    const newPos = (select as HTMLSelectElement | null)?.value || 'top';
     applyDrawerPosition(newPos);
     setStatus('Posi\u00e7\u00e3o aplicada (n\u00e3o salva)', false);
+  });
+
+  // Output buttons (JSON / XML / Print) - top toolbar buttons (if present) will be bound
+  (document.getElementById('btn-json') as HTMLElement | null)?.addEventListener('click', (e) => {
+    e.preventDefault();
+    generateJson();
+  });
+  (document.getElementById('btn-xml') as HTMLElement | null)?.addEventListener('click', (e) => {
+    e.preventDefault();
+    generateXml();
+  });
+  (document.getElementById('btn-print') as HTMLElement | null)?.addEventListener('click', (e) => {
+    e.preventDefault();
+    openPrintPreview();
   });
 }
 
@@ -403,7 +417,7 @@ function arrangePanel() {
   const useInline = panelInlineStored === null ? false : panelInlineStored === 'true';
   const inline = document.getElementById('panel-inline') as HTMLElement | null;
   if (!inline) return;
-  const drawerPos = localStorage.getItem(DRAWER_POS_KEY) || 'bottom-right';
+  const drawerPos = localStorage.getItem(DRAWER_POS_KEY) || 'top';
   const existingDrawer = document.getElementById('drawer') as HTMLElement | null;
 
   if (useInline) {
@@ -458,7 +472,7 @@ function arrangePanel__dup_2() {
   const useInline = panelInlineStored === null ? false : panelInlineStored === 'true';
   const inline = document.getElementById('panel-inline') as HTMLElement | null;
   if (!inline) return;
-  const drawerPos = localStorage.getItem(DRAWER_POS_KEY) || 'bottom-right';
+  const drawerPos = localStorage.getItem(DRAWER_POS_KEY) || 'top';
   const existingDrawer = document.getElementById('drawer') as HTMLElement | null;
 
   if (useInline) {
@@ -507,15 +521,6 @@ function arrangePanel__dup_2() {
   }
 }
 
-function setupDrawerToggle() {
-  const btn = document.getElementById('drawer-toggle') as HTMLElement | null;
-  if (!btn) return;
-  btn.addEventListener('click', () => {
-    const drawer = document.getElementById('drawer') as HTMLElement | null;
-    if (!drawer) return;
-    drawer.classList.toggle('open');
-  });
-}
 
 function populateOrgaoAndUf() {
   // opções de órgãos (copiado do template HTML)
@@ -1105,11 +1110,10 @@ function setup() {
   }
   // drawer removed for inline layout; no setupDrawer call
   // apply persisted drawer position and wire settings
-  applyDrawerPosition(localStorage.getItem(DRAWER_POS_KEY) || 'bottom-right');
+  applyDrawerPosition(localStorage.getItem(DRAWER_POS_KEY) || 'top');
   setupSettingsPanel();
   // arrange panel according to saved preference (inline vs floating)
   arrangePanel();
-  setupDrawerToggle();
   setupActSelect('obito');
   setupPrimaryShortcut(
     () =>

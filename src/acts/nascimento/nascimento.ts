@@ -753,9 +753,12 @@ function setupActions(): void {
   };
 
   // Attach to all btns on this page (toolbar + panel) so both trigger the per-act generators
-  document.querySelectorAll('#btn-json').forEach((el) => attachExclusiveClick(el as HTMLElement, generateJson));
-  document.querySelectorAll('#btn-xml').forEach((el) => attachExclusiveClick(el as HTMLElement, generateXml));
-  document.querySelectorAll('#btn-pnas').forEach((el) => attachExclusiveClick(el as HTMLElement, () => { void generatePnasXml(); }));
+  document.querySelectorAll('#btn-json, #btn-json-manual')
+    .forEach((el) => attachExclusiveClick(el as HTMLElement, generateJson));
+  document.querySelectorAll('#btn-xml, #btn-xml-manual')
+    .forEach((el) => attachExclusiveClick(el as HTMLElement, generateXml));
+  document.querySelectorAll('#btn-pnas, #btn-pnas-manual')
+    .forEach((el) => attachExclusiveClick(el as HTMLElement, () => { void generatePnasXml(); }));
 
   document.addEventListener('input', updateActionButtons);
   document.addEventListener('change', updateActionButtons);

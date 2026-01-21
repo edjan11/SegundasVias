@@ -375,7 +375,7 @@ try {
         const ENABLE_CPF = localStorage.getItem('ui.enableCpfValidation') !== 'false';
         const ENABLE_NAME = localStorage.getItem('ui.enableNameValidation') !== 'false';
         const PANEL_INLINE = localStorage.getItem('ui.panelInline') === 'true';
-        const POS = localStorage.getItem('ui.drawerPosition') || 'bottom-right';
+        const POS = localStorage.getItem('ui.drawerPosition') || 'top';
         if (cbCpf) cbCpf.checked = !!ENABLE_CPF;
         if (cbName) cbName.checked = !!ENABLE_NAME;
         if (cbInline) cbInline.checked = !!PANEL_INLINE;
@@ -530,7 +530,7 @@ try {
           if (t.id === 'settings-save' || t.closest?.('#settings-save')) {
             const pos =
               (document.getElementById('settings-drawer-position') as HTMLSelectElement | null)
-                ?.value || 'bottom-right';
+                ?.value || 'top';
             const newCpf = (
               document.getElementById('settings-enable-cpf') as HTMLInputElement | null
             )?.checked
@@ -560,7 +560,7 @@ try {
           if (t.id === 'settings-apply' || t.closest?.('#settings-apply')) {
             const pos =
               (document.getElementById('settings-drawer-position') as HTMLSelectElement | null)
-                ?.value || 'bottom-right';
+                ?.value || 'top';
             try {
               const drawer = document.getElementById('drawer');
               if (drawer) {

@@ -27,6 +27,8 @@
     "test:prints": "npm run build && node tests/print-test.js",
     "test:city": "npm run build && node tests/city-uf-resolver.test.js",
     "test:city-ui": "npm run build && node --experimental-specifier-resolution=node tests/city-ui.test.js",
+    "test:xml": "npm run build && node tests/print-nascimento.test.js",
+    "gen:nascimento": "node scripts/gen-nascimento-xml.js",
     "start:freq-server": "npm run build && node dist-src/server/frequencyServer.js",
     "start-nodemon": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/start-nodemon.ps1"
   },

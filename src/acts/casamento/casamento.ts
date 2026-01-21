@@ -35,14 +35,14 @@ function setupSettingsPanelCasamento(): void {
   const cbName = document.getElementById('settings-enable-name') as HTMLInputElement | null;
   const saveBtn = document.getElementById('settings-save') as HTMLElement | null;
   const applyBtn = document.getElementById('settings-apply') as HTMLElement | null;
-  const pos = localStorage.getItem('ui.drawerPosition') || 'bottom-right';
+  const pos = localStorage.getItem('ui.drawerPosition') || 'top';
   const enableCpf = localStorage.getItem('ui.enableCpfValidation') !== 'false';
   const enableName = localStorage.getItem('ui.enableNameValidation') !== 'false';
   if (select) select.value = pos;
   if (cbCpf) cbCpf.checked = !!enableCpf;
   if (cbName) cbName.checked = !!enableName;
   saveBtn?.addEventListener('click', () => {
-    const newPos = select?.value || 'bottom-right';
+    const newPos = select?.value || 'top';
     const newCpf = cbCpf?.checked ? 'true' : 'false';
     const newName = cbName?.checked ? 'true' : 'false';
     const newInline = (document.getElementById('settings-panel-inline') as HTMLInputElement | null)
@@ -57,7 +57,7 @@ function setupSettingsPanelCasamento(): void {
     setTimeout(() => window.location.reload(), 300);
   });
   applyBtn?.addEventListener('click', () => {
-    const newPos = select?.value || 'bottom-right';
+    const newPos = select?.value || 'top';
     applyDrawerPosition(newPos);
     setStatus('Posição aplicada (não salva)', false);
   });
