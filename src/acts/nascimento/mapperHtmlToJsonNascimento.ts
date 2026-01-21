@@ -169,8 +169,13 @@ export function mapperHtmlToJsonNascimento(doc?: DocLike) {
   const sexo_outros_raw = v(d, '#sexo-outros') || v(d, '[data-bind="registro.sexo_outros"]');
   const sexo_outros = sexo === 'outros' ? String(sexo_outros_raw || '').trim() : '';
 
-  // local nascimento
-  const local_nascimento = upper(v(d, '#local-nascimento') || v(d, '[data-bind="registro.local_nascimento"]'));
+  // local nascimento (support multiple selector variants: kebab-case id, camelCase id, select[name], or data-bind)
+  const local_nascimento = upper(
+    v(d, '#local-nascimento') ||
+    v(d, '#localNascimento') ||
+    v(d, 'select[name="localNascimento"]') ||
+    v(d, '[data-bind="registro.local_nascimento"]')
+  );
 
   // município/uf nascimento (principal)
   const municipio_nascimento = upper(v(d, '[data-bind="registro.municipio_nascimento"]'));

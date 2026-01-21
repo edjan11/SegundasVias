@@ -81,8 +81,9 @@ function setTag(
       return safe ? `${openTag}${safe}</${tag}>` : selfClosing;
     }    // If forceEmpty is requested and the value is empty, prefer to keep self-closing
     if (!safe && forceEmpty) {
-      const selfClose = open.replace(/>$/, ' />').replace(/\s+\/>$/, '/>');
-      return selfClose;
+      // Preserve the original element format: if the template used a self-closing tag, keep it;
+      // otherwise return an open/close pair without inner content to match template structure.
+      return selfClosing ? selfClosing : `${open}${close}`;
     }    return `${open}${safe}${close}`;
   });
 }
@@ -154,9 +155,12 @@ function parseAvos(raw?: string): { avo1: string; avo2: string } {
   return { avo1: parts[0] || "", avo2: parts[1] || "" };
 }
 
-function mapLocalNascimentoCode(local?: string): string {
+export function mapLocalNascimentoCode(local?: string): string {
   const s = String(local ?? "").trim().toUpperCase();
   if (!s) return "";
+  // If the value starts with digits (e.g. "1 - Hospital"), return the leading digits
+  const leading = (s.match(/^\s*(\d+)/) || [])[1];
+  if (leading) return leading;
   if (/^\d+$/.test(s)) return s;
   if (s.length === 1) {
     if (s === "H") return "1";
@@ -436,6 +440,42 @@ export function buildNascimentoXmlFromJson(templateXml: string, data: Nascimento
   if (r.nome_assinante) {
     xml = setTagAny(xml, ["Assinante", "NomeAssinante"], r.nome_assinante, true);
   }
+
+  // Preserve self-closing empty tags from the template.
+  // For any tag that is self-closing in the template (e.g. <Genitores/>),
+  // if the generated XML ended up producing an explicit empty pair (<Genitores></Genitores>),
+  // convert that empty pair back to the self-closing form so the output preserves
+  // the template's structure exactly.
+  function preserveTemplateSelfClosing(templateStr: string, generatedStr: string): string {
+    // Find all self-closing tags in the template like <TagName/> (capture tag names)
+    const selfClosingTags = new Set();
+    const reSelfClosing = /<([A-Za-z0-9_]+)(?=\s|\/|>)[^>]*\/>/g;
+    let m;
+    while ((m = reSelfClosing.exec(templateStr))) {
+      selfClosingTags.add(m[1]);
+    }
+
+    if (selfClosingTags.size === 0) return generatedStr;
+
+    // For each tag name, replace occurrences of an explicit empty pair with self-closing.
+    for (const tag of selfClosingTags) {
+      // Replace occurrences of <Tag></Tag> (optionally with whitespace) with <Tag/>
+      const emptyPairRe = new RegExp(`<${tag}(?=\\s|/|>)[^>]*>\\s*<\\/${tag}>`, "g");
+      generatedStr = generatedStr.replace(emptyPairRe, (match) => {
+        // Replace with self-closing form retaining any attributes on the opening tag if present in the empty pair
+        const openTagMatch = match.match(new RegExp(`(<${tag}[^>]*>)`));
+        if (openTagMatch && openTagMatch[1]) {
+          // convert opening tag to self-closing
+          return openTagMatch[1].replace(/>\s*$/, "/>");
+        }
+        return `<${tag}/>`;
+      });
+    }
+
+    return generatedStr;
+  }
+
+  xml = preserveTemplateSelfClosing(templateXml, xml);
 
   return xml;
 }
