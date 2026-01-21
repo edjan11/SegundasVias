@@ -1,204 +1,299 @@
-// =========================
-// CRC PAYLOAD (NASCIMENTO)
-// =========================
-
-// normaliza texto sem destruir acentos
-function limpa(v) {
-  return String(v == null ? "" : v).replace(/\s+/g, " ").trim();
-}
-
-// mantém só números (quando você realmente quiser)
-function somenteNumeros(v) {
-  return String(v == null ? "" : v).replace(/\D+/g, "");
-}
+// mapperHtmlToJsonNascimento.ts
+// Gera o payload CRC no padrão FINAL (certidao + registro) igual aos exemplos "corretos".
 
 type DocLike = Document | HTMLElement | null;
-let CONTEXT_DOC: DocLike = document;
-function setContextDoc(d?: DocLike) {
-  CONTEXT_DOC = d || document;
-}
-// tenta achar um texto no DOM por seletor e retorna string limpa
-function texto(sel) {
-  const el = (CONTEXT_DOC as any).querySelector(sel);
-  if (!el) return "";
-  // pega value se existir, senão innerText
-  return limpa((el as any).value != null ? (el as any).value : (el as any).innerText || '');
-}
 
-// data no formato DD/MM/AAAA (não inventa)
-function normalizaDataBR(v) {
-  const s = limpa(v);
-  // já tá ok
+function q<T extends Element = Element>(doc: DocLike, sel: string): T | null {
+  return (doc as any)?.querySelector?.(sel) ?? null;
+}
+function v(doc: DocLike, sel: string): string {
+  const el: any = q(doc, sel);
+  if (!el) return '';
+  const raw = el.value != null ? el.value : el.innerText;
+  return String(raw ?? '').replace(/\u00A0/g, ' ').replace(/\s+/g, ' ').trim();
+}
+function checked(doc: DocLike, sel: string): boolean {
+  const el: any = q(doc, sel);
+  return !!el?.checked;
+}
+function onlyDigits(x: any): string {
+  return String(x ?? '').replace(/\D+/g, '');
+}
+function upper(x: any): string {
+  return String(x ?? '')
+    .replace(/\u00A0/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .toUpperCase();
+}
+function normDateBR(x: any): string {
+  const s = String(x ?? '').trim();
+  if (!s) return '';
+  // mantém se já estiver DD/MM/AAAA
   if (/^\d{2}\/\d{2}\/\d{4}$/.test(s)) return s;
-  return s; // se vier diferente, não quebra: devolve como está
+  // não inventa formato: devolve limpo
+  return s;
 }
-
-// hora no formato "HH:MM horas" (igual manual)
-function normalizaHoraComHoras(v) {
-  const s = limpa(v);
-  if (!s) return "";
+function normHoraHHMM(x: any): string {
+  const s = String(x ?? '').trim();
+  if (!s) return '';
   const m = s.match(/(\d{1,2})\s*:\s*(\d{2})/);
-  if (!m) return "";
-  const hh = String(m[1]).padStart(2, "0");
-  const mm = String(m[2]);
-  return `${hh}:${mm} horas`;
-}
-
-// detecta CPF ausente/sem inscrição no texto do TJ
-function isCpfAusente(raw) {
-  const s = limpa(raw);
-  if (!s) return true;
-  if (/N[ÃA]O\s*CONSTA/i.test(s)) return true;
-  if (/SEM\s*CPF/i.test(s)) return true;
-  if (/SEM\s*INSCRI/i.test(s)) return true;
-  return false;
-}
-
-// se você tiver um ajuste de CNS/matrícula, encaixe aqui (se não tiver, deixa como identity)
-function ajustarCNSMatricula(matricula) {
-  return limpa(matricula);
-}
-
-// =======
-// FUNÇÃO PRINCIPAL: monta JSON CRC (normalizado para NascimentoJson)
-// =======
-
-const CARTORIO_EMISSOR_CNS = "163659";
-const PLATAFORMA_ID = "certidao-eletronica";
-const TIPO_CERTIDAO_PADRAO = "Breve relato";
-
-function onlyDigits(v: any): string {
-  return String(v || "").replace(/\D+/g, '');
-}
-function normUpper(v: any): string {
-  return String(v || '').replace(/\u00A0/g, ' ').replace(/\s+/g, ' ').trim().toUpperCase();
-}
-function normHoraHHMM(v: any): string {
-  const s = String(v || '').trim();
-  const m = s.match(/(\d{1,2}):(\d{2})/);
   if (!m) return '';
   const hh = String(m[1]).padStart(2, '0');
   const mm = String(m[2]);
   return `${hh}:${mm}`;
 }
-function fallbackNaoConsta(v: any): string {
-  const t = normUpper(v);
-  return t ? t : 'NÃO CONSTA';
+function naoConstaIfEmpty(x: any): string {
+  const s = upper(x);
+  return s ? s : 'NÃO CONSTA';
+}
+function ufOrNC(x: any): string {
+  const s = upper(x);
+  return s ? s : 'N/C';
 }
 
-function montarJson() {
-  // Captura bruta
-  const nome_raw = texto('input[name="nomeCompleto"]') || texto('[data-bind="registro.nome_completo"]') || texto('#nomeCompleto');
-  const data_registro = normalizaDataBR(texto('input[name="dataRegistro"]') || texto('[data-bind="registro.data_registro"]') || texto('#dataRegistro')) || '';
+const CARTORIO_EMISSOR_CNS_DEFAULT = '163659';
+const PLATAFORMA_ID = 'certidao-eletronica';
+const TIPO_CERTIDAO_PADRAO = 'Breve relato';
 
-  const data_nascimento = normalizaDataBR(texto('input[name="dataNascimento"]') || texto('[data-bind="registro.data_nascimento"]') || texto('#dataNascimento')) || '';
-  const data_nascimento_ignorada = !data_nascimento;
+function parseGemeos(raw: string): Array<{ nome: string; matricula: string }> {
+  // textarea ui.gemeos_irmao_raw: aceita "nome|matricula" ou "nome - matricula" por linha
+  const lines = String(raw ?? '')
+    .split('\n')
+    .map((l) => l.trim())
+    .filter(Boolean);
 
-  const hora_raw = texto('input[name="horaNascimento"]') || texto('[data-bind="registro.hora_nascimento"]') || texto('#horaNascimento') || '';
-  const hora_nascimento = normHoraHHMM(hora_raw);
-  const hora_nascimento_ignorada = !hora_nascimento;
+  return lines
+    .map((line) => {
+      let nomeRaw = '';
+      let matRaw = '';
 
-  const municipio_naturalidade_raw = texto('input[name="municipioNaturalidade"]') || texto('input[name="naturalidade"]') || texto('[data-bind="registro.municipio_naturalidade"]') || '';
-  const municipio_nascimento_raw = texto('input[name="municipioNascimento"]') || texto('[data-bind="registro.municipio_nascimento"]') || '';
+      if (line.includes('|')) {
+        [nomeRaw, matRaw] = line.split('|').map((s) => s.trim());
+      } else {
+        // tenta usar o ÚLTIMO traço/emdash como separador (preserva nomes com hífen)
+        const dashPos = Math.max(line.lastIndexOf('-'), line.lastIndexOf('—'));
+        if (dashPos > 0) {
+          const right = line.slice(dashPos + 1).trim();
+          if (/\d/.test(right)) {
+            nomeRaw = line.slice(0, dashPos).trim();
+            matRaw = right;
+          } else {
+            // se depois do traço não há dígitos, trata tudo como nome
+            nomeRaw = line;
+          }
+        } else {
+          // sem separador: se for quase só dígitos => matrícula, senão => nome
+          const digitsOnly = onlyDigits(line);
+          if (digitsOnly && digitsOnly.length >= 3 && digitsOnly.length <= 20 && digitsOnly.length >= Math.max(3, Math.floor(line.length / 2))) {
+            matRaw = line;
+          } else {
+            nomeRaw = line;
+          }
+        }
+      }
 
-  const uf_naturalidade_raw = texto('select[name="ufNaturalidade"]') || texto('[data-bind="registro.uf_naturalidade"]') || '';
-  const uf_nascimento_raw = texto('select[name="ufNascimento"]') || texto('[data-bind="registro.uf_nascimento"]') || '';
+      return {
+        nome: upper(nomeRaw ?? ''),
+        matricula: onlyDigits(matRaw ?? ''),
+      };
+    })
+    .filter((x) => x.nome || x.matricula);
+}
 
-  const local_nascimento_raw = texto('input[name="localNascimento"]') || texto('[data-bind="registro.local_nascimento"]') || '';
+function parseAnotacoesCadastro(raw: string): any[] {
+  // textarea ui.anotacoes_raw: "tipo|documento|orgao_emissor|uf_emissao|data_emissao" por linha
+  const lines = String(raw ?? '')
+    .split('\n')
+    .map((l) => l.trim())
+    .filter(Boolean);
 
-  // sexo
-  const sexo_raw = (((CONTEXT_DOC as any).querySelector('input[name="sexo"]:checked') as HTMLInputElement | null)?.value) || texto('[data-bind="registro.sexo"]') || '';
-  const sexo_lower = String(sexo_raw || '').trim().toLowerCase();
-  let sexo: string = '';
-  if (sexo_lower === 'm' || sexo_lower === 'masculino') sexo = 'masculino';
-  else if (sexo_lower === 'f' || sexo_lower === 'feminino') sexo = 'feminino';
-  else if (sexo_lower === 'outros' || sexo_lower === 'outro') sexo = 'outros';
-  else if (sexo_lower === 'ignorado') sexo = 'ignorado';
-  else sexo = sexo_lower ? sexo_lower : '';
+  return lines
+    .map((line) => {
+      const parts = line.split('|').map((p) => p.trim());
+      const [tipo, documento, orgao_emissor, uf_emissao, data_emissao] = parts;
+      if (!tipo && !documento && !orgao_emissor && !uf_emissao && !data_emissao) return null;
 
-  const sexo_outros = sexo === 'outros' ? (texto('input[name="sexoOutros"]') || texto('[data-bind="registro.sexo_outros"]') || '') : '';
-
-  // CPF
-  const cpf_raw = texto('input[name="cpf"]') || texto('[data-bind="registro.cpf"]') || texto('#cpf') || '';
-  const cpf_sem_inscricao = isCpfAusente(cpf_raw);
-  const cpf = cpf_sem_inscricao ? '' : onlyDigits(cpf_raw);
-
-  // matrícula
-  const matricula_raw = texto('input[name="matricula"]') || texto('[data-bind="registro.matricula"]') || texto('#matricula') || '';
-  const matricula = onlyDigits(ajustarCNSMatricula(matricula_raw));
-
-  // gêmeos
-  const gemeos_qtd_raw = texto('input[name="gemeosQuantidade"]') || texto('[data-bind="registro.gemeos.quantidade"]') || '';
-  const gemeos_quantidade = limpa(gemeos_qtd_raw) ? String(limpa(gemeos_qtd_raw)) : '0';
-
-  // tenta coletar irmãos se existirem campos repetidos
-  let gemeos_irmao: Array<{ nome: string; matricula: string }> = [];
-  if (gemeos_quantidade !== '0') {
-    const nomes = Array.from((CONTEXT_DOC as Document).querySelectorAll('input[name="gemeoNome"], input[name="gemeosNome[]"], input[name="gemeosNome"]')).map((e: any) => String(e.value || '').trim()).filter(Boolean);
-    const mat = Array.from((CONTEXT_DOC as Document).querySelectorAll('input[name="gemeoMatricula"], input[name="gemeosMatricula[]"], input[name="gemeosMatricula"]')).map((e: any) => onlyDigits(e.value || ''));
-    gemeos_irmao = nomes.map((n, i) => ({ nome: normUpper(n), matricula: mat[i] || '' })).filter(g => g.nome || g.matricula);
-  }
-
-  // filiação
-  let filiacao: Array<any> = [];
-  const nomesF = Array.from((CONTEXT_DOC as Document).querySelectorAll('input[name="filiacaoNome"], input[name="filiacaoNome[]"], input[name^="filiacao"]')).map((e: any) => String(e.value || '').trim()).filter(Boolean);
-  if (nomesF.length) {
-    filiacao = nomesF.map((n, i) => ({
-      nome: normUpper(n),
-      municipio_nascimento: normUpper(((CONTEXT_DOC as Document).querySelectorAll('input[name="filiacaoMunicipio"], input[name^="filiacaoMunicipio"]')[i] as any)?.value || ''),
-      uf_nascimento: ((CONTEXT_DOC as Document).querySelectorAll('input[name="filiacaoUf"], select[name^="filiacaoUf"]')[i] as any)?.value || '',
-      avos: normUpper(((CONTEXT_DOC as Document).querySelectorAll('input[name="filiacaoAvos"], input[name^="filiacaoAvos"]')[i] as any)?.value || ''),
-    })).filter(Boolean);
-  }
-
-  const numero_dnv = fallbackNaoConsta(texto('input[name="numeroDNV"]') || texto('[data-bind="registro.numero_dnv"]') || '');
-  const averbacao_anotacao = (texto('textarea[name="observacoes"]') || texto('[data-bind="registro.averbacao_anotacao"]') || '');
-
-  // monta final no formato pedido
-  return {
-    certidao: {
-      plataformaId: PLATAFORMA_ID,
-      tipo_registro: 'nascimento',
-      tipo_certidao: texto('input[name="tipoCertidao"]') || TIPO_CERTIDAO_PADRAO,
-      transcricao: true,
-      cartorio_cns: CARTORIO_EMISSOR_CNS,
-      selo: texto('input[name="certidao.selo"]') || '',
-      cod_selo: texto('input[name="certidao.cod_selo"]') || '',
-      modalidade: (texto('select[name="certidao.modalidade"]') || 'eletronica') as 'eletronica' | 'fisica',
-      cota_emolumentos: texto('input[name="certidao.cota_emolumentos"]') || '',
-      cota_emolumentos_isento: !!(CONTEXT_DOC as any).querySelector('input[name="certidao.cota_emolumentos_isento"]')?.checked,
-    },
-    registro: {
-      nome_completo: normUpper(nome_raw),
-      cpf_sem_inscricao: !!cpf_sem_inscricao,
-      cpf: cpf,
-      matricula: matricula,
-      data_registro: data_registro,
-      data_nascimento_ignorada: !!data_nascimento_ignorada,
-      data_nascimento: data_nascimento,
-      hora_nascimento_ignorada: !!hora_nascimento_ignorada,
-      hora_nascimento: hora_nascimento,
-      municipio_naturalidade: normUpper(municipio_naturalidade_raw),
-      uf_naturalidade: normUpper(uf_naturalidade_raw),
-      local_nascimento: normUpper(local_nascimento_raw),
-      municipio_nascimento: normUpper(municipio_nascimento_raw),
-      uf_nascimento: normUpper(uf_nascimento_raw),
-      sexo: sexo as any,
-      gemeos: {
-        quantidade: gemeos_quantidade,
-        irmao: gemeos_irmao,
-      },
-      filiacao: filiacao,
-      numero_dnv: numero_dnv,
-      averbacao_anotacao: averbacao_anotacao,
-      anotacoes_cadastro: [],
-    },
-  };
+      return {
+        tipo: upper(tipo ?? ''),
+        documento: String(documento ?? '').trim(),
+        orgao_emissor: upper(orgao_emissor ?? ''),
+        uf_emissao: upper(uf_emissao ?? ''),
+        data_emissao: normDateBR(data_emissao ?? ''),
+      };
+    })
+    .filter(Boolean) as any[];
 }
 
 export function mapperHtmlToJsonNascimento(doc?: DocLike) {
-  setContextDoc(doc);
-  return montarJson();
+  const d: DocLike = doc || document;
+
+  // ===== certidao =====
+  const cartorioCnsFromBind =
+    v(d, 'input[data-bind="certidao.cartorio_cns"]') ||
+    v(d, '[data-bind="certidao.cartorio_cns"]');
+
+  const cartorio_cns = onlyDigits(cartorioCnsFromBind) || CARTORIO_EMISSOR_CNS_DEFAULT;
+
+  // ===== registro (campos principais) =====
+  const nome_completo = upper(
+    v(d, '[data-bind="registro.nome_completo"]') ||
+      v(d, 'input[name="nomeCompleto"]') ||
+      v(d, '#nomeCompleto'),
+  );
+
+  const data_registro = normDateBR(
+    v(d, '[data-bind="registro.data_registro"]') || v(d, 'input[name="dataRegistro"]') || v(d, '#dataRegistro'),
+  );
+
+  // data nascimento + ignorar
+  const dnIgn = checked(d, '#dn-ign') || checked(d, '[data-bind="registro.data_nascimento_ignorada"]');
+  const dnVal = normDateBR(v(d, '[data-bind="registro.data_nascimento"]') || v(d, '#dn') || v(d, 'input[name="dataNascimento"]'));
+  const data_nascimento_ignorada = dnIgn || !dnVal;
+  const data_nascimento = data_nascimento_ignorada ? '' : dnVal;
+
+  // hora nascimento + ignorar
+  const hnIgn = checked(d, '#hn-ign') || checked(d, '[data-bind="registro.hora_nascimento_ignorada"]');
+  const hnVal = normHoraHHMM(v(d, '[data-bind="registro.hora_nascimento"]') || v(d, '#hn') || v(d, 'input[name="horaNascimento"]'));
+  const hora_nascimento_ignorada = hnIgn || !hnVal;
+  const hora_nascimento = hora_nascimento_ignorada ? '' : hnVal;
+
+  // sexo + sexo_outros
+  const sexoRaw = (v(d, 'select[data-bind="registro.sexo"]') || v(d, '#sexo') || '').toLowerCase();
+  let sexo: 'masculino' | 'feminino' | 'ignorado' | 'outros' = 'ignorado';
+  if (sexoRaw === 'masculino' || sexoRaw === 'm') sexo = 'masculino';
+  else if (sexoRaw === 'feminino' || sexoRaw === 'f') sexo = 'feminino';
+  else if (sexoRaw === 'outros' || sexoRaw === 'outro') sexo = 'outros';
+  else sexo = 'ignorado';
+
+  const sexo_outros_raw = v(d, '#sexo-outros') || v(d, '[data-bind="registro.sexo_outros"]');
+  const sexo_outros = sexo === 'outros' ? String(sexo_outros_raw || '').trim() : '';
+
+  // local nascimento
+  const local_nascimento = upper(v(d, '#local-nascimento') || v(d, '[data-bind="registro.local_nascimento"]'));
+
+  // município/uf nascimento (principal)
+  const municipio_nascimento = upper(v(d, '[data-bind="registro.municipio_nascimento"]'));
+  const uf_nascimento = upper(v(d, 'select[data-bind="registro.uf_nascimento"]'));
+
+  // naturalidade: se toggle NÃO marcado, replica do nascimento
+  const natDiff = checked(d, '#naturalidade-diferente') || checked(d, '[data-bind="ui.naturalidade_diferente"]');
+  const municipio_naturalidade = natDiff
+    ? upper(v(d, '[data-bind="registro.municipio_naturalidade"]'))
+    : municipio_nascimento;
+
+  const uf_naturalidade = natDiff
+    ? upper(v(d, 'select[data-bind="registro.uf_naturalidade"]'))
+    : uf_nascimento;
+
+  // CPF: origem é o checkbox "Não inscrito". Se marcado => cpf="" e cpf_sem_inscricao=true
+  const cpfSem = checked(d, '#cpf-sem') || checked(d, '[data-bind="registro.cpf_sem_inscricao"]');
+  const cpfDigits = onlyDigits(v(d, '#cpf') || v(d, '[data-bind="registro.cpf"]'));
+  const cpf_sem_inscricao = !!cpfSem;
+  const cpf = cpf_sem_inscricao ? '' : cpfDigits;
+
+  // matrícula: já vem gerada no input readonly
+  const matricula = onlyDigits(v(d, '#matricula') || v(d, '[data-bind="registro.matricula"]'));
+
+  // gemeos
+  const gemeosQtdRaw = v(d, '[data-bind="registro.gemeos.quantidade"]') || '0';
+  const gemeosQtd = onlyDigits(gemeosQtdRaw) || '0';
+  const gemeosIrmaoRaw = v(d, '[data-bind="ui.gemeos_irmao_raw"]');
+  const gemeosIrmao = gemeosQtd === '0' ? [] : parseGemeos(gemeosIrmaoRaw);
+
+  // filiação: vem do seu HTML (ui.mae_*, ui.pai_*)
+  const mae_nome = upper(v(d, 'input[data-bind="ui.mae_nome"]'));
+  const mae_cidade = upper(v(d, 'input[data-bind="ui.mae_cidade"]'));
+  const mae_uf = upper(v(d, 'select[data-bind="ui.mae_uf"]'));
+  const mae_avo_materna = upper(v(d, 'input[data-bind="ui.mae_avo_materna"]'));
+  const mae_avo_materno = upper(v(d, 'input[data-bind="ui.mae_avo_materno"]'));
+
+  const pai_nome = upper(v(d, 'input[data-bind="ui.pai_nome"]'));
+  const pai_cidade = upper(v(d, 'input[data-bind="ui.pai_cidade"]'));
+  const pai_uf = upper(v(d, 'select[data-bind="ui.pai_uf"]'));
+  const pai_avo_paterna = upper(v(d, 'input[data-bind="ui.pai_avo_paterna"]'));
+  const pai_avo_paterno = upper(v(d, 'input[data-bind="ui.pai_avo_paterno"]'));
+
+  const filiacao: Array<{
+    nome: string;
+    municipio_nascimento: string;
+    uf_nascimento: string;
+    avos: string;
+  }> = [];
+
+  if (mae_nome) {
+    const avos = [mae_avo_materna, mae_avo_materno].filter(Boolean).join('; ');
+    filiacao.push({
+      nome: mae_nome,
+      municipio_nascimento: naoConstaIfEmpty(mae_cidade),
+      uf_nascimento: ufOrNC(mae_uf),
+      avos: avos,
+    });
+  }
+
+  if (pai_nome) {
+    const avos = [pai_avo_paterna, pai_avo_paterno].filter(Boolean).join('; ');
+    filiacao.push({
+      nome: pai_nome,
+      municipio_nascimento: naoConstaIfEmpty(pai_cidade),
+      uf_nascimento: ufOrNC(pai_uf),
+      avos: avos,
+    });
+  }
+
+  // DNV / averbação / anotacoes cadastro
+  const numero_dnv = naoConstaIfEmpty(v(d, '[data-bind="registro.numero_dnv"]'));
+  const averbacao_anotacao = String(v(d, '[data-bind="registro.averbacao_anotacao"]') || '').trim();
+  const anotacoes_cadastro = parseAnotacoesCadastro(v(d, '[data-bind="ui.anotacoes_raw"]'));
+
+  // ===== payload final (igual exemplos) =====
+  const payload: any = {
+    certidao: {
+      plataformaId: PLATAFORMA_ID,
+      tipo_registro: 'nascimento',
+      tipo_certidao: TIPO_CERTIDAO_PADRAO,
+      transcricao: false,
+      cartorio_cns: CARTORIO_EMISSOR_CNS_DEFAULT, // sempre o CNS do cartório emissor (163659)
+      selo: '',
+      cod_selo: '',
+      modalidade: 'eletronica',
+      cota_emolumentos: '',
+      cota_emolumentos_isento: false,
+    },
+    registro: {
+      nome_completo,
+      cpf_sem_inscricao,
+      cpf,
+      matricula,
+      data_registro,
+      data_nascimento_ignorada,
+      data_nascimento,
+      hora_nascimento_ignorada,
+      hora_nascimento,
+      municipio_naturalidade,
+      uf_naturalidade,
+      local_nascimento,
+      municipio_nascimento,
+      uf_nascimento,
+      sexo,
+      gemeos: {
+        quantidade: String(gemeosQtd),
+        irmao: gemeosIrmao,
+      },
+      filiacao,
+      numero_dnv,
+      averbacao_anotacao,
+      anotacoes_cadastro,
+    },
+  };
+
+  // sexo_outros só existe quando sexo="outros"
+  if (sexo === 'outros') {
+    payload.registro.sexo_outros = String(sexo_outros || '').trim();
+  }
+
+  return payload;
 }
+
 export const mapperHtmlToJson = mapperHtmlToJsonNascimento;
 export default mapperHtmlToJsonNascimento;

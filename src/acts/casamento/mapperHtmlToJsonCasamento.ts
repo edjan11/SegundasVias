@@ -29,7 +29,8 @@ function buildGenitores(pai: string, mae: string): string {
   const p = pai.trim();
   const m = mae.trim();
   if (!p && !m) return '';
-  return `${p};${m}`;
+  // Obrigatório um espaço após o ponto-e-vírgula
+  return `${p}; ${m}`;
 }
 
 /**
@@ -47,10 +48,12 @@ function normalizeCpfFields(raw: string): { cpf: string; cpf_sem_inscricao: bool
     /SEM\s*CPF/i.test(original) ||
     /SEM\s*INSCRI/i.test(original);
 
-  if (missing) return { cpf: original || '', cpf_sem_inscricao: true };
+  // Regra: se ausente -> cpf_sem_inscricao=true e cpf = "" (não manter texto como "NÃO CONSTA")
+  if (missing) return { cpf: '', cpf_sem_inscricao: true };
 
   const digits = normalizeCpf(original);
-  if (!digits || !isValidCpf(digits)) return { cpf: original, cpf_sem_inscricao: true };
+  // Se não for CPF válido, trata como ausente (não inferir nem manter texto)
+  if (!digits || !isValidCpf(digits)) return { cpf: '', cpf_sem_inscricao: true };
 
   return { cpf: formatCpf(digits), cpf_sem_inscricao: false };
 }
@@ -138,11 +141,17 @@ function buildMatriculaCasamento(root: Root): string {
 export function mapperHtmlToCrcJson(root: Root = document) {
   // defaults CRC
   const plataformaId = val(root, 'input[name="certidao.plataformaId"]') || 'certidao-eletronica';
-  const cartorioCnsEmissor = '163659';
 
-  // Se você quiser amarrar transcricao num checkbox, troca pra:
-  // const transcricao = checked(root, 'input[name="certidao.transcricao"]');
-  const transcricao = true;
+  // transcrição DEVE ser sempre false (regra CRC)
+  const transcricao = false;
+
+  // cartorio_cns: deve ser o CNS do acervo = primeiros 6 dígitos da matrícula quando disponível
+  const explicitCartorioCns = String(val(root, 'input[name="certidao.cartorio_cns"]') || '').replace(/\D+/g, '');
+  // não usar o CNS da plataforma quando for diferente; preferir extrair da matrícula
+  // matricula pode vir já gerada ou será gerada mais abaixo
+  // por ora, inicializamos com empty; será substituído depois se possível
+  let cartorioCnsEmissor = explicitCartorioCns || '';
+
 
   const tipo_certidao = ''; // não inventa
   const modalidade = val(root, 'select[name="certidao.modalidade"]') || 'eletronica';
@@ -158,16 +167,16 @@ export function mapperHtmlToCrcJson(root: Root = document) {
   const rg1 = buildDocItemRG(root, 'Noivo');
 
   const conjuge1 = {
-    nome_atual_habilitacao: val(root, 'input[name="nomeSolteiro"]'),
+    nome_atual_habilitacao: val(root, 'input[name="nomeSolteiro"]') || '',
     cpf_sem_inscricao: cpf1.cpf_sem_inscricao,
     cpf: cpf1.cpf,
-    novo_nome: val(root, 'input[name="nomeSolteiro"]'),
-    nome_apos_casamento: val(root, 'input[name="nomeCasado"]'),
-    data_nascimento: normalizeDate(val(root, 'input[name="dataNascimentoNoivo"]')),
-    nacionalidade: val(root, 'input[name="nacionalidadeNoivo"]'),
-    estado_civil: selectedText(root, 'select[name="estadoCivilNoivo"]') || val(root, 'select[name="estadoCivilNoivo"]'),
-    municipio_naturalidade: val(root, 'input[name="cidadeNascimentoNoivo"]'),
-    uf_naturalidade: val(root, 'input[name="ufNascimentoNoivo"]') || 'IG',
+    novo_nome: val(root, 'input[name="nomeSolteiro"]') || '',
+    // REMOVIDO: nome_apos_casamento (proibido)
+    data_nascimento: normalizeDate(val(root, 'input[name="dataNascimentoNoivo"]')) || '',
+    nacionalidade: val(root, 'input[name="nacionalidadeNoivo"]') || '',
+    estado_civil: selectedText(root, 'select[name="estadoCivilNoivo"]') || val(root, 'select[name="estadoCivilNoivo"]') || '',
+    municipio_naturalidade: val(root, 'input[name="cidadeNascimentoNoivo"]') || '',
+    uf_naturalidade: val(root, 'input[name="ufNascimentoNoivo"]') || '',
     genitores: buildGenitores(val(root, 'input[name="nomePaiNoivo"]'), val(root, 'input[name="nomeMaeNoivo"]')),
   };
 
@@ -176,16 +185,16 @@ export function mapperHtmlToCrcJson(root: Root = document) {
   const rg2 = buildDocItemRG(root, 'Noiva');
 
   const conjuge2 = {
-    nome_atual_habilitacao: val(root, 'input[name="nomeSolteira"]'),
+    nome_atual_habilitacao: val(root, 'input[name="nomeSolteira"]') || '',
     cpf_sem_inscricao: cpf2.cpf_sem_inscricao,
     cpf: cpf2.cpf,
-    novo_nome: val(root, 'input[name="nomeSolteira"]'),
-    nome_apos_casamento: val(root, 'input[name="nomeCasada"]'),
-    data_nascimento: normalizeDate(val(root, 'input[name="dataNascimentoNoiva"]')),
-    nacionalidade: val(root, 'input[name="nacionalidadeNoiva"]'),
-    estado_civil: selectedText(root, 'select[name="estadoCivilNoiva"]') || val(root, 'select[name="estadoCivilNoiva"]'),
-    municipio_naturalidade: val(root, 'input[name="cidadeNascimentoNoiva"]'),
-    uf_naturalidade: val(root, 'input[name="ufNascimentoNoiva"]') || 'IG',
+    novo_nome: val(root, 'input[name="nomeSolteira"]') || '',
+    // REMOVIDO: nome_apos_casamento (proibido)
+    data_nascimento: normalizeDate(val(root, 'input[name="dataNascimentoNoiva"]')) || '',
+    nacionalidade: val(root, 'input[name="nacionalidadeNoiva"]') || '',
+    estado_civil: selectedText(root, 'select[name="estadoCivilNoiva"]') || val(root, 'select[name="estadoCivilNoiva"]') || '',
+    municipio_naturalidade: val(root, 'input[name="cidadeNascimentoNoiva"]') || '',
+    uf_naturalidade: val(root, 'input[name="ufNascimentoNoiva"]') || '',
     genitores: buildGenitores(val(root, 'input[name="nomePaiNoiva"]'), val(root, 'input[name="nomeMaeNoiva"]')),
   };
 
@@ -199,6 +208,11 @@ export function mapperHtmlToCrcJson(root: Root = document) {
 
   // matrícula
   const matricula = buildMatriculaCasamento(root);
+
+  // if matricula has first 6 digits, use them as cartorio_cns (CNS do acervo)
+  if (matricula && matricula.length >= 6) {
+    cartorioCnsEmissor = matricula.slice(0, 6);
+  }
 
   // datas principais
   const data_celebracao = normalizeDate(val(root, 'input[name="dataCasamento"]'));

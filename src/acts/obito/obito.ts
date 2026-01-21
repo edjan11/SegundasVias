@@ -13,7 +13,7 @@ import {
   buildMatriculaFinal,
   adjustMatricula,
 } from '../../shared/matricula/cnj';
-import { setupPrimaryShortcut } from '../../shared/productivity/index';
+import { setupPrimaryShortcut, setupAutoNationality } from '../../shared/productivity/index';
 import { setupAdminPanel } from '../../shared/ui/admin';
 import { setupActSelect, disableBrowserAutofill } from '../../ui/setup-ui';
 import { attachCityIntegrationToAll } from '../../ui/city-uf-ui';
@@ -1097,6 +1097,12 @@ function setup() {
   setupNameValidation();
   setupConfigPanel();
   setupAdminPanel();
+  // prefill nacionalidade do falecido com padrão CRC (BRASILEIRO)
+  try {
+    setupAutoNationality('input[name="nacionalidade"]', 'BRASILEIRO');
+  } catch (e) {
+    /* ignore */
+  }
   // drawer removed for inline layout; no setupDrawer call
   // apply persisted drawer position and wire settings
   applyDrawerPosition(localStorage.getItem(DRAWER_POS_KEY) || 'bottom-right');

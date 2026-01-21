@@ -1,224 +1,390 @@
 import { normalizeDate } from '../../shared/validators/date';
 import { normalizeTime } from '../../shared/validators/time';
-import { normalizeCpf } from '../../shared/validators/cpf';
+import { normalizeCpf, isValidCpf, formatCpf } from '../../shared/validators/cpf';
 import { adjustMatricula } from '../../shared/matricula/cnj';
 
-export function mapperHtmlToJsonObito(doc?: Document | HTMLElement) {
-  const get = (sel) => (doc as any).querySelector(sel)?.value || '';
-  const getText = (sel) => (doc as any).querySelector(sel)?.textContent || '';
-  const getChecked = (sel) => !!(doc as any).querySelector(sel)?.checked;
-  const getRadio = (name) => {
-    const el = (doc as any).querySelector(`input[name="${name}"]:checked`);
-    return el ? (el as any).value : '';
-  };
-  const getSelect = (sel) => {
-    const el = (doc as any).querySelector(sel);
-    return el ? (el as any).value : '';
-  };
-  const getAll = (sel) =>
-    Array.from((doc as any).querySelectorAll(sel)).map((el) => (el as any).value || '');
+type Root = Document | HTMLElement;
+
+function q(root: Root, sel: string): Element | null {
+  return (root as any).querySelector(sel);
+}
+
+function val(root: Root, sel: string): string {
+  const el = q(root, sel) as any;
+  if (!el) return '';
+  const v = el.value != null ? el.value : el.textContent;
+  return String(v || '').replace(/\u00A0/g, ' ').replace(/\s+/g, ' ').trim();
+}
+
+function selectedText(root: Root, sel: string): string {
+  const el = q(root, sel) as HTMLSelectElement | null;
+  const opt = el?.selectedOptions?.[0];
+  return (opt?.textContent || '').trim();
+}
+
+function radio(root: Root, name: string): string {
+  const el = (root as any).querySelector(`input[name="${name}"]:checked`) as any;
+  return el?.value != null ? String(el.value) : '';
+}
+
+/**
+ * Regra pedida:
+ * - vazio / "NÃO CONSTA" / "SEM CPF" => cpf_sem_inscricao=true e cpf = texto original (ou "")
+ * - inválido => mantém o texto original e marca sem inscrição
+ * - válido => máscara
+ */
+function normalizeCpfFields(raw: string): { cpf: string; cpf_sem_inscricao: boolean } {
+  const original = String(raw || '').replace(/\u00A0/g, ' ').replace(/\s+/g, ' ').trim();
+
+  const missing =
+    !original ||
+    /N[ÃA]O\s*CONSTA/i.test(original) ||
+    /SEM\s*CPF/i.test(original) ||
+    /SEM\s*INSCRI/i.test(original);
+
+  if (missing) return { cpf: original || '', cpf_sem_inscricao: true };
+
+  const digits = normalizeCpf(original);
+  if (!digits || !isValidCpf(digits)) return { cpf: original, cpf_sem_inscricao: true };
+
+  return { cpf: formatCpf(digits), cpf_sem_inscricao: false };
+}
+
+function normalizeSexo(raw: string): { sexo: string; sexo_outros?: string } {
+  const v = String(raw || '').trim().toLowerCase();
+
+  if (!v) return { sexo: 'ignorado' };
+  if (v === 'm' || v === 'masculino') return { sexo: 'masculino' };
+  if (v === 'f' || v === 'feminino') return { sexo: 'feminino' };
+  if (v === 'ignorado') return { sexo: 'ignorado' };
+  if (v === 'outros' || v === 'outro') return { sexo: 'outros' };
+
+  // Se vier “não binário” direto, assume outros e guarda texto
+  return { sexo: 'outros', sexo_outros: raw };
+}
+
+function normalizeYesNoIgnored(raw: string): 'sim' | 'nao' | 'ignorada' {
+  const v = String(raw || '').trim().toLowerCase();
+  if (!v) return 'ignorada';
+  if (v === 'sim' || v === 's') return 'sim';
+  if (v === 'nao' || v === 'não' || v === 'n') return 'nao';
+  if (v.includes('ignor')) return 'ignorada';
+  return 'ignorada';
+}
+
+function buildGenitores(pai: string, mae: string): string {
+  const p = pai.trim();
+  const m = mae.trim();
+  if (!p && !m) return '';
+  return `${p};${m}`;
+}
+
+function buildAnotacaoRG(root: Root): any | null {
+  const documento = val(root, 'input[name="rgFalecido"]');
+  if (!documento) return null;
+
+  const orgao = val(root, 'input[name="orgaoExpedidorRG"]') || 'SSP - Secretaria de Segurança Pública';
+  const uf = val(root, 'input[name="ufEmissaoRG"]') || val(root, 'select[name="ufEmissaoRG"]') || 'IG';
+  const data = normalizeDate(val(root, 'input[name="dataEmissaoRG"]'));
 
   return {
+    tipo: 'RG',
+    documento: documento.trim(),
+    orgao_emissor: orgao.trim(),
+    uf_emissao: uf.trim(),
+    data_emissao: data,
+  };
+}
+
+function buildMatriculaObito(root: Root): string {
+  const existing =
+    val(root, 'input[name="matricula"]') ||
+    (root as any).querySelector('#matricula')?.value ||
+    (root as any).querySelector('input[data-bind="registro.matricula"]')?.value ||
+    '';
+  if (existing) return String(existing).replace(/\D/g, '');
+
+  try {
+    const digitsOnly = (v: any) => String(v || '').replace(/\D/g, '');
+    const padLeft = (v: any, s: number) => digitsOnly(v).padStart(s, '0').slice(-s);
+
+    // CNS do acervo (matrícula) vem do formulário — pode ser diferente do emissor
+    const cns = digitsOnly(
+      ((root as any).querySelector('input[name="certidao.cartorio_cns"]') || { value: '' }).value || '163659',
+    );
+
+    const dt = ((root as any).querySelector('input[name="dataTermo"]') || { value: '' }).value || '';
+    const ano = (String(dt).match(/(\d{4})$/) || [])[1] || '';
+
+    const livro = padLeft(((root as any).getElementById('matricula-livro') || { value: '' }).value, 5);
+    const folha = padLeft(((root as any).getElementById('matricula-folha') || { value: '' }).value, 3);
+    const termo = padLeft(((root as any).getElementById('matricula-termo') || { value: '' }).value, 7);
+
+    // ÓBITO = tipo 4
+    const base30 = `${cns}01` + `55${ano}4${livro}${folha}${termo}`;
+    if (!base30 || base30.length !== 30) return '';
+
+    const calcDv = (base: string) => {
+      let s1 = 0;
+      for (let i = 0; i < 30; i++) s1 += Number(base[i]) * (31 - i);
+      let d1: any = 11 - (s1 % 11);
+      d1 = d1 === 11 ? 0 : d1 === 10 ? 1 : d1;
+
+      const seq31 = base + String(d1);
+      let s2 = 0;
+      for (let i = 0; i < 31; i++) s2 += Number(seq31[i]) * (32 - i);
+      let d2: any = 11 - (s2 % 11);
+      d2 = d2 === 11 ? 0 : d2 === 10 ? 1 : d2;
+
+      return `${d1}${d2}`;
+    };
+
+    const dv = calcDv(base30);
+    const candidate = dv ? base30 + dv : '';
+
+    if (!candidate) return '';
+
+    // Ajuste CNS/ofício pelo texto das observações (acervo)
+    const obs = val(root, 'textarea[name="observacoesFalecido"]');
+    try {
+      return adjustMatricula ? adjustMatricula(candidate, obs) || candidate : candidate;
+    } catch {
+      return candidate;
+    }
+  } catch {
+    return '';
+  }
+}
+
+/**
+ * Filhos (3 schemas):
+ * - NOVO: existencia_filhos_opcao = 'sim' | 'nao' | 'texto' | 'ignorada'
+ * - ANTIGO (vai morrer): existencia_filhos_ignorada boolean
+ * Aqui sempre saímos no NOVO.
+ */
+function buildExistenciaFilhos(root: Root): {
+  existencia_filhos_opcao?: 'sim' | 'nao' | 'texto' | 'ignorada';
+  existencia_filhos?: any;
+} {
+  // 1) tenta pegar opção nova (se existir)
+  const opcRaw =
+    val(root, 'select[name="existenciaFilhosOpcao"]') ||
+    val(root, 'input[name="existenciaFilhosOpcao"]') ||
+    val(root, 'input[name="existencia_filhos_opcao"]');
+
+  const opcNorm = (String(opcRaw || '').trim().toLowerCase() as any) || '';
+
+  // 2) fallback: modelo antigo "existencia_filhos_ignorada" (checkbox)
+  const antigaIgnorada =
+    (q(root, 'input[name="existencia_filhos_ignorada"]') as any)?.checked ??
+    (q(root, 'input[data-bind="registro.existencia_filhos_ignorada"]') as any)?.checked ??
+    null;
+
+  let opc: 'sim' | 'nao' | 'texto' | 'ignorada' | '' = '';
+  if (opcNorm === 'sim' || opcNorm === 'nao' || opcNorm === 'texto' || opcNorm === 'ignorada') opc = opcNorm;
+  else if (antigaIgnorada === true) opc = 'ignorada';
+
+  // 3) se nada definido, tenta inferir: se tem texto/campos de filhos preenchidos → sim ou texto
+  const textoFilhos = val(root, 'textarea[name="textoFilhos"]') || val(root, 'input[name="textoFilhos"]');
+  if (!opc) {
+    if (textoFilhos) opc = 'texto';
+    else opc = 'ignorada';
+  }
+
+  if (opc === 'texto') {
+    return {
+      existencia_filhos_opcao: 'texto',
+      existencia_filhos: {
+        filhos: [{ texto: textoFilhos || '' }],
+      },
+    };
+  }
+
+  if (opc === 'nao') {
+    return {
+      existencia_filhos_opcao: 'nao',
+      existencia_filhos: { quantidade: 0, filhos: [] },
+    };
+  }
+
+  if (opc === 'sim') {
+    // tenta pegar quantidade e uma lista (se o teu formulário tiver campos repetidos)
+    const qtdRaw = val(root, 'input[name="quantidadeFilhos"]') || val(root, 'input[name="existenciaFilhosQuantidade"]');
+    const quantidade = Number(String(qtdRaw || '').replace(/\D/g, '') || '0');
+
+    // filhos em repetição (ajuste seletores conforme teu HTML real)
+    const nomes = Array.from((root as any).querySelectorAll('input[name="filhoNome"]')).map((e: any) => String(e.value || '').trim());
+    const idades = Array.from((root as any).querySelectorAll('input[name="filhoIdade"]')).map((e: any) => String(e.value || '').trim());
+    const falecidos = Array.from((root as any).querySelectorAll('input[name="filhoFalecido"]')).map((e: any) => !!e.checked);
+
+    const filhos = nomes.map((nome, i) => ({
+      nome,
+      idade: idades[i] || '',
+      falecido: falecidos[i] ?? false,
+    })).filter((f) => f.nome || f.idade);
+
+    return {
+      existencia_filhos_opcao: 'sim',
+      existencia_filhos: {
+        quantidade: quantidade || filhos.length || 0,
+        filhos,
+      },
+    };
+  }
+
+  // ignorada
+  return { existencia_filhos_opcao: 'ignorada', existencia_filhos: { filhos: [] } };
+}
+
+export function mapperHtmlToCrcJsonObito(root: Root = document) {
+  const plataformaId = val(root, 'input[name="certidao.plataformaId"]') || 'certidao-eletronica';
+
+  // cartório emissor SEMPRE 163659 (padrão CRC teu)
+  const cartorioCnsEmissor = '163659';
+
+  const tipo_certidao = ''; // não inventa
+  const transcricao = true;
+  const modalidade = val(root, 'select[name="certidao.modalidade"]') || 'eletronica';
+  const cota_emolumentos = val(root, 'input[name="certidao.cota_emolumentos"]') || 'Cota';
+  const cota_emolumentos_isento = false;
+
+  const nome = val(root, 'input[name="nomeFalecido"]');
+
+  const cpfField = normalizeCpfFields(val(root, 'input[name="cpfFalecido"]'));
+
+  const matricula = buildMatriculaObito(root);
+
+  const data_falecimento = normalizeDate(val(root, 'input[name="dataObito"]'));
+  const data_falecimento_ignorada = !data_falecimento;
+
+  const hora_falecimento_raw = val(root, 'input[name="horaObito"]');
+  const hora_falecimento = hora_falecimento_raw ? `${normalizeTime(hora_falecimento_raw)} horas` : '';
+
+  const local_falecimento = val(root, 'input[name="localObito"]');
+  const municipio_falecimento = val(root, 'input[name="municipioObito"]');
+  const uf_falecimento = val(root, 'select[name="ufMunicipioObito"]') || val(root, 'input[name="ufMunicipioObito"]');
+
+  const sexoRaw = radio(root, 'sexoFalecido');
+  const sexoOutrosText = val(root, 'input[name="sexoOutrosFalecido"]');
+  const sexoNorm = normalizeSexo(sexoRaw);
+  const sexo =
+    sexoNorm.sexo === 'outros' && sexoOutrosText
+      ? { sexo: 'outros', sexo_outros: sexoOutrosText }
+      : sexoNorm;
+
+  const estado_civil = radio(root, 'estadoCivilFalecido') || val(root, 'input[name="estadoCivilFalecido"]');
+
+  const nome_ultimo_conjuge_convivente =
+    val(root, 'input[name="nomeUltimoConjuge"]') ||
+    val(root, 'input[name="nomeUltimoConjugeConvivente"]');
+
+  const idade = val(root, 'input[name="idadeFalecido"]'); // se teu form tiver
+  const data_nascimento = normalizeDate(val(root, 'input[name="dataNascimentoFalecido"]'));
+  const municipio_naturalidade = val(root, 'input[name="naturalidadeFalecido"]');
+  const uf_naturalidade = val(root, 'input[name="ufNaturalidadeFalecido"]') || val(root, 'select[name="ufNaturalidadeFalecido"]');
+
+  const filiacao = buildGenitores(
+    val(root, 'input[name="nomePaiFalecido"]'),
+    val(root, 'input[name="nomeMaeFalecido"]'),
+  );
+
+  const causa_morte =
+    val(root, 'input[name="causaMortis"]') ||
+    val(root, 'textarea[name="causaMortis"]');
+
+  const nome_medico = val(root, 'input[name="medico"]');
+  const crm_medico = val(root, 'input[name="crmMedico"]');
+
+  const local_sepultamento_cremacao = val(root, 'input[name="localSepultamento"]');
+  const municipio_sepultamento_cremacao = val(root, 'input[name="municipioSepultamento"]');
+  const uf_sepultamento_cremacao =
+    val(root, 'select[name="ufMunicipioSepultamento"]') ||
+    val(root, 'input[name="ufMunicipioSepultamento"]');
+
+  const data_registro = normalizeDate(val(root, 'input[name="dataRegistro"]') || val(root, 'input[name="dataTermo"]'));
+  const nome_declarante = val(root, 'input[name="informante"]');
+
+  const existencia_bens = normalizeYesNoIgnored(
+    val(root, 'select[name="existenciaBens"]') || val(root, 'input[name="existenciaBens"]'),
+  );
+
+  const filhosBlock = buildExistenciaFilhos(root);
+
+  const averbacao_anotacao = val(root, 'textarea[name="observacoesFalecido"]');
+
+  const anotacoes_cadastro: any[] = [];
+  const rg = buildAnotacaoRG(root);
+  if (rg) anotacoes_cadastro.push(rg);
+
+  return {
+    certidao: {
+      plataformaId,
+      tipo_registro: 'obito',
+      tipo_certidao,
+      transcricao,
+      cartorio_cns: cartorioCnsEmissor,
+      selo: val(root, 'input[name="certidao.selo"]') || '',
+      cod_selo: val(root, 'input[name="certidao.cod_selo"]') || '',
+      modalidade,
+      cota_emolumentos,
+      cota_emolumentos_isento,
+    },
     registro: {
-      nome_completo: get('input[name="nomeFalecido"]'),
-      sexo: getRadio('sexoFalecido'),
-      data_nascimento: normalizeDate(get('input[name="dataNascimentoFalecido"]')),
-      data_obito: normalizeDate(get('input[name="dataObito"]')),
-      hora_obito: normalizeTime(get('input[name="horaObito"]')),
-      local_obito: get('input[name="localObito"]'),
-      municipio_obito: get('input[name="municipioObito"]'),
-      uf_municipio_obito: getSelect('select[name="ufMunicipioObito"]'),
-      estado_civil: getRadio('estadoCivilFalecido'),
-      profissao: get('input[name="profissaoFalecido"]'),
-      naturalidade: get('input[name="naturalidadeFalecido"]'),
-      nacionalidade: get('input[name="nacionalidadeFalecido"]'),
-      nome_pai: get('input[name="nomePaiFalecido"]'),
-      nome_mae: get('input[name="nomeMaeFalecido"]'),
-      cpf_sem_inscricao: (function () {
-        return (
-          !!(doc as any).querySelector('input[data-bind="registro.cpf_sem_inscricao"]')?.checked ||
-          !!((doc as any).querySelector('#cpf-sem') as any)?.checked ||
-          false
-        );
-      })(),
-      cpf: (function () {
-        const sem =
-          !!(doc as any).querySelector('input[data-bind="registro.cpf_sem_inscricao"]')?.checked ||
-          !!((doc as any).querySelector('#cpf-sem') as any)?.checked ||
-          false;
-        return sem ? '' : normalizeCpf(get('input[name="cpfFalecido"]'));
-      })(),
-      rg: get('input[name="rgFalecido"]'),
-      orgao_expedidor_rg: get('input[name="orgaoExpedidorRG"]'),
-      titulo_eleitor: get('input[name="tituloEleitorFalecido"]'),
-      zona_eleitoral: get('input[name="zonaEleitoralFalecido"]'),
-      secao_eleitoral: get('input[name="secaoEleitoralFalecido"]'),
-      passaporte: get('input[name="passaporteFalecido"]'),
-      orgao_expedidor_passaporte: get('input[name="orgaoExpedidorPassaporte"]'),
-      pis: get('input[name="pisFalecido"]'),
-      orgao_expedidor_pis: get('input[name="orgaoExpedidorPIS"]'),
-      cns: get('input[name="cnsFalecido"]'),
-      orgao_expedidor_cns: get('input[name="orgaoExpedidorCNS"]'),
-      certidao: get('input[name="certidaoFalecido"]'),
-      livro: get('input[name="livro"]'),
-      folha: get('input[name="folha"]'),
-      termo: get('input[name="termo"]'),
-      data_termo: normalizeDate(get('input[name="dataTermo"]')),
-      cartorio_cns:
-        get('input[name="certidao.cartorio_cns"]') ||
-        (doc as any).querySelector('input[data-bind="certidao.cartorio_cns"]')?.value ||
-        '163659',
-      matricula: (function () {
-        const m =
-          get('input[name="matricula"]') ||
-          (doc as any).querySelector('#matricula')?.value ||
-          (doc as any).querySelector('input[data-bind="registro.matricula"]')?.value ||
-          '';
-        if (m) return m;
-        try {
-          const digitsOnly = (v) => String(v || '').replace(/\D/g, '');
-          const padLeft = (v, s) => digitsOnly(v).padStart(s, '0').slice(-s);
-          const cns = digitsOnly(
-            ((doc as any).querySelector('input[name="certidao.cartorio_cns"]') || { value: '' }).value ||
-              '163659',
-          );
-          const dt = ((doc as any).querySelector('input[name="dataTermo"]') || { value: '' }).value || '';
-          const ano = (dt.match(/(\d{4})$/) || [])[1] || '';
-          const livro = padLeft(((doc as any).getElementById('matricula-livro') || { value: '' }).value, 5);
-          const folha = padLeft(((doc as any).getElementById('matricula-folha') || { value: '' }).value, 3);
-          const termo = padLeft(((doc as any).getElementById('matricula-termo') || { value: '' }).value, 7);
-          const base30 = `${cns}01` + `55${ano}4${livro}${folha}${termo}`;
-          if (!base30 || base30.length !== 30) return '';
-          const calcDv = (base) => {
-            let s1 = 0;
-            for (let i = 0; i < 30; i++) s1 += Number(base[i]) * (31 - i);
-            let d1 = 11 - (s1 % 11);
-            d1 = d1 === 11 ? 0 : d1 === 10 ? 1 : d1;
-            const seq31 = base + String(d1);
-            let s2 = 0;
-            for (let i = 0; i < 31; i++) s2 += Number(seq31[i]) * (32 - i);
-            let d2 = 11 - (s2 % 11);
-            d2 = d2 === 11 ? 0 : d2 === 10 ? 1 : d2;
-            return `${d1}${d2}`;
-          };
-          const dv = calcDv(base30);
-          const candidate = dv ? base30 + dv : '';
-          return candidate
-            ? adjustMatricula
-              ? adjustMatricula(
-                  candidate,
-                  ((doc as any).querySelector('textarea[name="observacoesFalecido"]') || { value: '' })
-                    .value,
-                ) || candidate
-              : candidate
-            : '';
-        } catch (e) {
-          return '';
-        }
-      })(),
-      observacoes: get('textarea[name="observacoesFalecido"]'),
-      declaracao_obito: get('input[name="declaracaoObito"]'),
-      data_declaracao_obito: normalizeDate(get('input[name="dataDeclaracaoObito"]')),
-      causa_mortis: get('input[name="causaMortis"]'),
-      medico: get('input[name="medico"]'),
-      crm_medico: get('input[name="crmMedico"]'),
-      uf_crm_medico: get('input[name="ufCrmMedico"]'),
-      local_sepultamento: get('input[name="localSepultamento"]'),
-      municipio_sepultamento: get('input[name="municipioSepultamento"]'),
-      uf_municipio_sepultamento: getSelect('select[name="ufMunicipioSepultamento"]'),
-      data_sepultamento: normalizeDate(get('input[name="dataSepultamento"]')),
-      hora_sepultamento: normalizeTime(get('input[name="horaSepultamento"]')),
-      informante: get('input[name="informante"]'),
-      parentesco_informante: get('input[name="parentescoInformante"]'),
-      cpf_informante: normalizeCpf(get('input[name="cpfInformante"]')),
-      rg_informante: get('input[name="rgInformante"]'),
-      orgao_expedidor_rg_informante: get('input[name="orgaoExpedidorRGInformante"]'),
-      endereco_informante: get('input[name="enderecoInformante"]'),
-      telefone_informante: get('input[name="telefoneInformante"]'),
-      email_informante: get('input[name="emailInformante"]'),
-      data_registro: normalizeDate(get('input[name="dataRegistro"]')),
-      oficial: get('input[name="oficial"]'),
-      id_assinante: getSelect('select[name="idAssinante"]'),
-      nome_assinante: getText('select[name="idAssinante"] option:checked'),
-      titulo_livro: get('input[name="tituloLivro"]'),
-      municipio_cartorio: get('input[name="municipioCartorio"]'),
-      uf_cartorio: getSelect('select[name="ufCartorio"]'),
-      data_emissao: normalizeDate(get('input[name="dataEmissao"]')),
-      via: get('input[name="via"]'),
-      motivo: get('input[name="motivo"]'),
-      solicitante: get('input[name="solicitante"]'),
-      cpf_solicitante: normalizeCpf(get('input[name="cpfSolicitante"]')),
-      rg_solicitante: get('input[name="rgSolicitante"]'),
-      orgao_expedidor_rg_solicitante: get('input[name="orgaoExpedidorRGSolicitante"]'),
-      endereco_solicitante: get('input[name="enderecoSolicitante"]'),
-      telefone_solicitante: get('input[name="telefoneSolicitante"]'),
-      email_solicitante: get('input[name="emailSolicitante"]'),
-      observacoes_solicitante: get('textarea[name="observacoesSolicitante"]'),
-      data_solicitacao: normalizeDate(get('input[name="dataSolicitacao"]')),
-      protocolo: get('input[name="protocolo"]'),
-      status: get('input[name="status"]'),
-      data_status: normalizeDate(get('input[name="dataStatus"]')),
-      observacoes_status: get('textarea[name="observacoesStatus"]'),
-      data_entrega: normalizeDate(get('input[name="dataEntrega"]')),
-      responsavel_entrega: get('input[name="responsavelEntrega"]'),
-      observacoes_entrega: get('textarea[name="observacoesEntrega"]'),
-      data_cancelamento: normalizeDate(get('input[name="dataCancelamento"]')),
-      motivo_cancelamento: get('input[name="motivoCancelamento"]'),
-      observacoes_cancelamento: get('textarea[name="observacoesCancelamento"]'),
-      data_retorno: normalizeDate(get('input[name="dataRetorno"]')),
-      motivo_retorno: get('input[name="motivoRetorno"]'),
-      observacoes_retorno: get('textarea[name="observacoesRetorno"]'),
-      data_arquivamento: normalizeDate(get('input[name="dataArquivamento"]')),
-      motivo_arquivamento: get('input[name="motivoArquivamento"]'),
-      observacoes_arquivamento: get('textarea[name="observacoesArquivamento"]'),
-      data_exclusao: normalizeDate(get('input[name="dataExclusao"]')),
-      motivo_exclusao: get('input[name="motivoExclusao"]'),
-      observacoes_exclusao: get('textarea[name="observacoesExclusao"]'),
-      data_reabertura: normalizeDate(get('input[name="dataReabertura"]')),
-      motivo_reabertura: get('input[name="motivoReabertura"]'),
-      observacoes_reabertura: get('textarea[name="observacoesReabertura"]'),
-      data_transferencia: normalizeDate(get('input[name="dataTransferencia"]')),
-      motivo_transferencia: get('input[name="motivoTransferencia"]'),
-      observacoes_transferencia: get('textarea[name="observacoesTransferencia"]'),
-      data_averbacao: normalizeDate(get('input[name="dataAverbacao"]')),
-      motivo_averbacao: get('input[name="motivoAverbacao"]'),
-      observacoes_averbacao: get('textarea[name="observacoesAverbacao"]'),
-      data_anotacao: normalizeDate(get('input[name="dataAnotacao"]')),
-      motivo_anotacao: get('input[name="motivoAnotacao"]'),
-      observacoes_anotacao: get('textarea[name="observacoesAnotacao"]'),
-      data_retorno_cartorio: normalizeDate(get('input[name="dataRetornoCartorio"]')),
-      motivo_retorno_cartorio: get('input[name="motivoRetornoCartorio"]'),
-      observacoes_retorno_cartorio: get('textarea[name="observacoesRetornoCartorio"]'),
-      data_exclusao_cartorio: normalizeDate(get('input[name="dataExclusaoCartorio"]')),
-      motivo_exclusao_cartorio: get('input[name="motivoExclusaoCartorio"]'),
-      observacoes_exclusao_cartorio: get('textarea[name="observacoesExclusaoCartorio"]'),
-      data_arquivamento_cartorio: normalizeDate(get('input[name="dataArquivamentoCartorio"]')),
-      motivo_arquivamento_cartorio: get('input[name="motivoArquivamentoCartorio"]'),
-      observacoes_arquivamento_cartorio: get('textarea[name="observacoesArquivamentoCartorio"]'),
-      data_reabertura_cartorio: normalizeDate(get('input[name="dataReaberturaCartorio"]')),
-      motivo_reabertura_cartorio: get('input[name="motivoReaberturaCartorio"]'),
-      observacoes_reabertura_cartorio: get('textarea[name="observacoesReaberturaCartorio"]'),
-      data_transferencia_cartorio: normalizeDate(get('input[name="dataTransferenciaCartorio"]')),
-      motivo_transferencia_cartorio: get('input[name="motivoTransferenciaCartorio"]'),
-      observacoes_transferencia_cartorio: get('textarea[name="observacoesTransferenciaCartorio"]'),
-      data_averbacao_cartorio: normalizeDate(get('input[name="dataAverbacaoCartorio"]')),
-      motivo_averbacao_cartorio: get('input[name="motivoAverbacaoCartorio"]'),
-      observacoes_averbacao_cartorio: get('textarea[name="observacoesAverbacaoCartorio"]'),
-      data_anotacao_cartorio: normalizeDate(get('input[name="dataAnotacaoCartorio"]')),
-      motivo_anotacao_cartorio: normalizeDate(get('input[name="motivoAnotacaoCartorio"]')),
-      observacoes_anotacao_cartorio: get('textarea[name="observacoesAnotacaoCartorio"]'),
+      nome_completo: nome,
+      cpf_sem_inscricao: cpfField.cpf_sem_inscricao,
+      cpf: cpfField.cpf,
+
+      matricula,
+
+      data_falecimento_ignorada,
+      data_falecimento,
+      hora_falecimento,
+
+      local_falecimento,
+      municipio_falecimento,
+      uf_falecimento,
+
+      ...sexo,
+
+      estado_civil,
+      nome_ultimo_conjuge_convivente,
+
+      idade,
+      data_nascimento,
+      municipio_naturalidade,
+      uf_naturalidade,
+
+      filiacao,
+
+      causa_morte,
+      nome_medico,
+      crm_medico,
+
+      local_sepultamento_cremacao,
+      municipio_sepultamento_cremacao,
+      uf_sepultamento_cremacao,
+
+      data_registro,
+      nome_declarante,
+
+      existencia_bens,
+
+      ...filhosBlock,
+
+      averbacao_anotacao,
+      anotacoes_cadastro,
     },
   };
 }
 
-// Expose mapper in a safe way
+// Expose mapper (drop-in)
 try {
   const win = window || globalThis;
   (win as any).App = (win as any).App || {};
-  (win as any).App.mapperHtmlToJson = (win as any).App.mapperHtmlToJson || mapperHtmlToJsonObito;
-} catch (e) {
+  (win as any).App.mapperHtmlToJson = (win as any).App.mapperHtmlToJson || mapperHtmlToCrcJsonObito;
+} catch {
   // noop
 }
 
-export const mapperHtmlToJson = mapperHtmlToJsonObito;
-export default mapperHtmlToJsonObito;
+export const mapperHtmlToJson = mapperHtmlToCrcJsonObito;
+export default mapperHtmlToCrcJsonObito;

@@ -319,6 +319,10 @@
             <label>Matricula (gerada)</label>
             <input data-bind="registro.matricula" id="matricula" readonly />
           </div>
+          <div class="field" style="margin-left:8px;">
+            <label>Assinante</label>
+            <select name="idAssinante" data-signer-select></select>
+          </div>
         </div>
 
         <div class="row" style="margin-top:6px; opacity:0.9;">
@@ -359,8 +363,8 @@
               <input data-bind="registro.gemeos.quantidade" />
             </div>
             <div class="field span-9">
-              <label>irmao (nome|matricula por linha)</label>
-              <textarea data-bind="ui.gemeos_irmao_raw"></textarea>
+              <label>irmao (nome|matricula ou nome - matricula por linha)</label>
+              <textarea data-bind="ui.gemeos_irmao_raw" placeholder="Ex.: JOÃO - 123456"></textarea>
             </div>
           </div>
         </div>

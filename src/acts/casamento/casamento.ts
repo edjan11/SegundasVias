@@ -118,6 +118,10 @@ function toXml(obj: any, nodeName: string, indent = 0): string {
   return `${pad}<${nodeName}>\n${children}\n${pad}</${nodeName}>`;
 }
 
+function sanitizeNameLikeValue(value: string): string {
+  return String(value || '').replace(/[^A-Za-zÀ-ÿ'\- ]/g, '');
+}
+
 function downloadFile(name: string, content: string, mime: string): boolean {
   try {
     const blob = new Blob([content], { type: mime });
@@ -404,7 +408,7 @@ function setupNameValidation(): void {
     }
     const sanitize = () => {
       const v = (input as HTMLInputElement).value || '';
-      const s = v.replace(/[^A-Za-zÀ-ÿ'\- ]/g, '');
+      const s = sanitizeNameLikeValue(v);
       if (s !== v) (input as HTMLInputElement).value = s;
     };
     const runCheck = () => {
@@ -518,19 +522,7 @@ function setupCasamentoNationalityDefaults(): void {
   setupDefaultValueWithDirty('input[name="nacionalidadeNoiva"]', 'BRASILEIRA');
 }
 
-function setup(): void {
-  function triggerMatricula() {
-    try {
-      if (typeof (window as any).updateMatricula === 'function') (window as any).updateMatricula();
-    } catch (e) {
-      void e;
-    }
-  }
-  ['cartorio-oficio', 'matricula-livro', 'matricula-folha', 'matricula-termo'].forEach((id) => {
-    const el = document.getElementById(id) as HTMLElement | null;
-    if (el) el.addEventListener('input', triggerMatricula);
-    if (el) el.addEventListener('change', triggerMatricula);
-  });
+function setupOutputButtons(): void {
   document.getElementById('btn-json')?.addEventListener('click', (e) => {
     e.preventDefault();
     generateJson();
@@ -539,55 +531,62 @@ function setup(): void {
     e.preventDefault();
     generateXml();
   });
-  setupValidation();
-  setupNameValidation();
-  setupConfigPanel();
-  // drawer setup intentionally skipped; drawer controls handled elsewhere
-  setupSettingsPanelCasamento();
-  (function () {
-    const panelInlineStored = localStorage.getItem(PANEL_INLINE_KEY);
-    const useInline = panelInlineStored === null ? false : panelInlineStored === 'true';
-    const inline = document.getElementById('panel-inline');
-    const drawer = document.getElementById('drawer');
-    const body = drawer?.querySelector('.drawer-body');
-    if (!inline) return;
-    if (useInline) {
-      if (body) while (body.firstChild) inline.appendChild(body.firstChild);
-      const toggle = document.getElementById('drawer-toggle');
-      if (toggle) toggle.style.display = 'none';
-    } else {
-      const toggle = document.getElementById('drawer-toggle');
-      if (toggle) toggle.style.display = 'inline-flex';
-    }
-    const btn = document.getElementById('drawer-toggle');
-    if (btn)
-      btn.addEventListener('click', () => {
-        const d = document.getElementById('drawer');
-        if (!d) return;
-        d.classList.toggle('open');
-      });
-  })();
-  setupActSelect('casamento');
-  setupPrimaryShortcut(
-    () => document.getElementById('btn-json') || document.getElementById('btn-xml'),
-  );
+}
+
+function setupMatriculaFieldTriggers(triggerMatricula: () => void): void {
+  ['cartorio-oficio', 'matricula-livro', 'matricula-folha', 'matricula-termo'].forEach((id) => {
+    const el = document.getElementById(id) as HTMLElement | null;
+    if (el) el.addEventListener('input', triggerMatricula);
+    if (el) el.addEventListener('change', triggerMatricula);
+  });
+}
+
+function setupMatriculaDateTriggers(triggerMatricula: () => void): void {
+  document.querySelector('input[name="dataTermo"]')?.addEventListener('input', triggerMatricula);
+  document
+    .querySelector('input[name="dataCasamento"]')
+    ?.addEventListener('input', triggerMatricula);
+}
+
+function setupDrawerInlineToggle(): void {
+  const panelInlineStored = localStorage.getItem(PANEL_INLINE_KEY);
+  const useInline = panelInlineStored === null ? false : panelInlineStored === 'true';
+  const inline = document.getElementById('panel-inline');
+  const drawer = document.getElementById('drawer');
+  const body = drawer?.querySelector('.drawer-body');
+  if (!inline) return;
+  if (useInline) {
+    if (body) while (body.firstChild) inline.appendChild(body.firstChild);
+    const toggle = document.getElementById('drawer-toggle');
+    if (toggle) toggle.style.display = 'none';
+  } else {
+    const toggle = document.getElementById('drawer-toggle');
+    if (toggle) toggle.style.display = 'inline-flex';
+  }
+}
+
+function setupActionButtonsListeners(): void {
+  const form = document.getElementById('form-casamento');
+  form?.addEventListener('input', updateActionButtons);
+  form?.addEventListener('change', updateActionButtons);
+}
+
+function setupAutofillDefaults(): void {
   setupCasamentoNameAutofill();
   setupCasamentoNationalityDefaults();
   setupCasamentoDates();
-  setupMatriculaTypeValidation();
-  document.querySelector('input[name="dataTermo"]')?.addEventListener('input', triggerMatricula);
-  document.querySelector('input[name="dataCasamento"]')?.addEventListener('input', triggerMatricula);
-  setupFocusEmphasis();
-  setupLiveOutputs();
-  updateActionButtons();
+}
 
+function setupCityIntegration(): void {
   // Attach city integration for all city-like fields (same flow as obito)
   try {
     attachCityIntegrationToAll().catch?.(() => {});
   } catch (e) {
     /* ignore */
   }
+}
 
+function setupDisableAutofill(): void {
   // Disable browser autofill heuristics on form fields
   try {
     const root = document.getElementById('form-casamento');
@@ -595,8 +594,38 @@ function setup(): void {
   } catch (e) {
     /* ignore */
   }
-  document.getElementById('form-casamento')?.addEventListener('input', updateActionButtons);
-  document.getElementById('form-casamento')?.addEventListener('change', updateActionButtons);
+}
+
+function setup(): void {
+  function triggerMatricula() {
+    try {
+      if (typeof (window as any).updateMatricula === 'function') (window as any).updateMatricula();
+    } catch (e) {
+      void e;
+    }
+  }
+  setupMatriculaFieldTriggers(triggerMatricula);
+  setupOutputButtons();
+  setupValidation();
+  setupNameValidation();
+  setupConfigPanel();
+  // drawer setup intentionally skipped; drawer controls handled elsewhere
+  setupSettingsPanelCasamento();
+  setupDrawerInlineToggle();
+  setupActSelect('casamento');
+  setupPrimaryShortcut(
+    () => document.getElementById('btn-json') || document.getElementById('btn-xml'),
+  );
+  setupAutofillDefaults();
+  setupMatriculaTypeValidation();
+  setupMatriculaDateTriggers(triggerMatricula);
+  setupFocusEmphasis();
+  setupLiveOutputs();
+  updateActionButtons();
+
+  setupCityIntegration();
+  setupDisableAutofill();
+  setupActionButtonsListeners();
 }
 
 function setupValidation(): void {
@@ -677,7 +706,7 @@ function setupValidation(): void {
       try {
         const el = inp as HTMLInputElement;
         el.addEventListener('input', () => {
-          const s = (el.value || '').replace(/[^A-Za-zÀ-ÿ'\- ]/g, '');
+          const s = sanitizeNameLikeValue(el.value || '');
           if (s !== el.value) el.value = s;
         });
       } catch (e) {

@@ -780,7 +780,7 @@ function markMissingForMatricula() {
     if (missing) {
       ensureHoverHintForMatricula(
         matEl,
-        'Preencha CartÃ³rio / Livro / Folha / Termo / Data para gerar matrÃ­cula',
+        'Preencha Cartório / Livro / Folha / Termo / Data para gerar matrÃ­cula',
       );
       (matEl as any).setAttribute('aria-invalid', 'true');
       (matEl as any).setAttribute('title', 'Campos faltantes â€” passe o cursor para ver quais');
@@ -846,10 +846,31 @@ function parseLines(raw: string, mapper: (line: string) => any) {
 
 function parseIrmaos(raw: string) {
   return parseLines(raw, (line) => {
-    const parts = line.split('|');
+    // aceita "nome|matricula" ou "nome - matricula" (usa o último traço como separador)
+    if (line.includes('|')) {
+      const parts = line.split('|');
+      return {
+        nome: trimValue(parts[0]),
+        matricula: trimValue(parts[1] || ''),
+      };
+    }
+
+    const dashPos = Math.max(line.lastIndexOf('-'), line.lastIndexOf('—'));
+    if (dashPos > 0) {
+      const right = line.slice(dashPos + 1).trim();
+      // se lado direito contém dígitos, assume que é matrícula
+      if (/\d/.test(right)) {
+        return {
+          nome: trimValue(line.slice(0, dashPos)),
+          matricula: trimValue(right),
+        };
+      }
+    }
+
+    // fallback: trata tudo como nome
     return {
-      nome: trimValue(parts[0]),
-      matricula: trimValue(parts[1]),
+      nome: trimValue(line),
+      matricula: '',
     };
   });
 }

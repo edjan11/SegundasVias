@@ -82,19 +82,20 @@
           <input data-bind="ui.matricula_termo" name="termo" maxlength="7" inputmode="numeric" data-required />
         </div>
 
-        <div class="campo span-1">
+        <div class="campo span-2">
           <label class="label">Folha <span class="obrigatorio">*</span></label>
           <input data-bind="ui.matricula_folha" name="folha" maxlength="3" inputmode="numeric" data-required />
-        </div>
-
-        <div class="campo span-6">
-          <label class="label">Assinante <span class="obrigatorio">*</span></label>
-          <select name="idAssinante" data-required data-signer-select></select>
         </div>
 
         <div class="campo span-3">
           <label class="label">Matrícula (gerada)</label>
           <input id="matricula" data-bind="registro.matricula" readonly />
+        </div>
+
+        <!-- Assinante agora posicionado à direita da matrícula -->
+        <div class="campo span-6">
+          <label class="label">Assinante <span class="obrigatorio">*</span></label>
+          <select name="idAssinante" data-required data-signer-select></select>
         </div>
       </div>
     </div>
@@ -648,6 +649,90 @@
   </div>
 
   </div> <!-- /#panel-inline -->
+
+  <!-- Drawer (consistente com Nascimento/Casamento) -->
+  <div id="drawer" class="drawer">
+      <div class="drawer-header">
+        <div class="drawer-title">Painel</div>
+        <button id="drawer-close" class="btn tiny secondary" type="button">Fechar</button>
+      </div>
+      <div class="drawer-body">
+        <div class="tabbar">
+          <button class="tab-btn active" data-tab="tab-config">Configuracoes</button>
+          <button class="tab-btn" data-tab="tab-json">JSON</button>
+          <button class="tab-btn" data-tab="tab-xml">XML</button>
+          <button class="tab-btn" data-tab="tab-debug">Debug</button>
+        </div>
+
+        <div id="tab-config" class="tab-pane active">
+          <div class="card">
+            <div class="cardTitle">Certidao</div>
+            <div class="grid">
+              <div class="field span-3">
+                <label>plataformaId</label>
+                <input data-bind="certidao.plataformaId" readonly />
+              </div>
+              <div class="field span-3">
+                <label>tipo_registro</label>
+                <input data-bind="certidao.tipo_registro" readonly />
+              </div>
+              <div class="field span-3">
+                <label>tipo_certidao</label>
+                <select data-bind="certidao.tipo_certidao">
+                  <option></option><option>Breve relato</option><option>Inteiro teor</option>
+                </select>
+              </div>
+              <div class="field span-3">
+                <label>modalidade</label>
+                <select data-bind="certidao.modalidade">
+                  <option></option><option>eletronica</option><option>fisica</option>
+                </select>
+              </div>
+              <div class="field span-3">
+                <label>cartorio_cns</label>
+                <input data-bind="certidao.cartorio_cns" readonly />
+              </div>
+              <div class="field span-3">
+                <label>cota_emolumentos</label>
+                <input data-bind="certidao.cota_emolumentos" />
+              </div>
+              <div class="field checkboxField span-2">
+                <input type="checkbox" data-bind="certidao.transcricao" />
+                <label>transcricao</label>
+              </div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="cardTitle">Pastas</div>
+            <div class="grid">
+              <div class="field span-9">
+                <label>Pasta JSON</label>
+                <input id="json-dir" readonly />
+              </div>
+              <div class="field span-3">
+                <label>&nbsp;</label>
+                <button id="pick-json" class="btn secondary" type="button">Selecionar...</button>
+              </div>
+              <div class="field span-9">
+                <label>Pasta XML</label>
+                <input id="xml-dir" readonly />
+              </div>
+              <div class="field span-3">
+                <label>&nbsp;</label>
+                <button id="pick-xml" class="btn secondary" type="button">Selecionar...</button>
+              </div>
+              <div class="field span-12">
+                <span id="outputDirBadge" class="badge">JSON: ... | XML: ...</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="cardTitle">Automacoes</div>
+            <div class="grid">
+              <div class="field span-12">
+                <label>Corretor de nome</label>
 
   <script type="module" src="../js/obito.bundle.js"></script>
   <script>
