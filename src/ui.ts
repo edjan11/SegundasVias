@@ -1400,9 +1400,14 @@ function setupActions() {
   (document.getElementById('btn-json') as HTMLElement | null)?.addEventListener('click', () =>
     generateFile('json'),
   );
-  (document.getElementById('btn-xml') as HTMLElement | null)?.addEventListener('click', () =>
-    generateFile('xml'),
-  );
+  const globalBtnXml = document.getElementById('btn-xml') as HTMLElement | null;
+  if (globalBtnXml) {
+    globalBtnXml.addEventListener('click', (e) => {
+      // If a per-act exclusive handler was attached, skip the global XML generator
+      if ((globalBtnXml as HTMLElement & { dataset?: any }).dataset?.exclusive === 'true') return;
+      generateFile('xml');
+    });
+  }
   document
     .getElementById('btn-nascimento')
     ?.addEventListener('click', () => setTipoRegistro('nascimento'));
@@ -2065,9 +2070,55 @@ function digitsOnly__dup_2(v: string) {
 function setupBeforeUnload() {
   window.addEventListener('beforeunload', (e) => {
     if (!isDirty) return;
+    // Keep default browser unload prevention disabled to avoid blocking navigation UI.
+    // Instead rely on app-local navigation via 'app:navigate' to show a smoother loading state.
     e.preventDefault();
     (e as any).returnValue = '';
   });
+}
+
+// Smooth in-app navigation handler: show a subtle loading indicator and navigate without native alert
+window.addEventListener('app:navigate', (ev: Event) => {
+  try {
+    const href = (ev as CustomEvent).detail?.href;
+    if (!href) return;
+    // clear dirty flag so native beforeunload doesn't block (if fired)
+    isDirty = false;
+    showLoadingOverlay();
+    // slight delay to allow overlay to render
+    setTimeout(() => (window.location.href = href), 50);
+  } catch (e) {
+    // fallback to direct navigation
+    const href = (ev as CustomEvent).detail?.href;
+    if (href) window.location.href = href;
+  }
+});
+
+function showLoadingOverlay() {
+  let ol = document.getElementById('app-loading-overlay') as HTMLElement | null;
+  if (!ol) {
+    ol = document.createElement('div');
+    ol.id = 'app-loading-overlay';
+    ol.style.position = 'fixed';
+    ol.style.left = '0';
+    ol.style.top = '0';
+    ol.style.right = '0';
+    ol.style.bottom = '0';
+    ol.style.background = 'rgba(255,255,255,0.8)';
+    ol.style.display = 'flex';
+    ol.style.alignItems = 'center';
+    ol.style.justifyContent = 'center';
+    ol.style.zIndex = '9999';
+    ol.innerHTML = `<div style="font-size:14px;color:#0f172a;padding:12px 18px;border-radius:8px;background:#fff;border:1px solid rgba(0,0,0,0.04)">Carregando…</div>`;
+    document.body.appendChild(ol);
+  } else {
+    ol.style.display = 'flex';
+  }
+}
+
+function hideLoadingOverlay() {
+  const ol = document.getElementById('app-loading-overlay') as HTMLElement | null;
+  if (ol) ol.style.display = 'none';
 }
 
 function setupMatriculaAutoListeners() {

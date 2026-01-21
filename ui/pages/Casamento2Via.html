@@ -24,7 +24,11 @@
       </div>
       <div class="toolbar-right">
         <button id="drawer-toggle" class="btn secondary">Painel</button>
-        <span id="statusText" class="status">Pronto</span>
+        <div style="display:inline-flex; gap:6px; align-items:center; margin-left:8px;">
+          <button id="btn-json" class="btn json compact" title="Gerar JSON">JSON</button>
+          <button id="btn-xml" class="btn xml compact" title="Exportar XML">XML</button>
+          <button id="btn-print" class="btn pdf compact" title="Imprimir PDF">PDF</button>
+        </div>
       </div>
     </div>
 
@@ -247,6 +251,16 @@
       </div>
       <div class="section-divider"></div>
       <div class="section">
+        <div class="subTitle">Assinante</div>
+        <div class="grid">
+          <div class="field span-6">
+            <label>Assinante</label>
+            <select name="idAssinante" data-signer-select></select>
+          </div>
+        </div>
+      </div>
+      <div class="section-divider"></div>
+      <div class="section">
         <details class="collapse">
           <summary>Documentos adicionais</summary>
           <div class="grid">
@@ -293,16 +307,6 @@
       </div>
     </form>
   </div>
-
-  <div class="section">
-      <div class="subTitle">Assinante</div>
-      <div class="grid">
-        <div class="field span-6">
-          <label>Assinante</label>
-          <select name="idAssinante" data-signer-select></select>
-        </div>
-      </div>
-    </div>
 
   <div id="panel-inline"></div>
 
@@ -441,7 +445,7 @@
           <label>JSON</label>
           <textarea id="json-output" rows="10" readonly></textarea>
         </div>
-        <button id="btn-json" type="button" class="btn">Gerar JSON</button>
+        <button id="btn-json" type="button" class="btn json compact">JSON</button>
       </div>
 
       <div id="tab-xml" class="tab-pane">
@@ -449,7 +453,7 @@
           <label>XML</label>
           <textarea id="xml-output" rows="10" readonly></textarea>
         </div>
-        <button id="btn-xml" type="button" class="btn">Gerar XML</button>
+        <button id="btn-xml" type="button" class="btn xml compact">XML</button>
       </div>
 
       <div id="tab-debug" class="tab-pane">
@@ -489,7 +493,9 @@
           try{
             const map = { nascimento: './Nascimento2Via.html', casamento: './Casamento2Via.html', obito: './Obito2Via.html' };
             const next = map[sel.value];
-            if (next) window.location.assign(next);
+            if (next) {
+              window.dispatchEvent(new CustomEvent('app:navigate', { detail: { href: next } }));
+            }
           }catch(e){}
         });
       }catch(e){}

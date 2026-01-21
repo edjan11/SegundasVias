@@ -246,14 +246,40 @@ export function mapperHtmlToJsonNascimento(doc?: DocLike) {
   const averbacao_anotacao = String(v(d, '[data-bind="registro.averbacao_anotacao"]') || '').trim();
   const anotacoes_cadastro = parseAnotacoesCadastro(v(d, '[data-bind="ui.anotacoes_raw"]'));
 
+  // valores adicionais: transcricao, livro/folha/termo
+  const transcricao = checked(d, 'input[data-bind="certidao.transcricao"]');
+  const livro = v(d, 'input[data-bind="ui.matricula_livro"]') || v(d, '#matricula-livro');
+  const folha = v(d, 'input[data-bind="ui.matricula_folha"]') || v(d, '#matricula-folha');
+  const termo = v(d, 'input[data-bind="ui.matricula_termo"]') || v(d, '#matricula-termo');
+  const assinanteId = v(d, 'select[name="idAssinante"]');
+  const assinanteEl = q(d, 'select[name="idAssinante"]') as HTMLSelectElement | null;
+  const assinanteNome = assinanteEl?.selectedOptions?.[0]?.textContent || '';
+
+  // monta participantes a partir da filiação (quando disponível)
+  const participantes = filiacao.map((f, idx) => {
+    // papel heurístico: se bate com nomes conhecidos, usa MAE/PAI, senão usar posição
+    let papel = '';
+    if (f.nome === mae_nome) papel = 'MAE';
+    else if (f.nome === pai_nome) papel = 'PAI';
+    else if (filiacao.length === 2) papel = idx === 0 ? 'MAE' : 'PAI';
+
+    return {
+      nome: f.nome,
+      municipio_nascimento: f.municipio_nascimento || '',
+      uf_nascimento: f.uf_nascimento || '',
+      avos: f.avos || '',
+      papel,
+    };
+  });
+
   // ===== payload final (igual exemplos) =====
   const payload: any = {
     certidao: {
       plataformaId: PLATAFORMA_ID,
       tipo_registro: 'nascimento',
       tipo_certidao: TIPO_CERTIDAO_PADRAO,
-      transcricao: false,
-      cartorio_cns: CARTORIO_EMISSOR_CNS_DEFAULT, // sempre o CNS do cartório emissor (163659)
+      transcricao: !!transcricao,
+      cartorio_cns: cartorio_cns,
       selo: '',
       cod_selo: '',
       modalidade: 'eletronica',
@@ -281,6 +307,12 @@ export function mapperHtmlToJsonNascimento(doc?: DocLike) {
         irmao: gemeosIrmao,
       },
       filiacao,
+      participantes: participantes.length ? participantes : undefined,
+      livro: livro || undefined,
+      folha: folha || undefined,
+      termo: termo || undefined,
+      id_assinante: assinanteId || undefined,
+      nome_assinante: assinanteNome || undefined,
       numero_dnv,
       averbacao_anotacao,
       anotacoes_cadastro,

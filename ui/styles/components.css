@@ -144,6 +144,39 @@ a.btn {
   padding: 3px 6px;
   font-size: 10px;
 }
+
+/* Compact button variant for toolbar quick actions */
+.btn.compact {
+  padding: 3px 6px;
+  font-size: 10px;
+  border-radius: 6px;
+}
+
+/* subtle variant (outline) */
+.btn.subtle {
+  background: #fff;
+  color: var(--text);
+  border-color: #d1d5db;
+  padding: 4px 6px;
+}
+
+/* Action color variants */
+.btn.json {
+  background: #16a34a;
+  border-color: #15803d;
+  color: #fff;
+}
+.btn.xml {
+  background: linear-gradient(180deg,#3b82f6,#2563eb);
+  border-color: #1d4ed8;
+  color: #fff;
+}
+.btn.pdf {
+  background: #dc2626;
+  border-color: #b91c1c;
+  color: #fff;
+}
+
 /* disabled buttons */
 .btn[disabled] {
   opacity: 0.6;

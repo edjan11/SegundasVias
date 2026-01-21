@@ -1,5 +1,6 @@
 import '../../core/events';
 import mapperHtmlToJson from './mapperHtmlToJsonNascimento';
+import { buildNascimentoXmlFromJson } from './printNascimentoXmlFromJson';
 
 import { normalizeDate, validateDateDetailed } from '../../shared/validators/date';
 import { normalizeTime } from '../../shared/validators/time';
@@ -224,6 +225,8 @@ function updateDebug(): void {
   if (invalidEl) invalidEl.value = invalids.join('\n');
 }
 
+let pnasRenderToken = 0;
+
 function updateOutputs(): void {
   const data = mapperHtmlToJson(document);
 
@@ -231,7 +234,21 @@ function updateOutputs(): void {
   if (jsonEl) jsonEl.value = JSON.stringify(data, null, 2);
 
   const xmlEl = document.getElementById('xml-output') as any;
-  if (xmlEl) xmlEl.value = toXml(data, 'certidao_nascimento', 0);
+  if (xmlEl) xmlEl.value = '';
+
+  const token = ++pnasRenderToken;
+  void (async () => {
+    try {
+      const matricula = onlyDigits(data?.registro?.matricula || '');
+      const codigoCnj = matricula.slice(0, 6) || onlyDigits(data?.certidao?.cartorio_cns || '');
+      const template = await fetchPnasTemplate(codigoCnj);
+      const p = buildNascimentoXmlFromJson(template, data);
+      const xmlOut = document.getElementById('xml-output') as any;
+      if (xmlOut && token === pnasRenderToken) xmlOut.value = p;
+    } catch {
+      // ignore
+    }
+  })();
 
   updateDebug();
 }
@@ -326,15 +343,50 @@ function generateJson(): void {
 }
 
 function generateXml(): void {
+  void generatePnasXml();
+}
+
+function onlyDigits(value: string): string {
+  return String(value || '').replace(/\D+/g, '');
+}
+
+async function fetchPnasTemplate(codigoCnj?: string): Promise<string> {
+  const bases = ['./templates', '../templates', '/templates', '/ui/templates'];
+  const candidates: string[] = [];
+  for (const base of bases) {
+    if (codigoCnj) candidates.push(`${base}/nascimento-modelo-${codigoCnj}.xml`);
+    candidates.push(`${base}/nascimento-modelo-crc.xml`);
+    candidates.push(`${base}/nascimento-modelo.xml`);
+  }
+
+  for (const url of candidates) {
+    try {
+      const res = await fetch(url, { cache: 'no-store' });
+      if (!res.ok) continue;
+      return await res.text();
+    } catch {
+      // next
+    }
+  }
+
+  // fallback mínimo embutido
+  return `<?xml version="1.0" encoding="UTF-8"?><ListaRegistrosNascimento><PNAS><CodigoCNJ></CodigoCNJ><DataRegistro></DataRegistro><Nome></Nome><CPF></CPF><Sexo></Sexo><DataNascimento></DataNascimento><HoraNascimento></HoraNascimento><DescricaoLocalNascimento></DescricaoLocalNascimento><CodigoLocalDoNascimento></CodigoLocalDoNascimento><NomeLivro></NomeLivro><NumeroLivro></NumeroLivro><NumeroPagina></NumeroPagina><NumeroRegistro></NumeroRegistro><CartorioCNS></CartorioCNS><Transcricao></Transcricao><Participantes></Participantes><ObservacaoCertidao></ObservacaoCertidao></PNAS></ListaRegistrosNascimento>`;
+}
+
+async function generatePnasXml(): Promise<void> {
   if (!canProceed()) return;
   const data = mapperHtmlToJson(document);
-  const xml = toXml(data, 'certidao_nascimento', 0);
-  const xmlEl = document.getElementById('xml-output') as any;
-  if (xmlEl) xmlEl.value = xml;
+  const matricula = onlyDigits(data?.registro?.matricula || '');
+  const codigoCnj = matricula.slice(0, 6) || onlyDigits(data?.certidao?.cartorio_cns || '');
 
-  const name = `NASCIMENTO_${new Date().toISOString().slice(0, 19).replace(/[:T]/g, '')}.xml`;
   try {
-    downloadText(name, xml, 'application/xml');
+    const templateXml = await fetchPnasTemplate(codigoCnj);
+    const pnas = buildNascimentoXmlFromJson(templateXml, data);
+    const xmlEl = document.getElementById('xml-output') as any;
+    if (xmlEl) xmlEl.value = pnas;
+
+    const name = `NASCIMENTO_${new Date().toISOString().slice(0, 19).replace(/[:T]/g, '')}.xml`;
+    downloadText(name, pnas, 'application/xml');
     setStatus(`XML baixado: ${name}`);
   } catch {
     setStatus('Falha ao gerar XML', true);
@@ -600,7 +652,7 @@ function setupSettingsPanel(): void {
   const saveBtn = document.getElementById('settings-save') as HTMLButtonElement | null;
   const applyBtn = document.getElementById('settings-apply') as HTMLButtonElement | null;
 
-  const pos = localStorage.getItem(DRAWER_POS_KEY) || 'bottom-right';
+  const pos = localStorage.getItem(DRAWER_POS_KEY) || 'top';
   const enableCpf = localStorage.getItem(ENABLE_CPF_KEY) !== 'false';
   const enableName = localStorage.getItem(ENABLE_NAME_KEY) !== 'false';
   const panelInlineStored = localStorage.getItem(PANEL_INLINE_KEY);
@@ -614,7 +666,7 @@ function setupSettingsPanel(): void {
   if (cbInline) cbInline.checked = !!panelInline;
 
   applyBtn?.addEventListener('click', () => {
-    const newPos = select?.value || 'bottom-right';
+    const newPos = select?.value || 'top';
     const drawer = document.getElementById('drawer') as HTMLElement | null;
     if (drawer) {
       drawer.classList.remove('position-top', 'position-bottom-right', 'position-side');
@@ -626,7 +678,7 @@ function setupSettingsPanel(): void {
   });
 
   saveBtn?.addEventListener('click', () => {
-    const newPos = select?.value || 'bottom-right';
+    const newPos = select?.value || 'top';
     localStorage.setItem(DRAWER_POS_KEY, newPos);
     localStorage.setItem(ENABLE_CPF_KEY, cbCpf?.checked ? 'true' : 'false');
     localStorage.setItem(ENABLE_NAME_KEY, cbName?.checked ? 'true' : 'false');
@@ -681,6 +733,14 @@ function setupPrintButton(): void {
 function setupActions(): void {
   const attachExclusiveClick = (el: HTMLElement | null, handler: () => void) => {
     if (!el) return;
+    // mark this element as handled by a per-act exclusive handler so global UI handlers skip it
+    try {
+      (el as HTMLElement & { dataset?: any }).dataset = (el as HTMLElement & { dataset?: any }).dataset || {};
+      (el as HTMLElement & { dataset?: any }).dataset.exclusive = 'true';
+    } catch (e) {
+      /* ignore */
+    }
+
     el.addEventListener(
       'click',
       (e) => {
@@ -692,11 +752,14 @@ function setupActions(): void {
     );
   };
 
-  attachExclusiveClick(document.getElementById('btn-json') as HTMLElement | null, generateJson);
-  attachExclusiveClick(document.getElementById('btn-xml') as HTMLElement | null, generateXml);
+  // Attach to all btns on this page (toolbar + panel) so both trigger the per-act generators
+  document.querySelectorAll('#btn-json').forEach((el) => attachExclusiveClick(el as HTMLElement, generateJson));
+  document.querySelectorAll('#btn-xml').forEach((el) => attachExclusiveClick(el as HTMLElement, generateXml));
+  document.querySelectorAll('#btn-pnas').forEach((el) => attachExclusiveClick(el as HTMLElement, () => { void generatePnasXml(); }));
 
   document.addEventListener('input', updateActionButtons);
   document.addEventListener('change', updateActionButtons);
+
 }
 
 function setupApp(): void {
@@ -722,3 +785,4 @@ function setupApp(): void {
 }
 
 setupApp();
+

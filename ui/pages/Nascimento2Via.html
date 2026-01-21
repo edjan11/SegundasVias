@@ -24,8 +24,11 @@
       </div>
       <div class="toolbar-right">
         <button id="drawer-toggle" class="btn secondary">Painel</button>
-        <button id="btn-print" class="btn secondary" title="Imprimir PDF">Imprimir PDF</button>
-        <span id="statusText" class="status">Pronto</span>
+        <div style="display:inline-flex; gap:6px; align-items:center; margin-left:8px;">
+          <button id="btn-json" class="btn json compact" title="Gerar JSON">JSON</button>
+          <button id="btn-xml" class="btn xml compact" title="Exportar XML">XML</button>
+          <button id="btn-print" class="btn pdf compact" title="Imprimir PDF">PDF</button>
+        </div>
       </div>
     </div>
 
@@ -539,7 +542,13 @@
             <label>XML</label>
             <textarea id="xml-output" rows="10" readonly></textarea>
           </div>
-          <button id="btn-xml" class="btn" type="button">Gerar XML</button>
+
+          <div style="margin-top:8px;">
+            <button id="btn-xml" class="btn xml compact" type="button">XML</button>
+            <button id="btn-pnas" class="btn secondary compact" type="button">Exportar PNAS/CRC</button>
+          </div>
+
+
         </div>
 
         <div id="tab-debug" class="tab-pane">
@@ -579,7 +588,10 @@
           try{
             const map = { nascimento: './Nascimento2Via.html', casamento: './Casamento2Via.html', obito: './Obito2Via.html' };
             const next = map[sel.value];
-            if (next) window.location.assign(next);
+            if (next) {
+              // dispatch app navigation event for smoother behavior
+              window.dispatchEvent(new CustomEvent('app:navigate', { detail: { href: next } }));
+            }
           }catch(e){}
         });
       }catch(e){}

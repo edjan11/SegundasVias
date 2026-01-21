@@ -24,7 +24,11 @@
       </div>
       <div class="toolbar-right">
         <button id="drawer-toggle" class="btn secondary">Painel</button>
-        <span id="statusText" class="status">Pronto</span>
+        <div style="display:inline-flex; gap:6px; align-items:center; margin-left:8px;">
+          <button id="btn-json" class="btn json compact" title="Gerar JSON">JSON</button>
+          <button id="btn-xml" class="btn xml compact" title="Exportar XML">XML</button>
+          <button id="btn-print" class="btn pdf compact" title="Imprimir PDF">PDF</button>
+        </div>
       </div>
     </div>
 
@@ -481,174 +485,7 @@
   </div>
 </form>
 
-  <!-- Seções inline: Certidão, Automações, Administração, Settings, Outputs -->
-  <div id="panel-inline">
-  <div class="card">
-    <div class="cardTitle">Certidão</div>
-    <div class="grid">
-      <div class="field span-3">
-        <label>plataformaId</label>
-        <input name="certidao.plataformaId" />
-      </div>
-      <div class="field span-3">
-        <label>tipo_registro</label>
-        <input data-bind="certidao.tipo_registro" name="certidao.tipo_registro" value="obito" readonly />
-      </div>
-      <div class="field span-3">
-        <label>tipo_certidao</label>
-        <select name="certidao.tipo_certidao">
-          <option></option><option>Breve relato</option><option>Inteiro teor</option>
-        </select>
-      </div>
-      <div class="field span-3">
-        <label>modalidade</label>
-        <select name="certidao.modalidade">
-          <option></option><option>eletronica</option><option>fisica</option>
-        </select>
-      </div>
-      <div class="field span-3">
-        <label>cartorio_cns</label>
-        <input name="certidao.cartorio_cns" />
-      </div>
-      <div class="field span-3">
-        <label>selo</label>
-        <input name="certidao.selo" />
-      </div>
-      <div class="field span-3">
-        <label>cod_selo</label>
-        <input name="certidao.cod_selo" />
-      </div>
-      <div class="field span-3">
-        <label>cota_emolumentos</label>
-        <input name="certidao.cota_emolumentos" />
-      </div>
-      <div class="field checkboxField span-2">
-        <input type="checkbox" name="certidao.transcricao" />
-        <label>transcricao</label>
-      </div>
-    </div>
-  </div>
-
-  <div class="section-divider"></div>
-
-  <div class="card">
-    <div class="cardTitle">Automações</div>
-    <div class="grid">
-      <div class="field span-12">
-        <label>Corretor de nome</label>
-        <div class="field-line">
-          <label class="inline-check">
-            <input type="radio" name="name-validation-mode" value="blur" />
-            Somente ao sair do input
-          </label>
-          <label class="inline-check">
-            <input type="radio" name="name-validation-mode" value="input" />
-            Durante a digitacao
-          </label>
-        </div>
-      </div>
-    </div>
-    <div class="toolbar-left" style="margin-top: 10px;">
-      <button id="config-save" class="btn" type="button">Salvar configuracao</button>
-    </div>
-  </div>
-
-  <div class="section-divider"></div>
-
-  <div class="card">
-    <div class="cardTitle">Administracao</div>
-    <div class="grid">
-      <div class="field span-9">
-        <label>Assinante</label>
-        <input id="admin-signer-name" placeholder="Nome do assinante" />
-      </div>
-      <div class="field span-3">
-        <label>&nbsp;</label>
-        <button id="admin-signer-add" class="btn secondary" type="button">Adicionar</button>
-      </div>
-      <div class="field span-12">
-        <div id="admin-signer-list"></div>
-      </div>
-    </div>
-  </div>
-
-  <div class="section-divider"></div>
-
-  <div class="card">
-    <div class="cardTitle">Settings</div>
-    <div class="grid">
-      <div class="field span-12">
-        <label>Exibir painel inline</label>
-        <div class="field-line">
-          <label class="inline-check"><input type="checkbox" id="settings-panel-inline" /> Exibir inline (se desmarcado, painel flutuante será usado)</label>
-        </div>
-      </div>
-      <div class="field span-6">
-        <label>Posicionamento do painel (não usado em modo inline)</label>
-        <select id="settings-drawer-position" class="campo">
-          <option value="bottom-right">Inferior direito</option>
-          <option value="top">Topo central</option>
-          <option value="side">Lateral</option>
-        </select>
-      </div>
-      <div class="field span-6">
-        <label>Preferencias</label>
-        <div class="field-line">
-          <label class="inline-check"><input type="checkbox" id="settings-enable-cpf" /> Validar CPF</label>
-          <label class="inline-check"><input type="checkbox" id="settings-enable-name" /> Validar Nomes</label>
-        </div>
-      </div>
-    </div>
-    <div style="margin-top:10px;" class="toolbar-left">
-      <button id="settings-save" class="btn" type="button">Salvar</button>
-      <button id="settings-apply" class="btn secondary" type="button">Aplicar sem salvar</button>
-    </div>
-  </div>
-
-  <div class="section-divider"></div>
-
-  <div class="card">
-    <div class="cardTitle">Outputs</div>
-    <div class="grid">
-      <div class="field span-12">
-        <label>JSON</label>
-        <textarea id="json-output" rows="6" readonly></textarea>
-        <div style="margin-top:6px;"><button id="btn-json" type="button" class="btn">Gerar JSON</button></div>
-      </div>
-      <div class="field span-12">
-        <label>XML</label>
-        <textarea id="xml-output" rows="6" readonly></textarea>
-        <div style="margin-top:6px;"><button id="btn-xml" type="button" class="btn">Gerar XML</button></div>
-      </div>
-      <div class="field span-12">
-        <label>HTML de impressao</label>
-        <textarea id="print-html" rows="6" readonly></textarea>
-        <div style="margin-top:6px;"><button id="btn-print" type="button" class="btn">Abrir para impressao</button></div>
-      </div>
-      <div class="field span-8">
-        <label>Base matricula</label>
-        <input id="debug-matricula-base" readonly />
-      </div>
-      <div class="field span-2">
-        <label>DV</label>
-        <input id="debug-matricula-dv" readonly />
-      </div>
-      <div class="field span-2">
-        <label>Final</label>
-        <input id="debug-matricula-final" readonly />
-      </div>
-      <div class="field span-12">
-        <label>Campos invalidos</label>
-        <textarea id="debug-invalid" rows="3" readonly></textarea>
-      </div>
-      <div class="field span-12">
-        <label>Alertas</label>
-        <textarea id="debug-alerts" rows="3" readonly></textarea>
-      </div>
-    </div>
-  </div>
-
-  </div> <!-- /#panel-inline -->
+    <div id="panel-inline"></div>
 
   <!-- Drawer (consistente com Nascimento/Casamento) -->
   <div id="drawer" class="drawer">
@@ -666,64 +503,78 @@
 
         <div id="tab-config" class="tab-pane active">
           <div class="card">
+            <div class="cardTitle">Settings</div>
+            <div class="grid">
+              <div class="field span-12">
+                <label>Exibir painel inline</label>
+                <div class="field-line">
+                  <label class="inline-check"><input type="checkbox" id="settings-panel-inline" /> Exibir inline (se desmarcado, painel flutuante sera usado)</label>
+                </div>
+              </div>
+              <div class="field span-6">
+                <label>Posicionamento do painel (nao usado em modo inline)</label>
+                <select id="settings-drawer-position" class="campo">
+                  <option value="bottom-right">Inferior direito</option>
+                  <option value="top">Topo central</option>
+                  <option value="side">Lateral</option>
+                </select>
+              </div>
+              <div class="field span-6">
+                <label>Preferencias</label>
+                <div class="field-line">
+                  <label class="inline-check"><input type="checkbox" id="settings-enable-cpf" /> Validar CPF</label>
+                  <label class="inline-check"><input type="checkbox" id="settings-enable-name" /> Validar Nomes</label>
+                </div>
+              </div>
+            </div>
+            <div style="margin-top:10px;" class="toolbar-left">
+              <button id="settings-save" class="btn" type="button">Salvar</button>
+              <button id="settings-apply" class="btn secondary" type="button">Aplicar sem salvar</button>
+            </div>
+          </div>
+
+          <div class="card">
             <div class="cardTitle">Certidao</div>
             <div class="grid">
               <div class="field span-3">
                 <label>plataformaId</label>
-                <input data-bind="certidao.plataformaId" readonly />
+                <input name="certidao.plataformaId" />
               </div>
               <div class="field span-3">
                 <label>tipo_registro</label>
-                <input data-bind="certidao.tipo_registro" readonly />
+                <input data-bind="certidao.tipo_registro" name="certidao.tipo_registro" value="obito" readonly />
               </div>
               <div class="field span-3">
                 <label>tipo_certidao</label>
-                <select data-bind="certidao.tipo_certidao">
+                <select name="certidao.tipo_certidao">
                   <option></option><option>Breve relato</option><option>Inteiro teor</option>
                 </select>
               </div>
               <div class="field span-3">
                 <label>modalidade</label>
-                <select data-bind="certidao.modalidade">
+                <select name="certidao.modalidade">
                   <option></option><option>eletronica</option><option>fisica</option>
                 </select>
               </div>
               <div class="field span-3">
                 <label>cartorio_cns</label>
-                <input data-bind="certidao.cartorio_cns" readonly />
+                <input name="certidao.cartorio_cns" />
+              </div>
+              <div class="field span-3">
+                <label>selo</label>
+                <input name="certidao.selo" />
+              </div>
+              <div class="field span-3">
+                <label>cod_selo</label>
+                <input name="certidao.cod_selo" />
               </div>
               <div class="field span-3">
                 <label>cota_emolumentos</label>
-                <input data-bind="certidao.cota_emolumentos" />
+                <input name="certidao.cota_emolumentos" />
               </div>
               <div class="field checkboxField span-2">
-                <input type="checkbox" data-bind="certidao.transcricao" />
+                <input type="checkbox" name="certidao.transcricao" />
                 <label>transcricao</label>
-              </div>
-            </div>
-          </div>
-
-          <div class="card">
-            <div class="cardTitle">Pastas</div>
-            <div class="grid">
-              <div class="field span-9">
-                <label>Pasta JSON</label>
-                <input id="json-dir" readonly />
-              </div>
-              <div class="field span-3">
-                <label>&nbsp;</label>
-                <button id="pick-json" class="btn secondary" type="button">Selecionar...</button>
-              </div>
-              <div class="field span-9">
-                <label>Pasta XML</label>
-                <input id="xml-dir" readonly />
-              </div>
-              <div class="field span-3">
-                <label>&nbsp;</label>
-                <button id="pick-xml" class="btn secondary" type="button">Selecionar...</button>
-              </div>
-              <div class="field span-12">
-                <span id="outputDirBadge" class="badge">JSON: ... | XML: ...</span>
               </div>
             </div>
           </div>
@@ -733,8 +584,90 @@
             <div class="grid">
               <div class="field span-12">
                 <label>Corretor de nome</label>
+                <div class="field-line">
+                  <label class="inline-check">
+                    <input type="radio" name="name-validation-mode" value="blur" />
+                    Somente ao sair do input
+                  </label>
+                  <label class="inline-check">
+                    <input type="radio" name="name-validation-mode" value="input" />
+                    Durante a digitacao
+                  </label>
+                </div>
+              </div>
+            </div>
+            <div class="toolbar-left" style="margin-top: 10px;">
+              <button id="config-save" class="btn" type="button">Salvar configuracao</button>
+            </div>
+          </div>
 
-  <script type="module" src="../js/obito.bundle.js"></script>
+          <div class="card">
+            <div class="cardTitle">Administracao</div>
+            <div class="grid">
+              <div class="field span-9">
+                <label>Assinante</label>
+                <input id="admin-signer-name" placeholder="Nome do assinante" />
+              </div>
+              <div class="field span-3">
+                <label>&nbsp;</label>
+                <button id="admin-signer-add" class="btn secondary" type="button">Adicionar</button>
+              </div>
+              <div class="field span-12">
+                <div id="admin-signer-list"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div id="tab-json" class="tab-pane">
+          <div class="field">
+            <label>JSON</label>
+            <textarea id="json-output" rows="10" readonly></textarea>
+          </div>
+          <button id="btn-json" type="button" class="btn">Gerar JSON</button>
+        </div>
+
+        <div id="tab-xml" class="tab-pane">
+          <div class="field">
+            <label>XML</label>
+            <textarea id="xml-output" rows="10" readonly></textarea>
+          </div>
+          <button id="btn-xml" type="button" class="btn xml compact">XML</button>
+          <div class="field" style="margin-top:10px;">
+            <label>HTML de impressao</label>
+            <textarea id="print-html" rows="6" readonly></textarea>
+          </div>
+          <button id="btn-print" type="button" class="btn pdf compact">PDF</button>
+        </div>
+
+        <div id="tab-debug" class="tab-pane">
+          <div class="grid">
+            <div class="field span-8">
+              <label>Base matricula</label>
+              <input id="debug-matricula-base" readonly />
+            </div>
+            <div class="field span-2">
+              <label>DV</label>
+              <input id="debug-matricula-dv" readonly />
+            </div>
+            <div class="field span-2">
+              <label>Final</label>
+              <input id="debug-matricula-final" readonly />
+            </div>
+            <div class="field span-12">
+              <label>Campos invalidos</label>
+              <textarea id="debug-invalid" rows="3" readonly></textarea>
+            </div>
+            <div class="field span-12">
+              <label>Alertas</label>
+              <textarea id="debug-alerts" rows="3" readonly></textarea>
+            </div>
+          </div>
+        </div>
+      </div>
+  </div>
+
+<script type="module" src="../js/obito.bundle.js"></script>
   <script>
     (function(){
       try{
@@ -744,7 +677,9 @@
           try{
             const map = { nascimento: './Nascimento2Via.html', casamento: './Casamento2Via.html', obito: './Obito2Via.html' };
             const next = map[sel.value];
-            if (next) window.location.assign(next);
+            if (next) {
+              window.dispatchEvent(new CustomEvent('app:navigate', { detail: { href: next } }));
+            }
           }catch(e){}
         });
       }catch(e){}
