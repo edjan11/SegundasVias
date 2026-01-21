@@ -169,13 +169,18 @@ export function mapperHtmlToJsonNascimento(doc?: DocLike) {
   const sexo_outros_raw = v(d, '#sexo-outros') || v(d, '[data-bind="registro.sexo_outros"]');
   const sexo_outros = sexo === 'outros' ? String(sexo_outros_raw || '').trim() : '';
 
-  // local nascimento: prioriza select[name="localNascimento"] (quando informado) para permitir
-  // escolha do tipo/código do local (H, S, D, V, O, I). Se não houver seleção, usa o campo de texto.
+  // local nascimento
+  // Try multiple selectors to support different templates (kebab and camelCase ids, select name)
   const local_nascimento = upper(
-    v(d, 'select[name="localNascimento"]') ||
     v(d, '#local-nascimento') ||
+    v(d, '#localNascimento') ||
     v(d, '[data-bind="registro.local_nascimento"]')
   );
+  const local_nascimento_codigo = upper(
+    v(d, 'select[name="localNascimento"]') ||
+    v(d, '#localNascimento') ||
+    v(d, 'select[data-bind="ui.local_nascimento_tipo"]')
+  ) || 'O';
 
   // município/uf nascimento (principal)
   const municipio_nascimento = upper(v(d, '[data-bind="registro.municipio_nascimento"]'));
@@ -304,6 +309,7 @@ export function mapperHtmlToJsonNascimento(doc?: DocLike) {
       municipio_naturalidade,
       uf_naturalidade,
       local_nascimento,
+      local_nascimento_codigo,
       municipio_nascimento,
       uf_nascimento,
       sexo,

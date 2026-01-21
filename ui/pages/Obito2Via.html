@@ -498,6 +498,7 @@
           <button class="tab-btn active" data-tab="tab-config">Configuracoes</button>
           <button class="tab-btn" data-tab="tab-json">JSON</button>
           <button class="tab-btn" data-tab="tab-xml">XML</button>
+          <button class="tab-btn" data-tab="tab-admin">Administracao</button>
           <button class="tab-btn" data-tab="tab-debug">Debug</button>
         </div>
 
@@ -511,6 +512,32 @@
                   <label class="inline-check"><input type="checkbox" id="settings-panel-inline" /> Exibir inline (se desmarcado, painel flutuante sera usado)</label>
                 </div>
               </div>
+
+        <div class="card">
+          <div class="cardTitle">Pastas</div>
+          <div class="grid">
+            <div class="field span-9">
+              <label>Pasta JSON</label>
+              <input id="json-dir" readonly />
+            </div>
+            <div class="field span-3">
+              <label>&nbsp;</label>
+              <button id="pick-json" class="btn secondary" type="button">Selecionar...</button>
+            </div>
+            <div class="field span-9">
+              <label>Pasta XML</label>
+              <input id="xml-dir" readonly />
+            </div>
+            <div class="field span-3">
+              <label>&nbsp;</label>
+              <button id="pick-xml" class="btn secondary" type="button">Selecionar...</button>
+            </div>
+            <div class="field span-12">
+              <span id="outputDirBadge" class="badge">JSON: ... | XML: ...</span>
+            </div>
+          </div>
+        </div>
+
               <div class="field span-6">
                 <label>Posicionamento do painel (nao usado em modo inline)</label>
                 <select id="settings-drawer-position" class="campo">
@@ -596,28 +623,12 @@
                 </div>
               </div>
             </div>
-            <div class="toolbar-left" style="margin-top: 10px;">
-              <button id="config-save" class="btn" type="button">Salvar configuracao</button>
-            </div>
-          </div>
-
-          <div class="card">
-            <div class="cardTitle">Administracao</div>
-            <div class="grid">
-              <div class="field span-9">
-                <label>Assinante</label>
-                <input id="admin-signer-name" placeholder="Nome do assinante" />
-              </div>
-              <div class="field span-3">
-                <label>&nbsp;</label>
-                <button id="admin-signer-add" class="btn secondary" type="button">Adicionar</button>
-              </div>
-              <div class="field span-12">
-                <div id="admin-signer-list"></div>
-              </div>
-            </div>
+          <div class="toolbar-left" style="margin-top: 10px;">
+            <button id="config-save" class="btn" type="button">Salvar configuracao</button>
           </div>
         </div>
+
+      </div>
 
         <div id="tab-json" class="tab-pane">
           <div class="field">
@@ -640,7 +651,27 @@
           <button id="btn-print" type="button" class="btn pdf compact">PDF</button>
         </div>
 
-        <div id="tab-debug" class="tab-pane">
+        
+      <div id="tab-admin" class="tab-pane">
+        <div class="card">
+          <div class="cardTitle">Administracao</div>
+          <div class="grid">
+            <div class="field span-9">
+              <label>Assinante</label>
+              <input id="admin-signer-name" placeholder="Nome do assinante" />
+            </div>
+            <div class="field span-3">
+              <label>&nbsp;</label>
+              <button id="admin-signer-add" class="btn secondary" type="button">Adicionar</button>
+            </div>
+            <div class="field span-12">
+              <div id="admin-signer-list"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div id="tab-debug" class="tab-pane">
           <div class="grid">
             <div class="field span-8">
               <label>Base matricula</label>

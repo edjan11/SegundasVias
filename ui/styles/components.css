@@ -295,6 +295,20 @@ a.type-btn {
   outline: none;
   width: 100%;
   background: #fff;
+  text-transform: uppercase;
+}
+.field select,
+.campo select {
+  appearance: none;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'><path d='M1 1l4 4 4-4' stroke='%23334155' stroke-width='1.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/></svg>");
+  background-repeat: no-repeat;
+  background-position: right 8px center;
+  background-size: 10px 6px;
+  padding-right: 26px;
+}
+.field select option,
+.campo select option {
+  text-transform: uppercase;
 }
 .input-locked {
   background: #f1f5f9 !important;
@@ -487,10 +501,10 @@ a.type-btn {
   box-shadow: 0 0 4px rgba(16,185,129,0.06);
 }
 
-/* Ensure the pill remains visible if the field was marked (data attribute) */
-.name-field[data-name-marked="true"] .name-suggest {
-  display: inline-flex !important;
-}
+/* hide by default; only show when suspect or marked */
+.name-field .name-suggest { display: none; }
+.name-field.name-suspect .name-suggest { display: inline-flex; }
+.name-field[data-name-marked="true"] .name-suggest { display: inline-flex !important; }
 
 /* small tooltip for the Add control */
 .name-suggest[data-tooltip] {
@@ -1168,41 +1182,13 @@ details.collapse summary {
 }
 .name-field .label-row .name-suggest:hover{ opacity:1; }
 
-/* compact label + toggle */
+/* compact label + checkbox */
 .name-field .label-row .name-suggest .name-suggest-label{ font-size:11px; padding-right:4px; }
-.name-field .label-row .name-suggest .name-suggest-toggle{
-  position:absolute;
-  opacity:0;
-  width:1px;
-  height:1px;
-  pointer-events:none;
-}
-.name-field .label-row .name-suggest .name-suggest-toggle-ui{
-  width:34px;
-  height:18px;
-  border-radius:999px;
-  background:#e2e8f0;
-  position:relative;
-  transition: background 0.2s ease;
-  flex:0 0 auto;
-}
-.name-field .label-row .name-suggest .name-suggest-toggle-ui::after{
-  content:'';
-  width:14px;
-  height:14px;
-  border-radius:50%;
-  background:#fff;
-  position:absolute;
-  top:2px;
-  left:2px;
-  transition: transform 0.2s ease;
-  box-shadow:0 1px 2px rgba(2,6,23,0.15);
-}
-.name-field .label-row .name-suggest .name-suggest-toggle:checked + .name-suggest-toggle-ui{
-  background:#10b981;
-}
-.name-field .label-row .name-suggest .name-suggest-toggle:checked + .name-suggest-toggle-ui::after{
-  transform: translateX(16px);
+.name-field .label-row .name-suggest .name-suggest-check{
+  width: 14px;
+  height: 14px;
+  accent-color: #0f766e;
+  margin: 0;
 }
 
 /* Autocomplete dropdown (shared by city and local suggestions) */
@@ -1283,9 +1269,9 @@ details.collapse summary {
 
 .row.row--fixed-2{
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 220px; /* <- importante */
+  grid-template-columns: minmax(0, 1fr) 140px;
   gap: 12px;
-  align-items: start;
+  align-items: end;
 }
 
 /* campos não podem estourar a coluna */
@@ -1315,9 +1301,9 @@ details.collapse summary {
    ========================================================= */
 .row.row--fixed-2{
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 220px;
+  grid-template-columns: minmax(0, 1fr) 140px;
   gap: 12px;
-  align-items: start;
+  align-items: end;
 }
 .row.row--fixed-2 > .field{ min-width: 0; }
 .row.row--fixed-2 > .field.grow{ width: 100%; }

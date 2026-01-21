@@ -1,4 +1,10 @@
-const NAME_RE = /^[A-Za-zÀ-ÿ' \-]+$/;
+const NAME_RE = /^[A-Z' \-]+$/;
+
+function stripAccents(value: string): string {
+  return String(value || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '');
+}
 
 export function validateName(
   raw: string,
@@ -7,7 +13,8 @@ export function validateName(
   const minWords = opts.minWords || 2;
   const value = normalizeName(raw);
   if (!value) return { value: '', invalid: false, warn: false };
-  if (!NAME_RE.test(value)) return { value, invalid: true, warn: false };
+  const normalized = stripAccents(value).toUpperCase();
+  if (!NAME_RE.test(normalized)) return { value, invalid: true, warn: false };
   const words = value.split(' ').filter(Boolean);
   const warn = words.length < minWords;
   return { value, invalid: false, warn };
@@ -26,5 +33,9 @@ export function isValidName(name: string): boolean {
   const n = normalizeName(name);
   const parts = n.split(' ').filter(Boolean);
   if (parts.length < 2) return false;
-  return parts.every((p) => p.length >= 2 && /^[A-Za-zÀ-ÿ'\- ]+$/.test(p));
+  return parts.every((p) => {
+    if (p.length < 2) return false;
+    const normalized = stripAccents(p).toUpperCase();
+    return NAME_RE.test(normalized);
+  });
 }

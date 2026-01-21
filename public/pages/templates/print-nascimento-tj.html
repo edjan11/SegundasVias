@@ -1,0 +1,276 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <title>Certidao de Nascimento</title>
+  <link rel="StyleSheet" href="{{CSS_HREF}}" type="text/css" />
+  <style>@media print{.nao-imprimir{display:none!important}} body{margin-top:0}</style>
+</head>
+<body style="margin-top: 0">
+  <center>
+    <br><br><br><br><br><br><br><br><br><br><br>
+    <br><br>
+
+    <br><br><span style="font-size: 13pt; color: gray">CERTIDAO DE NASCIMENTO</span><br>
+    <span class="label">NOME&nbsp;</span><br>
+    <span style="font-size: 10pt; font-weight: bold">{{NOME}}</span>
+
+    <div style="width: 90%">
+      <table class="tabela">
+        <tr><td class="label" width="30%">CPF</td></tr>
+        <tr><td class="novodado" width="30%">{{CPF}}</td></tr>
+      </table>
+
+      Matricula
+      <div style="font-size: 15px">
+        <b>{{MATRICULA}}</b>
+      </div>
+
+      <table class="tabela">
+        <tr>
+          <td>
+            <fieldset>
+              <legend class="label">Data de nascimento</legend>
+              <div class="novomodelo">{{DATA_NASC_EXTENSO}}</div>
+            </fieldset>
+          </td>
+          <td>
+            <fieldset>
+              <legend class="label">Dia</legend>
+              <div class="novomodelo">{{DIA_NASC}}</div>
+            </fieldset>
+          </td>
+          <td>
+            <fieldset>
+              <legend class="label">Mes</legend>
+              <div class="novomodelo">{{MES_NASC}}</div>
+            </fieldset>
+          </td>
+          <td>
+            <fieldset>
+              <legend class="label">Ano</legend>
+              <div class="novomodelo">{{ANO_NASC}}</div>
+            </fieldset>
+          </td>
+        </tr>
+      </table>
+
+      <table class="tabela">
+        <tr>
+          <td width="50%">
+            <fieldset>
+              <legend class="label">Horario de nascimento</legend>
+              <div class="novomodelo">{{HORA}}</div>
+            </fieldset>
+          </td>
+          <td width="40%">
+            <fieldset>
+              <legend class="label">Municipio de naturalidade</legend>
+              <div class="novomodelo">{{NATURALIDADE}}</div>
+            </fieldset>
+          </td>
+          <td width="10%">
+            <fieldset>
+              <legend class="label">UF</legend>
+              <div class="novomodelo">{{NATURALIDADE_UF}}</div>
+            </fieldset>
+          </td>
+        </tr>
+      </table>
+
+      <table class="tabela">
+        <tr>
+          <td width="50%">
+            <fieldset>
+              <legend class="label">Local de nascimento</legend>
+              <div class="novomodelo">{{LOCAL_NASC}}</div>
+            </fieldset>
+          </td>
+          <td width="25%">
+            <fieldset>
+              <legend class="label">Municipio de nascimento</legend>
+              <div class="novomodelo">{{MUNICIPIO_NASC}}</div>
+            </fieldset>
+          </td>
+          <td width="10%">
+            <fieldset>
+              <legend class="label">UF</legend>
+              <div class="novomodelo">{{UF_NASC}}</div>
+            </fieldset>
+          </td>
+          <td width="15%">
+            <fieldset style="height: 100%">
+              <legend class="label">SEXO</legend>
+              <div class="novomodelo">{{SEXO}}</div>
+            </fieldset>
+          </td>
+        </tr>
+      </table>
+
+      <table class="tabela">
+        <tr>
+          <td style="width:50%">
+            <fieldset>
+              <legend class="label">Nome do(a) 1o genitor(a)</legend>
+              <div class="novomodelo">{{MAE_NOME}}</div>
+            </fieldset>
+          </td>
+          <td style="width:30%">
+            <fieldset>
+              <legend class="label">Municipio de nascimento</legend>
+              <div class="novomodelo">{{MAE_MUNICIPIO}}</div>
+            </fieldset>
+          </td>
+          <td style="width:20%">
+            <fieldset>
+              <legend class="label">UF</legend>
+              <div class="novomodelo">{{MAE_UF}}</div>
+            </fieldset>
+          </td>
+        </tr>
+      </table>
+
+      <table class="tabela">
+        <tr>
+          <td style="width:50%">
+            <fieldset>
+              <legend class="label">Avo(s) respectivo(s)</legend>
+              <div class="novomodelo">{{MAE_AVOS}}</div>
+            </fieldset>
+          </td>
+        </tr>
+      </table>
+
+      <table class="tabela">
+        <tr>
+          <td style="width:50%">
+            <fieldset>
+              <legend class="label">Nome do(a) 2o genitor(a)</legend>
+              <div class="novomodelo">{{PAI_NOME}}</div>
+            </fieldset>
+          </td>
+          <td style="width:30%">
+            <fieldset>
+              <legend class="label">Municipio de nascimento</legend>
+              <div class="novomodelo">{{PAI_MUNICIPIO}}</div>
+            </fieldset>
+          </td>
+          <td style="width:20%">
+            <fieldset>
+              <legend class="label">UF</legend>
+              <div class="novomodelo">{{PAI_UF}}</div>
+            </fieldset>
+          </td>
+        </tr>
+      </table>
+
+      <table class="tabela">
+        <tr>
+          <td style="width:50%">
+            <fieldset>
+              <legend class="label">Avo(s) respectivo(s)</legend>
+              <div class="novomodelo">{{PAI_AVOS}}</div>
+            </fieldset>
+          </td>
+        </tr>
+      </table>
+
+      <table class="tabela">
+        <tr>
+          <td width="100%">
+            <fieldset>
+              <legend class="label">Gemeo</legend>
+              <div class="novomodelo">{{GEMEO}}</div>
+            </fieldset>
+          </td>
+        </tr>
+      </table>
+
+      <table class="tabela">
+        <tr>
+          <td width="45%">
+            <fieldset>
+              <legend class="label">Data do registro</legend>
+              <div class="novomodelo">{{DATA_REGISTRO_EXTENSO}}</div>
+            </fieldset>
+          </td>
+          <td width="55%">
+            <fieldset>
+              <legend class="label">DNV</legend>
+              <div class="novomodelo">{{DNV}}</div>
+            </fieldset>
+          </td>
+        </tr>
+      </table>
+
+      <table class="tabela">
+        <tr>
+          <td>
+            <fieldset>
+              <legend class="label">Anotacoes/Averbacoes</legend>
+              <div class="novomodelo">{{AVERBACAO}}</div>
+            </fieldset>
+          </td>
+        </tr>
+      </table>
+
+      <table class="tabela">
+        <tr>
+          <td>
+            <fieldset>
+              <legend class="label">Anotacoes voluntarias de cadastro</legend>
+              <div class="novomodelo">{{ANOTACOES}}</div>
+            </fieldset>
+          </td>
+        </tr>
+      </table>
+
+      <table border="0" style="width: 100%">
+        <tr>
+          <td class="rodape-esquerdo">
+            <div>
+              <div>CNS n.o {{CNS}}</div>
+              <div>Oficial de Registro Civil de Pessoas Naturais</div>
+              <div>{{CARTORIO_CIDADE_UF}}</div>
+
+              <br>
+
+              <div>{{SERVENTUARIO}}</div>
+              <div>{{SERVENTUARIO_CARGO}}</div>
+
+              <br>
+
+              <div>RUA LARANJEIRAS, N 47</div>
+              <div>49.010-000 - ARACAJU - SE</div>
+              <div>79981360328</div>
+            </div>
+          </td>
+          <td><b>2&ordf; VIA</b></td>
+          <td class="rodape-direito">
+            <table class="tabela">
+              <tr>
+                <td style="text-align: center">
+                  O conteudo da certidao e verdadeiro. Dou fe. <br>
+                  ARACAJU, SE, 21 de Janeiro de 2026. <br>
+                  <br><span style="font-family:verdana !important;">_______________________________________________</span><br>
+                  ESCREVENTE
+                </td>
+              </tr>
+              <tr>
+                <td style="text-align: center">
+                  <div style="border-style: solid; height: 20px; border-width: 1px 1px 1px 1px; vertical-align: top">
+                    VALOR DOS EMOLUMENTOS: R$: 71,65<br>
+                    (Artigo 3o, paragrafo 2o, da Lei n.o 6.310/2007).
+                  </div>
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+      </table>
+
+      <br>
+    </div>
+  </center>
+</body>
+</html>

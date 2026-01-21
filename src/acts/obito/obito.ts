@@ -27,6 +27,10 @@ const DRAWER_POS_KEY = 'ui.drawerPosition';
 const ENABLE_CPF_KEY = 'ui.enableCpfValidation';
 const ENABLE_NAME_KEY = 'ui.enableNameValidation';
 const PANEL_INLINE_KEY = 'ui.panelInline';
+const OUTPUT_DIR_KEY_JSON = 'outputDir.obito.json';
+const OUTPUT_DIR_KEY_XML = 'outputDir.obito.xml';
+
+let outputDirs = { json: '', xml: '' };
 
 function applyDrawerPosition(pos) {
   const drawer = document.getElementById('drawer') as HTMLElement | null;
@@ -184,26 +188,44 @@ function buildFileName(data, ext) {
   return `OBITO_${nome}_${cpfPart}_${stamp}.${ext}`;
 }
 
-function generateJson() {
+async function generateJson() {
   if (!canProceed()) return;
   const data = mapperHtmlToJson(document);
   const json = JSON.stringify(data, null, 2);
   const out = document.getElementById('json-output') as HTMLElement | null;
   if (out) (out as any).value = json;
   const name = buildFileName(data, 'json');
-  if (downloadFile(name, json, 'application/json')) setStatus(`JSON baixado: ${name}`);
-  else setStatus('Falha ao gerar JSON', true);
+  try {
+    if (window.api && window.api.saveJson) {
+      const path = await window.api.saveJson({ name, content: json });
+      setStatus(`JSON salvo: ${path || name}`);
+      return;
+    }
+    if (downloadFile(name, json, 'application/json')) setStatus(`JSON baixado: ${name}`);
+    else setStatus('Falha ao gerar JSON', true);
+  } catch {
+    setStatus('Falha ao gerar JSON', true);
+  }
 }
 
-function generateXml() {
+async function generateXml() {
   if (!canProceed()) return;
   const data = mapperHtmlToJson(document);
   const xml = toXml(data, 'certidao_obito', 0);
   const out = document.getElementById('xml-output') as HTMLElement | null;
   if (out) (out as any).value = xml;
   const name = buildFileName(data, 'xml');
-  if (downloadFile(name, xml, 'application/xml')) setStatus(`XML baixado: ${name}`);
-  else setStatus('Falha ao gerar XML', true);
+  try {
+    if (window.api && window.api.saveXml) {
+      const path = await window.api.saveXml({ name, content: xml });
+      setStatus(`XML salvo: ${path || name}`);
+      return;
+    }
+    if (downloadFile(name, xml, 'application/xml')) setStatus(`XML baixado: ${name}`);
+    else setStatus('Falha ao gerar XML', true);
+  } catch {
+    setStatus('Falha ao gerar XML', true);
+  }
 }
 
 function openPrintPreview() {
@@ -272,6 +294,48 @@ function setupConfigPanel() {
   });
 }
 
+function updateOutputDirUi() {
+  const badge = document.getElementById('outputDirBadge') as HTMLElement | null;
+  if (badge) badge.textContent = `JSON: ${outputDirs.json || '...'} | XML: ${outputDirs.xml || '...'}`;
+  const jsonEl = document.getElementById('json-dir') as HTMLInputElement | null;
+  const xmlEl = document.getElementById('xml-dir') as HTMLInputElement | null;
+  if (jsonEl) (jsonEl as any).value = outputDirs.json || '';
+  if (xmlEl) (xmlEl as any).value = outputDirs.xml || '';
+}
+
+async function pickOutputDir(kind: 'json' | 'xml') {
+  if (!window.api || (kind === 'json' && !window.api.pickJsonDir) || (kind === 'xml' && !window.api.pickXmlDir)) {
+    setStatus('API indisponivel para escolher pastas', true);
+    return;
+  }
+  const dir = kind === 'json'
+    ? await window.api.pickJsonDir()
+    : await window.api.pickXmlDir();
+  if (!dir) return;
+  if (kind === 'json') {
+    outputDirs.json = dir;
+    localStorage.setItem(OUTPUT_DIR_KEY_JSON, dir);
+  } else {
+    outputDirs.xml = dir;
+    localStorage.setItem(OUTPUT_DIR_KEY_XML, dir);
+  }
+  updateOutputDirUi();
+}
+
+function setupOutputDirs() {
+  outputDirs = {
+    json: localStorage.getItem(OUTPUT_DIR_KEY_JSON) || '',
+    xml: localStorage.getItem(OUTPUT_DIR_KEY_XML) || '',
+  };
+  updateOutputDirUi();
+  document.getElementById('pick-json')?.addEventListener('click', () => {
+    void pickOutputDir('json');
+  });
+  document.getElementById('pick-xml')?.addEventListener('click', () => {
+    void pickOutputDir('xml');
+  });
+}
+
 function setupSettingsPanel() {
   const select = document.getElementById('settings-drawer-position') as HTMLElement | null;
   const cbCpf = document.getElementById('settings-enable-cpf') as HTMLElement | null;
@@ -321,11 +385,11 @@ function setupSettingsPanel() {
   // Output buttons (JSON / XML / Print) - top toolbar buttons (if present) will be bound
   (document.getElementById('btn-json') as HTMLElement | null)?.addEventListener('click', (e) => {
     e.preventDefault();
-    generateJson();
+    void generateJson();
   });
   (document.getElementById('btn-xml') as HTMLElement | null)?.addEventListener('click', (e) => {
     e.preventDefault();
-    generateXml();
+    void generateXml();
   });
   (document.getElementById('btn-print') as HTMLElement | null)?.addEventListener('click', (e) => {
     e.preventDefault();
@@ -736,52 +800,126 @@ function resolveField(input) {
 
 function setFieldHint(field, message) {
   if (!field) return;
-  let hint = (field as any).querySelector('.hint');
+  let hint = field.querySelector('.hint');
   if (!hint) {
     hint = document.createElement('div');
     hint.className = 'hint';
     field.appendChild(hint);
   }
-  // build content with an icon and message
-  if (message) {
-    hint.innerHTML = '';
-    const icon = document.createElement('span');
-    icon.className = 'icon';
-    icon.textContent = '\u26a0';
-    icon.setAttribute('aria-hidden', 'true');
-    hint.appendChild(icon);
-    const txt = document.createElement('span');
-    txt.className = 'hint-text';
-    txt.textContent = message;
-    hint.appendChild(txt);
-    hint.classList.add('visible');
-    // update aria-live region for screen-readers
-    let aria = document.getElementById('aria-live-errors') as HTMLElement | null;
-    if (!aria) {
-      aria = document.createElement('div');
-      aria.id = 'aria-live-errors';
-      aria.className = 'sr-only';
-      aria.setAttribute('aria-live', 'assertive');
-      aria.setAttribute('role', 'status');
-      document.body.appendChild(aria);
-    }
-    aria.textContent = message;
-  } else {
+  if (!message) {
     hint.innerHTML = '';
     hint.classList.remove('visible');
+    return;
   }
+  hint.innerHTML = '';
+  const icon = document.createElement('span');
+  icon.className = 'icon';
+  icon.textContent = '?';
+  icon.setAttribute('aria-hidden', 'true');
+  hint.appendChild(icon);
+  const txt = document.createElement('span');
+  txt.className = 'hint-text';
+  txt.textContent = message;
+  hint.appendChild(txt);
+  hint.classList.add('visible');
+  let aria = document.getElementById('aria-live-errors');
+  if (!aria) {
+    aria = document.createElement('div');
+    aria.id = 'aria-live-errors';
+    aria.className = 'sr-only';
+    aria.setAttribute('aria-live', 'assertive');
+    aria.setAttribute('role', 'status');
+    document.body.appendChild(aria);
+  }
+  aria.textContent = message;
 }
 
 function clearFieldHint(field) {
   setFieldHint(field, '');
 }
 
-function getFieldContainer(el: HTMLElement | null): HTMLElement | null {
-  if (!el) return null;
-  return (el.closest('.campo') as HTMLElement | null) || (el.closest('.field') as HTMLElement | null);
+function setupFocusEmphasis() {
+  document.addEventListener('focusin', (e) => {
+    const el = e.target;
+    if (!(el instanceof HTMLElement)) return;
+    if (!['INPUT', 'SELECT', 'TEXTAREA'].includes(el.tagName)) return;
+    try {
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    } catch {
+      /* ignore */
+    }
+    el.classList.add('focus-emphasis');
+  });
+
+  document.addEventListener('focusout', (e) => {
+    const el = e.target;
+    if (!(el instanceof HTMLElement)) return;
+    if (['INPUT', 'SELECT', 'TEXTAREA'].includes(el.tagName)) el.classList.remove('focus-emphasis');
+  });
 }
 
-function setupMatriculaTypeValidation(): void {
+function getFieldContainer(el) {
+  if (!el) return null;
+  return el.closest('.campo') || el.closest('.field') || el.closest('td') || el.parentElement;
+}
+
+function setupValidation() {
+  document.querySelectorAll<HTMLInputElement>('input[data-date]').forEach((input) => {
+    const field = getFieldContainer(input);
+    const required = input.hasAttribute('data-required');
+    const onInput = () => {
+      applyDateMask(input);
+      clearFieldHint(field);
+      const normalized = normalizeDate(input.value);
+      const isValid = !input.value || !!normalized;
+      applyFieldState(field, getFieldState({ required, value: input.value, isValid }));
+    };
+    const onBlur = () => {
+      applyDateMask(input);
+      const raw = input.value || '';
+      const res = validateDateDetailed(raw);
+      applyFieldState(field, getFieldState({ required, value: raw, isValid: res.ok }));
+      if (!res.ok && raw) setFieldHint(field, res.message || 'Data invalida');
+      else clearFieldHint(field);
+    };
+    input.addEventListener('input', onInput);
+    input.addEventListener('blur', onBlur);
+    onInput();
+  });
+
+  document.querySelectorAll<HTMLInputElement>('input[data-time]').forEach((input) => {
+    const field = getFieldContainer(input);
+    const required = input.hasAttribute('data-required');
+    const handler = () => {
+      applyTimeMask(input);
+      const normalized = normalizeTime(input.value);
+      const isValid = !input.value || !!normalized;
+      applyFieldState(field, getFieldState({ required, value: input.value, isValid }));
+    };
+    input.addEventListener('input', handler);
+    input.addEventListener('blur', handler);
+    handler();
+  });
+
+  document.querySelectorAll<HTMLInputElement>('input[data-cpf]').forEach((input) => {
+    const field = getFieldContainer(input);
+    const handler = () => {
+      const digits = normalizeCpf(input.value);
+      const isValid = !digits || isValidCpf(digits);
+      applyFieldState(field, getFieldState({ required: false, value: input.value, isValid }));
+    };
+    input.addEventListener('input', handler);
+    input.addEventListener('blur', () => {
+      handler();
+      const digits = normalizeCpf(input.value);
+      if (input.value && (!digits || !isValidCpf(digits))) setFieldHint(field, 'CPF invalido');
+      else clearFieldHint(field);
+    });
+    handler();
+  });
+}
+
+function setupMatriculaTypeValidation() {
   const matricula = document.getElementById('matricula') as HTMLInputElement | null;
   if (!matricula) return;
   const field = getFieldContainer(matricula);
@@ -794,168 +932,22 @@ function setupMatriculaTypeValidation(): void {
     }
     const res = validateMatriculaType(value, 'obito');
     if (!res.ok) {
-      if (field) applyFieldState(field, 'warn');
-      setFieldHint(field, res.reason || 'Matricula incompativel com obito.');
-      return;
+      if (field) applyFieldState(field, 'invalid');
+      setFieldHint(field, res.reason || 'Matricula incompativel');
+    } else {
+      if (field) applyFieldState(field, 'valid');
+      clearFieldHint(field);
     }
-    if (field) applyFieldState(field, 'valid');
-    clearFieldHint(field);
   };
   matricula.addEventListener('input', run);
   matricula.addEventListener('blur', run);
-}
-
-function setupFocusEmphasis() {
-  document.addEventListener('focusin', (e) => {
-    const el = e.target;
-    if (!(el instanceof HTMLElement)) return;
-    if (['INPUT', 'SELECT', 'TEXTAREA'].includes(el.tagName)) {
-      try {
-        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      } catch (e) {
-        void e;
-      }
-      el.classList.add('focus-emphasis');
-    }
-  });
-  document.addEventListener('focusout', (e) => {
-    const el = e.target;
-    if (!(el instanceof HTMLElement)) return;
-    if (['INPUT', 'SELECT', 'TEXTAREA'].includes(el.tagName)) el.classList.remove('focus-emphasis');
-  });
-}
-
-function applyState(input, field, state) {
-  applyFieldState(field, state);
-  if (input) input.classList.toggle('invalid', state === 'empty' || state === 'invalid');
-}
-
-function setupValidation() {
-  document.querySelectorAll<HTMLInputElement>('input[data-date]').forEach((input) => {
-    const field = resolveField(input);
-    const required = input.hasAttribute('data-required');
-    const onInput = () => {
-      applyDateMask(input);
-      // clear hints while typing
-      clearFieldHint(field);
-      const normalized = normalizeDate((input as any).value);
-      const isValid = !(input as any).value || !!normalized;
-      const state = getFieldState({ required, value: (input as any).value, isValid });
-      applyState(input, field, state);
-    };
-
-    const onBlur = () => {
-      applyDateMask(input);
-      const raw = (input as any).value || '';
-      const res = validateDateDetailed(raw);
-      const isValid = res.ok;
-      const state = getFieldState({ required, value: raw, isValid });
-      applyState(input, field, state);
-      if (!isValid && raw) {
-        setFieldHint(field, res.message || 'Data inv\u00e1lida');
-      } else {
-        clearFieldHint(field);
-      }
-    };
-
-    input.addEventListener('input', onInput);
-    input.addEventListener('blur', onBlur);
-    // apply initial mask only (do not mark field invalid on load)
-    applyDateMask(input);
-  });
-
-  document.querySelectorAll<HTMLInputElement>('input[data-time]').forEach((input) => {
-    const field = resolveField(input);
-    const required = input.hasAttribute('data-required');
-    const handler = () => {
-      applyTimeMask(input);
-      const normalized = normalizeTime((input as any).value);
-      const isValid = !(input as any).value || !!normalized;
-      const state = getFieldState({ required, value: (input as any).value, isValid });
-      applyState(input, field, state);
-    };
-    input.addEventListener('input', handler);
-    input.addEventListener('blur', handler);
-    // apply initial mask only (do not mark field invalid on load)
-    applyTimeMask(input);
-  });
-
-  const enableNameValidation = localStorage.getItem(ENABLE_NAME_KEY) !== 'false';
-  if (enableNameValidation) {
-    document.querySelectorAll<HTMLInputElement>('[data-name-validate]').forEach((input) => {
-      const field = resolveField(input);
-      const required = input.hasAttribute('data-required');
-      const handler = () => {
-        const res = validateName((input as any).value, { minWords: 2 });
-        const state = getFieldState({
-          required,
-          value: (input as any).value,
-          isValid: !res.invalid,
-          warn: res.warn,
-        });
-        applyState(input, field, state);
-      };
-      input.addEventListener('input', handler);
-      input.addEventListener('blur', handler);
-      // format CPF visually but don't validate on load
-      (input as any).value = formatCpfInput((input as any).value);
-    });
-  }
-
-  const enableCpfValidation = localStorage.getItem(ENABLE_CPF_KEY) !== 'false';
-  if (enableCpfValidation) {
-    document.querySelectorAll<HTMLInputElement>('input[data-cpf]').forEach((input) => {
-      const field = resolveField(input);
-      const required = input.hasAttribute('data-required');
-      const handler = () => {
-        (input as any).value = formatCpfInput((input as any).value);
-        const digits = normalizeCpf((input as any).value);
-        const isValid = !digits || isValidCpf(digits);
-        const state = getFieldState({
-          required,
-          value: digits ? (input as any).value : '',
-          isValid,
-        });
-        applyState(input, field, state);
-      };
-      input.addEventListener('input', handler);
-      input.addEventListener('blur', () => {
-        handler();
-        const digits = normalizeCpf((input as any).value);
-        if ((input as any).value && (!digits || !isValidCpf(digits)))
-          setFieldHint(field, 'CPF inv\u00e1lido');
-        else clearFieldHint(field);
-      });
-      handler();
-    });
-  }
-
-  document
-    .querySelectorAll('select[data-required], textarea[data-required], input[data-required]')
-    .forEach((input) => {
-      if (
-        input.hasAttribute('data-date') ||
-        input.hasAttribute('data-time') ||
-        input.hasAttribute('data-cpf') ||
-        input.hasAttribute('data-name-validate')
-      )
-        return;
-      const field = resolveField(input);
-      const required = input.hasAttribute('data-required');
-      const handler = () => {
-        const state = getFieldState({ required, value: (input as any).value, isValid: true });
-        applyState(input, field, state);
-      };
-      input.addEventListener('input', handler);
-      input.addEventListener('change', handler);
-      // do not run required-field handler on load to avoid marking all fields red
-    });
+  run();
 }
 
 function setupNameValidation() {
-  const validator = (window as any)._nameValidator || createNameValidator();
+  const validator = (window)._nameValidator || createNameValidator();
   try {
-    if (!(window as any)._nameValidator) (window as any)._nameValidator = validator;
+    if (!(window)._nameValidator) (window)._nameValidator = validator;
   } catch (e) {
     /* ignore */
   }
@@ -972,7 +964,7 @@ function setupNameValidation() {
         try {
           const el = inp as HTMLInputElement;
           el.addEventListener('input', () => {
-            const s = (el.value || '').replace(/[^A-Za-zÀ-ÿ'\- ]/g, '');
+            const s = (el.value || '').replace(/[^\p{L}'\- ]/gu, '');
             if (s !== el.value) el.value = s;
           });
         } catch (e) {
@@ -984,97 +976,130 @@ function setupNameValidation() {
   }
 
   fields.forEach((input) => {
-    const field = resolveField(input);
+    const inputEl = input as HTMLInputElement;
+    const field = resolveField(inputEl);
     if (field) field.classList.add('name-field');
-    let hint = field ? (field as any).querySelector('.name-suggest') : null;
+    let hint = field ? field.querySelector('.name-suggest') : null;
     if (field && !hint) {
-      hint = document.createElement('button');
-      hint.type = 'button';
-      hint.className = 'name-suggest btn success';
-      hint.textContent = 'Salvar nome';
-      field.appendChild(hint);
+      const label = document.createElement('label');
+      label.className = 'name-suggest';
+      label.setAttribute('title', 'Adicionar nome ao banco');
+      label.setAttribute('data-tooltip', 'Adicionar nome ao banco (quando estiver correto)');
+
+      const check = document.createElement('input');
+      check.type = 'checkbox';
+      check.className = 'name-suggest-check';
+      check.setAttribute('aria-label', 'Adicionar nome ao banco');
+
+      const textSpan = document.createElement('span');
+      textSpan.className = 'name-suggest-label';
+      textSpan.textContent = 'Adicionar ao banco';
+
+      label.appendChild(check);
+      label.appendChild(textSpan);
+      field.appendChild(label);
+      hint = label;
     }
-    if (hint) {
-      hint.addEventListener('click', (e) => {
+
+    const toggle = hint ? hint.querySelector('.name-suggest-check') as HTMLInputElement | null : null;
+    if (toggle) {
+      toggle.addEventListener('change', (e) => {
         e.preventDefault();
-        const value = (input as any).value || '';
+        if (!toggle.checked) {
+          hint.classList.remove('name-suggest-checked');
+          field && field.removeAttribute('data-name-marked');
+          return;
+        }
+        const value = inputEl.value || '';
         const token =
-          (input as HTMLElement).getAttribute('data-name-token') ||
+          inputEl.getAttribute('data-name-token') ||
           (field && field.getAttribute('data-name-token')) ||
           validator.check(value).token ||
           '';
-        if (!token) return;
+        if (!token) {
+          toggle.checked = false;
+          return;
+        }
         validator.repo.addException(token);
-        input.classList.remove('invalid');
+        inputEl.classList.remove('invalid');
         if (field) field.classList.remove('name-suspect');
-        const t = timers.get(input);
+        field && field.setAttribute('data-name-marked', 'true');
+        hint.classList.add('name-suggest-checked');
+        const t = timers.get(inputEl);
         if (t) clearInterval(t);
-        timers.delete(input);
+        timers.delete(inputEl);
       });
     }
 
     const sanitize = () => {
-      const v = (input as HTMLInputElement).value || '';
-      const s = v.replace(/[^A-Za-zÀ-ÿ'\- ]/g, '');
-      if (s !== v) (input as HTMLInputElement).value = s;
+      const v = inputEl.value || '';
+      const s = v.replace(/[^\p{L}'\- ]/gu, '');
+      if (s !== v) inputEl.value = s;
     };
 
     const runCheck = () => {
       sanitize();
-      const value = (input as any).value || '';
+      const value = inputEl.value || '';
+      const nameRes = validateName(value, { minWords: 2 });
       const result = validator.check(value);
       const token = result && result.token ? String(result.token).trim() : '';
-      const suspect = !!result.suspicious;
-      input.classList.toggle('invalid', suspect);
+      const suspect = !!result.suspicious || !!nameRes.invalid;
+      inputEl.classList.toggle('invalid', suspect);
       if (field) field.classList.toggle('name-suspect', suspect);
       if (token) {
-        (input as HTMLElement).setAttribute('data-name-token', token);
+        inputEl.setAttribute('data-name-token', token);
         if (field) field.setAttribute('data-name-token', token);
       } else {
-        (input as HTMLElement).removeAttribute('data-name-token');
+        inputEl.removeAttribute('data-name-token');
         if (field) field.removeAttribute('data-name-token');
       }
-      if (suspect) {
+      if (nameRes.invalid) {
         try {
-          setFieldHint(field as Element | null, 'Nome incorreto!');
+          setFieldHint(field, 'Informe nome e sobrenome');
+        } catch (e) {
+          /* ignore */
+        }
+      } else if (suspect) {
+        try {
+          setFieldHint(field, 'Nome incorreto!');
         } catch (e) {
           /* ignore */
         }
       } else {
         try {
-          clearFieldHint(field as Element | null);
+          clearFieldHint(field);
         } catch (e) {
           /* ignore */
         }
       }
     };
-
-    input.addEventListener('input', () => {
+    inputEl.addEventListener('input', () => {
       sanitize();
       if (nameValidationMode === 'input') runCheck();
     });
-    input.addEventListener('blur', () => {
+    inputEl.addEventListener('blur', () => {
       sanitize();
       if (nameValidationMode === 'blur' || nameValidationMode === 'input') runCheck();
     });
   });
-
   validator.ready.then(() => {
     fields.forEach((input) => {
-      const field = resolveField(input);
+      const inputEl = input as HTMLInputElement;
+      const field = resolveField(inputEl);
       if (field) field.classList.remove('name-suspect');
-      const value = (input as any).value || '';
+      const value = inputEl.value || '';
       if (value) {
+        const nameRes = validateName(value, { minWords: 2 });
         const result = validator.check(value);
-        const suspect = !!result.suspicious;
-        input.classList.toggle('invalid', suspect);
+        const suspect = !!result.suspicious || !!nameRes.invalid;
+        inputEl.classList.toggle('invalid', suspect);
         if (field) field.classList.toggle('name-suspect', suspect);
         const token = result && result.token ? String(result.token).trim() : '';
         if (token) {
-          (input as HTMLElement).setAttribute('data-name-token', token);
+          inputEl.setAttribute('data-name-token', token);
           if (field) field.setAttribute('data-name-token', token);
         } else {
-          (input as HTMLElement).removeAttribute('data-name-token');
+          inputEl.removeAttribute('data-name-token');
           if (field) field.removeAttribute('data-name-token');
         }
       }
@@ -1085,11 +1110,11 @@ function setupNameValidation() {
 function setup() {
   (document.getElementById('btn-json') as HTMLElement | null)?.addEventListener('click', (e) => {
     e.preventDefault();
-    generateJson();
+    void generateJson();
   });
   (document.getElementById('btn-xml') as HTMLElement | null)?.addEventListener('click', (e) => {
     e.preventDefault();
-    generateXml();
+    void generateXml();
   });
   (document.getElementById('btn-print') as HTMLElement | null)?.addEventListener('click', (e) => {
     e.preventDefault();
@@ -1101,6 +1126,7 @@ function setup() {
   populateOrgaoAndUf();
   setupNameValidation();
   setupConfigPanel();
+  setupOutputDirs();
   setupAdminPanel();
   // prefill nacionalidade do falecido com padrão CRC (BRASILEIRO)
   try {

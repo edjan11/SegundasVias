@@ -1,5 +1,6 @@
 import '../../core/events';
 import mapperHtmlToJson from './mapperHtmlToJsonNascimento';
+import { buildNascimentoPdfDataFromForm } from './printNascimentoPdfMapper';
 import { buildNascimentoXmlFromJson } from './printNascimentoXmlFromJson';
 
 import { normalizeDate, validateDateDetailed } from '../../shared/validators/date';
@@ -22,7 +23,7 @@ import { attachAutocomplete } from '../../ui/city-autocomplete';
 import { attachCityUfAutofill, attachCityIntegrationToAll } from '../../ui/city-uf-ui';
 import { buildIndexFromData } from '../../shared/city-uf-resolver';
 
-import { buildNascimentoPdfHtmlTJ } from '../../prints/nascimento/printNascimentoTj';
+import { buildNascimentoPdfHtmlFromTemplate } from '../../prints/nascimento/printNascimentoTjTemplate';
 import { openHtmlAndSavePdf } from '../../prints/shared/openAndSavePdf';
 
 // (mantido aqui só se você realmente usa em algum lugar desse arquivo)
@@ -33,6 +34,10 @@ const DRAWER_POS_KEY = 'ui.drawerPosition';
 const ENABLE_CPF_KEY = 'ui.enableCpfValidation';
 const ENABLE_NAME_KEY = 'ui.enableNameValidation';
 const PANEL_INLINE_KEY = 'ui.panelInline';
+const OUTPUT_DIR_KEY_JSON = 'outputDir.nascimento.json';
+const OUTPUT_DIR_KEY_XML = 'outputDir.nascimento.xml';
+
+let outputDirs = { json: '', xml: '' };
 
 // =========================
 // UI helpers
@@ -226,6 +231,7 @@ function updateDebug(): void {
 }
 
 let pnasRenderToken = 0;
+let xmlUpdateTimer: number | null = null;
 
 function updateOutputs(): void {
   const data = mapperHtmlToJson(document);
@@ -236,19 +242,22 @@ function updateOutputs(): void {
   const xmlEl = document.getElementById('xml-output') as any;
   if (xmlEl) xmlEl.value = '';
 
-  const token = ++pnasRenderToken;
-  void (async () => {
-    try {
-      const matricula = onlyDigits(data?.registro?.matricula || '');
-      const codigoCnj = matricula.slice(0, 6) || onlyDigits(data?.certidao?.cartorio_cns || '');
-      const template = await fetchPnasTemplate(codigoCnj);
-      const p = buildNascimentoXmlFromJson(template, data);
-      const xmlOut = document.getElementById('xml-output') as any;
-      if (xmlOut && token === pnasRenderToken) xmlOut.value = p;
-    } catch {
-      // ignore
-    }
-  })();
+  if (xmlUpdateTimer) window.clearTimeout(xmlUpdateTimer);
+  xmlUpdateTimer = window.setTimeout(() => {
+    const token = ++pnasRenderToken;
+    void (async () => {
+      try {
+        const matricula = onlyDigits(data?.registro?.matricula || '');
+        const codigoCnj = matricula.slice(0, 6) || onlyDigits(data?.certidao?.cartorio_cns || '');
+        const template = await fetchPnasTemplate(codigoCnj);
+        const p = buildNascimentoXmlFromJson(template, data);
+        const xmlOut = document.getElementById('xml-output') as any;
+        if (xmlOut && token === pnasRenderToken) xmlOut.value = p;
+      } catch {
+        // ignore
+      }
+    })();
+  }, 300);
 
   updateDebug();
 }
@@ -326,7 +335,7 @@ function downloadText(filename: string, content: string, mime: string): void {
   URL.revokeObjectURL(url);
 }
 
-function generateJson(): void {
+async function generateJson(): Promise<void> {
   if (!canProceed()) return;
   const data = mapperHtmlToJson(document);
   const json = JSON.stringify(data, null, 2);
@@ -335,6 +344,11 @@ function generateJson(): void {
 
   const name = `NASCIMENTO_${new Date().toISOString().slice(0, 19).replace(/[:T]/g, '')}.json`;
   try {
+    if (window.api && window.api.saveJson) {
+      const path = await window.api.saveJson({ name, content: json });
+      setStatus(`JSON salvo: ${path || name}`);
+      return;
+    }
     downloadText(name, json, 'application/json');
     setStatus(`JSON baixado: ${name}`);
   } catch {
@@ -350,10 +364,13 @@ function onlyDigits(value: string): string {
   return String(value || '').replace(/\D+/g, '');
 }
 
+const TEMPLATE_CACHE = new Map<string, string>();
+
 async function fetchPnasTemplate(codigoCnj?: string): Promise<string> {
-  const bases = ['./templates', '../templates', '/templates', '/ui/templates'];
+  const bases = ['/templates'];
   const candidates: string[] = [];
   for (const base of bases) {
+    candidates.push(`${base}/nascimento-modelo-110742.xml`);
     if (codigoCnj) candidates.push(`${base}/nascimento-modelo-${codigoCnj}.xml`);
     candidates.push(`${base}/nascimento-modelo-crc.xml`);
     candidates.push(`${base}/nascimento-modelo.xml`);
@@ -361,9 +378,13 @@ async function fetchPnasTemplate(codigoCnj?: string): Promise<string> {
 
   for (const url of candidates) {
     try {
+      const cached = TEMPLATE_CACHE.get(url);
+      if (cached) return cached;
       const res = await fetch(url, { cache: 'no-store' });
       if (!res.ok) continue;
-      return await res.text();
+      const text = await res.text();
+      TEMPLATE_CACHE.set(url, text);
+      return text;
     } catch {
       // next
     }
@@ -371,6 +392,50 @@ async function fetchPnasTemplate(codigoCnj?: string): Promise<string> {
 
   // fallback mínimo embutido
   return `<?xml version="1.0" encoding="UTF-8"?><ListaRegistrosNascimento><PNAS><CodigoCNJ></CodigoCNJ><DataRegistro></DataRegistro><Nome></Nome><CPF></CPF><Sexo></Sexo><DataNascimento></DataNascimento><HoraNascimento></HoraNascimento><DescricaoLocalNascimento></DescricaoLocalNascimento><CodigoLocalDoNascimento></CodigoLocalDoNascimento><NomeLivro></NomeLivro><NumeroLivro></NumeroLivro><NumeroPagina></NumeroPagina><NumeroRegistro></NumeroRegistro><CartorioCNS></CartorioCNS><Transcricao></Transcricao><Participantes></Participantes><ObservacaoCertidao></ObservacaoCertidao></PNAS></ListaRegistrosNascimento>`;
+}
+
+function previewXmlContent(content: string, suggestedName?: string): void {
+  // Open a preview window with the XML content and print / download buttons
+  const popup = window.open('', '_blank', 'noopener,noreferrer,width=900,height=700');
+  if (!popup) {
+    // Popup blocked - fallback to download
+    const name = suggestedName || `NASCIMENTO_${new Date().toISOString().slice(0, 19).replace(/[:T]/g, '')}.xml`;
+    downloadText(name, content, 'application/xml');
+    setStatus(`Popup bloqueado. XML baixado: ${name}`);
+    return;
+  }
+
+  const safeContent = String(content || '').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  const html = `<!doctype html><html><head><meta charset="utf-8"><title>Visualizar XML</title>
+    <style>body{font-family:system-ui,Segoe UI,Roboto,Arial; padding:12px} .controls{margin-bottom:8px} button{margin-right:8px} pre{white-space:pre-wrap; word-wrap:break-word; background:#f7f7f9; border:1px solid #e1e1e8; padding:12px; border-radius:6px; max-height:76vh; overflow:auto}</style></head>
+    <body>
+      <div class="controls">
+        <button id="btn-print">Imprimir</button>
+        <button id="btn-download">Baixar</button>
+        <button id="btn-close">Fechar</button>
+      </div>
+      <pre id="xml-pre">${safeContent}</pre>
+      <script>
+        document.getElementById('btn-print').addEventListener('click', ()=>{ window.print(); });
+        document.getElementById('btn-close').addEventListener('click', ()=>{ window.close(); });
+        document.getElementById('btn-download').addEventListener('click', ()=>{
+          const content = (document.getElementById('xml-pre').textContent || '');
+          const blob = new Blob([content], {type: 'application/xml'});
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = '${suggestedName || 'NASCIMENTO.xml'}';
+          document.body.appendChild(a);
+          a.click();
+          a.remove();
+          URL.revokeObjectURL(url);
+        });
+      <\/script>
+    </body></html>`;
+
+  popup.document.open();
+  popup.document.write(html);
+  popup.document.close();
 }
 
 async function generatePnasXml(): Promise<void> {
@@ -386,9 +451,18 @@ async function generatePnasXml(): Promise<void> {
     if (xmlEl) xmlEl.value = pnas;
 
     const name = `NASCIMENTO_${new Date().toISOString().slice(0, 19).replace(/[:T]/g, '')}.xml`;
-    downloadText(name, pnas, 'application/xml');
-    setStatus(`XML baixado: ${name}`);
-  } catch {
+
+    if (window.api && window.api.saveXml) {
+      const path = await window.api.saveXml({ name, content: pnas });
+      setStatus(`XML salvo: ${path || name}`);
+      return;
+    }
+
+    // Open preview with print & download options. If popup blocked, fallback to download.
+    previewXmlContent(pnas, name);
+    setStatus(`XML pronto: ${name}`);
+  } catch (e) {
+    console.error('generatePnasXml error', e);
     setStatus('Falha ao gerar XML', true);
   }
 }
@@ -500,7 +574,7 @@ function setupNameValidationLocal(): void {
       .forEach((inp) => {
         const el = inp as HTMLInputElement;
         el.addEventListener('input', () => {
-          const s = (el.value || '').replace(/[^A-Za-zÀ-ÿ'\- ]/g, '');
+          const s = (el.value || '').replace(/[^\p{L}'\- ]/gu, '');
           if (s !== el.value) el.value = s;
         });
       });
@@ -512,28 +586,42 @@ function setupNameValidationLocal(): void {
   fields.forEach((input) => {
     const field = resolveField(input);
     if (field) field.classList.add('name-field');
+    // controle sutil para adicionar ao banco (checkbox)
+    let suggest = field ? (field as any).querySelector('.name-suggest') : null;
+    if (field && !suggest) {
+      const label = document.createElement('label');
+      label.className = 'name-suggest';
+      label.setAttribute('title', 'Adicionar nome ao banco');
+      label.setAttribute('data-tooltip', 'Adicionar nome ao banco (quando estiver correto)');
 
-    // botão único (sem duplicar)
-    let btn = field ? (field as any).querySelector('.name-suggest') : null;
-    if (field && !btn) {
-      btn = document.createElement('button');
-      btn.type = 'button';
-      btn.className = 'name-suggest btn success';
-      btn.textContent = 'Salvar nome';
-      field.appendChild(btn);
+      const check = document.createElement('input');
+      check.type = 'checkbox';
+      check.className = 'name-suggest-check';
+      check.setAttribute('aria-label', 'Adicionar nome ao banco');
+
+      const text = document.createElement('span');
+      text.className = 'name-suggest-label';
+      text.textContent = 'Adicionar ao banco';
+
+      label.appendChild(check);
+      label.appendChild(text);
+      field.appendChild(label);
+      suggest = label;
     }
 
     const sanitize = () => {
       const v = input.value || '';
-      const s = v.replace(/[^A-Za-zÀ-ÿ'\- ]/g, '');
+      const s = v.replace(/[^\p{L}'\- ]/gu, '');
       if (s !== v) input.value = s;
     };
 
     const runCheck = () => {
       sanitize();
-      const result = validator.check(input.value || '');
+      const value = input.value || '';
+      const nameRes = validateName(value, { minWords: 2 });
+      const result = validator.check(value);
       const token = (result?.token ? String(result.token).trim() : '') || '';
-      const suspect = !!result?.suspicious;
+      const suspect = !!result?.suspicious || !!nameRes.invalid;
 
       input.classList.toggle('invalid', suspect);
       field?.classList.toggle('name-suspect', suspect);
@@ -546,12 +634,18 @@ function setupNameValidationLocal(): void {
         field?.removeAttribute('data-name-token');
       }
 
-      if (suspect) setFieldHint(field, 'Nome incorreto!');
+      if (nameRes.invalid) setFieldHint(field, 'Informe nome e sobrenome');
+      else if (suspect) setFieldHint(field, 'Nome incorreto!');
       else clearFieldHint(field);
     };
-
-    btn?.addEventListener('click', (e: Event) => {
+    const toggle = suggest?.querySelector('.name-suggest-check') as HTMLInputElement | null;
+    toggle?.addEventListener('change', (e: Event) => {
       e.preventDefault();
+      if (!toggle.checked) {
+        suggest?.classList.remove('name-suggest-checked');
+        field?.removeAttribute('data-name-marked');
+        return;
+      }
       const value = input.value || '';
       const token =
         input.getAttribute('data-name-token') ||
@@ -559,10 +653,15 @@ function setupNameValidationLocal(): void {
         validator.check(value).token ||
         '';
 
-      if (!token) return;
+      if (!token) {
+        toggle.checked = false;
+        return;
+      }
       validator.repo.addException(token);
       input.classList.remove('invalid');
       field?.classList.remove('name-suspect');
+      field?.setAttribute('data-name-marked', 'true');
+      suggest?.classList.add('name-suggest-checked');
       clearFieldHint(field);
     });
 
@@ -688,6 +787,48 @@ function setupSettingsPanel(): void {
   });
 }
 
+function updateOutputDirUi(): void {
+  const badge = document.getElementById('outputDirBadge') as HTMLElement | null;
+  if (badge) badge.textContent = `JSON: ${outputDirs.json || '...'} | XML: ${outputDirs.xml || '...'}`;
+  const jsonEl = document.getElementById('json-dir') as HTMLInputElement | null;
+  const xmlEl = document.getElementById('xml-dir') as HTMLInputElement | null;
+  if (jsonEl) jsonEl.value = outputDirs.json || '';
+  if (xmlEl) xmlEl.value = outputDirs.xml || '';
+}
+
+async function pickOutputDir(kind: 'json' | 'xml'): Promise<void> {
+  if (!window.api || (kind === 'json' && !window.api.pickJsonDir) || (kind === 'xml' && !window.api.pickXmlDir)) {
+    setStatus('API indisponivel para escolher pastas', true);
+    return;
+  }
+  const dir = kind === 'json'
+    ? await window.api.pickJsonDir()
+    : await window.api.pickXmlDir();
+  if (!dir) return;
+  if (kind === 'json') {
+    outputDirs.json = dir;
+    localStorage.setItem(OUTPUT_DIR_KEY_JSON, dir);
+  } else {
+    outputDirs.xml = dir;
+    localStorage.setItem(OUTPUT_DIR_KEY_XML, dir);
+  }
+  updateOutputDirUi();
+}
+
+function setupOutputDirs(): void {
+  outputDirs = {
+    json: localStorage.getItem(OUTPUT_DIR_KEY_JSON) || '',
+    xml: localStorage.getItem(OUTPUT_DIR_KEY_XML) || '',
+  };
+  updateOutputDirUi();
+  (document.getElementById('pick-json') as HTMLElement | null)?.addEventListener('click', () => {
+    void pickOutputDir('json');
+  });
+  (document.getElementById('pick-xml') as HTMLElement | null)?.addEventListener('click', () => {
+    void pickOutputDir('xml');
+  });
+}
+
 // =========================
 // Bootstrap
 // =========================
@@ -713,12 +854,19 @@ function ensureDefaultCartorioCns(): void {
 }
 
 function setupPrintButton(): void {
-  (document.getElementById('btn-print') as HTMLElement | null)?.addEventListener('click', (e) => {
+  (document.getElementById('btn-print') as HTMLElement | null)?.addEventListener('click', async (e) => {
     e.preventDefault();
     if (!canProceed()) return;
 
-    const data = mapperHtmlToJson(document);
-    const html = buildNascimentoPdfHtmlTJ(data, { cssHref: '../assets/tj/certidao.css' });
+    const data = buildNascimentoPdfDataFromForm(document);
+    let html = '';
+    try {
+      html = await buildNascimentoPdfHtmlFromTemplate(data, { cssHref: '/assets/pdfElementsNascimento/pdf.css' });
+    } catch (err) {
+      console.error('PDF template load error', err);
+      setStatus('Falha ao carregar template do PDF', true);
+      return;
+    }
 
     try {
       openHtmlAndSavePdf(html, 'NASCIMENTO_');
@@ -754,7 +902,7 @@ function setupActions(): void {
 
   // Attach to all btns on this page (toolbar + panel) so both trigger the per-act generators
   document.querySelectorAll('#btn-json, #btn-json-manual')
-    .forEach((el) => attachExclusiveClick(el as HTMLElement, generateJson));
+    .forEach((el) => attachExclusiveClick(el as HTMLElement, () => { void generateJson(); }));
   document.querySelectorAll('#btn-xml, #btn-xml-manual')
     .forEach((el) => attachExclusiveClick(el as HTMLElement, generateXml));
   document.querySelectorAll('#btn-pnas, #btn-pnas-manual')
@@ -772,6 +920,7 @@ function setupApp(): void {
   setupFocusEmphasis();
   setupAdminPanel();
   setupSettingsPanel();
+  setupOutputDirs();
   setupPrintButton();
   setupActions();
 

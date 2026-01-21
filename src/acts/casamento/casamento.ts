@@ -24,10 +24,17 @@ import { createNameValidator } from '../../shared/nameValidator';
 import { updateActionButtons } from '../../ui';
 import { resolveCasamentoTipo } from '../../shared/productivity/casamento-rules';
 import { validateMatriculaType } from '../../shared/matricula/type';
+import { buildCasamentoXmlFromJson } from './printCasamentoXml';
 
 const NAME_MODE_KEY = 'ui.nameValidationMode';
 let nameValidationMode = localStorage.getItem(NAME_MODE_KEY) || 'blur';
 const PANEL_INLINE_KEY = 'ui.panelInline';
+const OUTPUT_DIR_KEY_JSON = 'outputDir.casamento.json';
+const OUTPUT_DIR_KEY_XML = 'outputDir.casamento.xml';
+
+let outputDirs = { json: '', xml: '' };
+const TEMPLATE_CACHE = new Map<string, string>();
+let templatePromise: Promise<string | null> | null = null;
 
 function setupSettingsPanelCasamento(): void {
   const select = document.getElementById('settings-drawer-position') as HTMLSelectElement | null;
@@ -119,7 +126,7 @@ function toXml(obj: any, nodeName: string, indent = 0): string {
 }
 
 function sanitizeNameLikeValue(value: string): string {
-  return String(value || '').replace(/[^A-Za-zÀ-ÿ'\- ]/g, '');
+  return String(value || '').replace(/[^\p{L}'\- ]/gu, '');
 }
 
 function downloadFile(name: string, content: string, mime: string): boolean {
@@ -152,24 +159,87 @@ function buildFileName(ext: string): string {
   return `CASAMENTO_${makeTimestamp()}.${ext}`;
 }
 
-function generateJson(): void {
+function onlyDigits(value?: string): string {
+  return String(value || '').replace(/\D+/g, '');
+}
+
+async function fetchCasamentoTemplate(cns?: string): Promise<string | null> {
+  const bases = ['/templates', '/pages/templates'];
+  const candidates: string[] = [];
+  for (const base of bases) {
+    if (cns) candidates.push(`${base}/casamento-modelo-${cns}.xml`);
+    candidates.push(`${base}/casamento-modelo.xml`);
+  }
+
+  for (const url of candidates) {
+    try {
+      const cached = TEMPLATE_CACHE.get(url);
+      if (cached) return cached;
+      const res = await fetch(url, { cache: 'no-store' });
+      if (!res.ok) continue;
+      const text = await res.text();
+      TEMPLATE_CACHE.set(url, text);
+      return text;
+    } catch {
+      // next
+    }
+  }
+  return null;
+}
+
+function isValidCasamentoXml(xml: string): boolean {
+  const trimmed = String(xml || '').trim();
+  return trimmed.startsWith('<') && trimmed.includes('<ListaRegistrosCasamento');
+}
+
+async function generateJson(): Promise<void> {
   if (!canProceed()) return;
   const data = mapperHtmlToJson(document as any);
   const json = JSON.stringify(data, null, 2);
   const out = document.getElementById('json-output') as any;
   if (out) out.value = json;
   const name = buildFileName('json');
-  if (downloadFile(name, json, 'application/json')) setStatus(`JSON baixado: ${name}`);
-  else setStatus('Falha ao gerar JSON', true);
+  try {
+    if (window.api && window.api.saveJson) {
+      const path = await window.api.saveJson({ name, content: json });
+      setStatus(`JSON salvo: ${path || name}`);
+      return;
+    }
+    if (downloadFile(name, json, 'application/json')) setStatus(`JSON baixado: ${name}`);
+    else setStatus('Falha ao gerar JSON', true);
+  } catch {
+    setStatus('Falha ao gerar JSON', true);
+  }
 }
 
-function generateXml(): void {
+async function generateXml(): Promise<void> {
   if (!canProceed()) return;
   const data = mapperHtmlToJson(document as any);
-  const xml = toXml(data, 'certidao_casamento', 0);
+  const cns = onlyDigits(data?.certidao?.cartorio_cns) || onlyDigits(data?.registro?.matricula).slice(0, 6);
+  const template = await fetchCasamentoTemplate(cns);
+  if (!template) {
+    setStatus('Falha ao carregar template XML de casamento', true);
+    return;
+  }
+  const result = buildCasamentoXmlFromJson(template, data);
+  const xml = result.xml;
+  if (!isValidCasamentoXml(xml)) {
+    setStatus('XML invalido. Verifique o template.', true);
+    return;
+  }
+  if (result.warnings.length) console.warn('[XML casamento warnings]', result.warnings);
   const name = buildFileName('xml');
-  if (downloadFile(name, xml, 'application/xml')) setStatus(`XML baixado: ${name}`);
-  else setStatus('Falha ao gerar XML', true);
+  try {
+    if (window.api && window.api.saveXml) {
+      const path = await window.api.saveXml({ name, content: xml });
+      setStatus(`XML salvo: ${path || name}`);
+      return;
+    }
+    if (downloadFile(name, xml, 'application/xml')) setStatus(`XML baixado: ${name}`);
+    else setStatus('Falha ao gerar XML', true);
+  } catch {
+    setStatus('Falha ao gerar XML', true);
+  }
 }
 
 function showToast(message: string): void {
@@ -218,40 +288,87 @@ function setupConfigPanel(): void {
   setupAdminPanel();
 }
 
-function setFieldHint(field: Element | null, message: string): void {
+function updateOutputDirUi(): void {
+  const badge = document.getElementById('outputDirBadge') as HTMLElement | null;
+  if (badge) badge.textContent = `JSON: ${outputDirs.json || '...'} | XML: ${outputDirs.xml || '...'}`;
+  const jsonEl = document.getElementById('json-dir') as HTMLInputElement | null;
+  const xmlEl = document.getElementById('xml-dir') as HTMLInputElement | null;
+  if (jsonEl) jsonEl.value = outputDirs.json || '';
+  if (xmlEl) xmlEl.value = outputDirs.xml || '';
+}
+
+async function pickOutputDir(kind: 'json' | 'xml'): Promise<void> {
+  if (!window.api || (kind === 'json' && !window.api.pickJsonDir) || (kind === 'xml' && !window.api.pickXmlDir)) {
+    setStatus('API indisponivel para escolher pastas', true);
+    return;
+  }
+  const dir = kind === 'json'
+    ? await window.api.pickJsonDir()
+    : await window.api.pickXmlDir();
+  if (!dir) return;
+  if (kind === 'json') {
+    outputDirs.json = dir;
+    localStorage.setItem(OUTPUT_DIR_KEY_JSON, dir);
+  } else {
+    outputDirs.xml = dir;
+    localStorage.setItem(OUTPUT_DIR_KEY_XML, dir);
+  }
+  updateOutputDirUi();
+}
+
+function setupOutputDirs(): void {
+  outputDirs = {
+    json: localStorage.getItem(OUTPUT_DIR_KEY_JSON) || '',
+    xml: localStorage.getItem(OUTPUT_DIR_KEY_XML) || '',
+  };
+  updateOutputDirUi();
+  document.getElementById('pick-json')?.addEventListener('click', () => {
+    void pickOutputDir('json');
+  });
+  document.getElementById('pick-xml')?.addEventListener('click', () => {
+    void pickOutputDir('xml');
+  });
+}
+
+function setFieldHint(field: Element | null, message?: string): void {
   if (!field) return;
-  let hint = field.querySelector('.hint') as HTMLElement | null;
+  let hint = (field as any).querySelector('.hint') as HTMLElement | null;
   if (!hint) {
     hint = document.createElement('div');
     hint.className = 'hint';
     field.appendChild(hint);
   }
-  if (message) {
-    hint.innerHTML = '';
-    const icon = document.createElement('span');
-    icon.className = 'icon';
-    icon.textContent = '⚠';
-    icon.setAttribute('aria-hidden', 'true');
-    hint.appendChild(icon);
-    const txt = document.createElement('span');
-    txt.className = 'hint-text';
-    txt.textContent = message;
-    hint.appendChild(txt);
-    hint.classList.add('visible');
-    let aria = document.getElementById('aria-live-errors') as HTMLElement | null;
-    if (!aria) {
-      aria = document.createElement('div');
-      aria.id = 'aria-live-errors';
-      aria.className = 'sr-only';
-      aria.setAttribute('aria-live', 'assertive');
-      aria.setAttribute('role', 'status');
-      document.body.appendChild(aria);
-    }
-    aria.textContent = message;
-  } else {
+
+  if (!message) {
     hint.innerHTML = '';
     hint.classList.remove('visible');
+    return;
   }
+
+  hint.innerHTML = '';
+  const icon = document.createElement('span');
+  icon.className = 'icon';
+  icon.textContent = '?';
+  icon.setAttribute('aria-hidden', 'true');
+  hint.appendChild(icon);
+
+  const txt = document.createElement('span');
+  txt.className = 'hint-text';
+  txt.textContent = message;
+  hint.appendChild(txt);
+
+  hint.classList.add('visible');
+
+  let aria = document.getElementById('aria-live-errors') as HTMLElement | null;
+  if (!aria) {
+    aria = document.createElement('div');
+    aria.id = 'aria-live-errors';
+    aria.className = 'sr-only';
+    aria.setAttribute('aria-live', 'assertive');
+    aria.setAttribute('role', 'status');
+    document.body.appendChild(aria);
+  }
+  aria.textContent = message;
 }
 
 function clearFieldHint(field: Element | null): void {
@@ -260,112 +377,58 @@ function clearFieldHint(field: Element | null): void {
 
 function setupFocusEmphasis(): void {
   document.addEventListener('focusin', (e) => {
-    const el = e.target as HTMLElement;
-    if (!el) return;
-    if (['INPUT', 'SELECT', 'TEXTAREA'].includes(el.tagName)) {
-      try {
-        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      } catch (e) {
-        void e;
-      }
-      el.classList.add('focus-emphasis');
+    const el = e.target;
+    if (!(el instanceof HTMLElement)) return;
+    if (!['INPUT', 'SELECT', 'TEXTAREA'].includes(el.tagName)) return;
+    try {
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    } catch {
+      /* ignore */
     }
+    el.classList.add('focus-emphasis');
   });
+
   document.addEventListener('focusout', (e) => {
-    const el = e.target as HTMLElement;
-    if (!el) return;
+    const el = e.target;
+    if (!(el instanceof HTMLElement)) return;
     if (['INPUT', 'SELECT', 'TEXTAREA'].includes(el.tagName)) el.classList.remove('focus-emphasis');
   });
-}
-
-function yearFromDate(value: string): string {
-  const normalized = normalizeDate(value);
-  const match = (normalized || '').match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
-  return match ? match[3] : '';
-}
-
-function dateToTime(value: string): number | null {
-  const normalized = normalizeDate(value);
-  const m = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(normalized);
-  if (!m) return null;
-  const d = Number(m[1]);
-  const mo = Number(m[2]);
-  const y = Number(m[3]);
-  const dt = new Date(y, mo - 1, d);
-  if (dt.getFullYear() !== y || dt.getMonth() !== mo - 1 || dt.getDate() !== d) return null;
-  return dt.getTime();
-}
-
-function updateDebug(data: any): void {
-  const cns =
-    (document.querySelector('input[name="certidao.cartorio_cns"]') as HTMLInputElement | null)
-      ?.value || '';
-  const ano = yearFromDate(
-    (document.querySelector('input[name="dataTermo"]') as HTMLInputElement | null)?.value || '',
-  );
-  const tipo =
-    (document.querySelector('select[name="tipoCasamento"]') as HTMLSelectElement | null)?.value ||
-    '';
-  const tipoResolved = resolveCasamentoTipo(tipo);
-  const tipoAto = tipoResolved === 'religioso' ? '3' : tipoResolved === 'civil' ? '2' : '';
-  const livro =
-    (document.querySelector('input[name="livro"]') as HTMLInputElement | null)?.value || '';
-  const folha =
-    (document.querySelector('input[name="folha"]') as HTMLInputElement | null)?.value || '';
-  const termo =
-    (document.querySelector('input[name="termo"]') as HTMLInputElement | null)?.value || '';
-  const base = buildMatriculaBase30({
-    cns6: cns,
-    ano,
-    tipoAto,
-    acervo: '01',
-    servico: '55',
-    livro,
-    folha,
-    termo,
-  });
-  const dv = base ? calcDv2Digits(base) : '';
-  const candidate =
-    base && dv ? base + dv : buildMatriculaFinal({ cns6: cns, ano, tipoAto, livro, folha, termo });
-  // For casamento: compute final matrícula directly from fields (no ofício/observações prompt).
-  const final = candidate || '';
-  const baseEl = document.getElementById('debug-matricula-base') as HTMLInputElement | null;
-  if (baseEl) baseEl.value = base || '';
-  const dvEl = document.getElementById('debug-matricula-dv') as HTMLInputElement | null;
-  if (dvEl) dvEl.value = dv || '';
-  const finalEl = document.getElementById('debug-matricula-final') as HTMLInputElement | null;
-  if (finalEl) finalEl.value = final || '';
-  const invalids = collectInvalidFields(document as any) || [];
-  const invalidEl = document.getElementById('debug-invalid') as HTMLInputElement | null;
-  if (invalidEl) invalidEl.value = invalids.join('\n');
-  const alerts: string[] = [];
-  const termoDate = dateToTime(data?.registro?.data_registro || '');
-  const casamentoDate = dateToTime(data?.registro?.data_celebracao || '');
-  if (termoDate && casamentoDate && termoDate < casamentoDate) {
-    alerts.push('Data do termo menor que data do casamento.');
-  }
-  const alertsEl = document.getElementById('debug-alerts') as HTMLInputElement | null;
-  if (alertsEl) alertsEl.value = alerts.join('\n');
-}
-
-function updateOutputs(): void {
-  const data = mapperHtmlToJson(document as any);
-  const jsonEl = document.getElementById('json-output') as HTMLInputElement | null;
-  if (jsonEl) jsonEl.value = JSON.stringify(data, null, 2);
-  const xmlEl = document.getElementById('xml-output') as HTMLInputElement | null;
-  if (xmlEl) xmlEl.value = toXml(data, 'certidao_casamento', 0);
-  updateDebug(data);
 }
 
 function setupLiveOutputs(): void {
   const form = document.getElementById('form-casamento');
   const drawer = document.getElementById('drawer');
-  const handler = () => updateOutputs();
+  const updateXml = async (data: any) => {
+    const xmlEl = document.getElementById('xml-output') as HTMLInputElement | null;
+    if (!xmlEl) return;
+    if (!templatePromise) {
+      const cns = onlyDigits(data?.certidao?.cartorio_cns) || onlyDigits(data?.registro?.matricula).slice(0, 6);
+      templatePromise = fetchCasamentoTemplate(cns);
+    }
+    const template = await templatePromise;
+    if (!template) {
+      templatePromise = null;
+      xmlEl.value = '';
+      return;
+    }
+    const result = buildCasamentoXmlFromJson(template, data);
+    xmlEl.value = isValidCasamentoXml(result.xml) ? result.xml : '';
+  };
+  const handler = () => {
+    try {
+      const data = mapperHtmlToJson(document as any);
+      const jsonEl = document.getElementById('json-output') as HTMLInputElement | null;
+      if (jsonEl) jsonEl.value = JSON.stringify(data, null, 2);
+      void updateXml(data);
+    } catch {
+      /* ignore */
+    }
+  };
   form?.addEventListener('input', handler);
   form?.addEventListener('change', handler);
   drawer?.addEventListener('input', handler);
   drawer?.addEventListener('change', handler);
-  updateOutputs();
+  handler();
 }
 
 function setupNameValidation(): void {
@@ -380,32 +443,56 @@ function setupNameValidation(): void {
   fields.forEach((input) => {
     const field = (input as Element).closest('.campo');
     if (field) field.classList.add('name-field');
-    let hint = field ? (field.querySelector('.name-suggest') as HTMLButtonElement | null) : null;
+    let hint = field ? (field.querySelector('.name-suggest') as HTMLElement | null) : null;
     if (field && !hint) {
-      hint = document.createElement('button');
-      hint.type = 'button';
-      hint.className = 'name-suggest btn success';
-      hint.textContent = 'Salvar nome';
-      field.appendChild(hint);
+      const label = document.createElement('label');
+      label.className = 'name-suggest';
+      label.setAttribute('title', 'Adicionar nome ao banco');
+      label.setAttribute('data-tooltip', 'Adicionar nome ao banco (quando estiver correto)');
+
+      const check = document.createElement('input');
+      check.type = 'checkbox';
+      check.className = 'name-suggest-check';
+      check.setAttribute('aria-label', 'Adicionar nome ao banco');
+
+      const textSpan = document.createElement('span');
+      textSpan.className = 'name-suggest-label';
+      textSpan.textContent = 'Adicionar ao banco';
+
+      label.appendChild(check);
+      label.appendChild(textSpan);
+      field.appendChild(label);
+      hint = label;
     }
-    if (hint) {
-      hint.addEventListener('click', (e) => {
-        e.preventDefault();
-        const value = (input as HTMLInputElement).value || '';
-        const token =
-          (input as HTMLElement).getAttribute('data-name-token') ||
-          (field && field.getAttribute('data-name-token')) ||
-          validator.check(value).token ||
-          '';
-        if (!token) return;
-        validator.repo.addException(token);
-        (input as HTMLElement).classList.remove('invalid');
-        if (field) field.classList.remove('name-suspect');
-        const t = timers.get(input as any);
-        if (t) clearInterval(t);
-        timers.delete(input as any);
-      });
-    }
+
+    const toggle = hint?.querySelector('.name-suggest-check') as HTMLInputElement | null;
+    toggle?.addEventListener('change', (e) => {
+      e.preventDefault();
+      if (!toggle.checked) {
+        hint?.classList.remove('name-suggest-checked');
+        field?.removeAttribute('data-name-marked');
+        return;
+      }
+      const value = (input as HTMLInputElement).value || '';
+      const token =
+        (input as HTMLElement).getAttribute('data-name-token') ||
+        (field && field.getAttribute('data-name-token')) ||
+        validator.check(value).token ||
+        '';
+      if (!token) {
+        toggle.checked = false;
+        return;
+      }
+      validator.repo.addException(token);
+      (input as HTMLElement).classList.remove('invalid');
+      if (field) field.classList.remove('name-suspect');
+      field?.setAttribute('data-name-marked', 'true');
+      hint?.classList.add('name-suggest-checked');
+      const t = timers.get(input as any);
+      if (t) clearInterval(t);
+      timers.delete(input as any);
+    });
+
     const sanitize = () => {
       const v = (input as HTMLInputElement).value || '';
       const s = sanitizeNameLikeValue(v);
@@ -414,9 +501,10 @@ function setupNameValidation(): void {
     const runCheck = () => {
       sanitize();
       const value = (input as HTMLInputElement).value || '';
+      const nameRes = validateName(value, { minWords: 2 });
       const result = validator.check(value);
       const token = result && result.token ? String(result.token).trim() : '';
-      const suspect = !!result.suspicious;
+      const suspect = !!result.suspicious || !!nameRes.invalid;
       (input as HTMLElement).classList.toggle('invalid', suspect);
       if (field) field.classList.toggle('name-suspect', suspect);
       if (token) {
@@ -426,7 +514,13 @@ function setupNameValidation(): void {
         (input as HTMLElement).removeAttribute('data-name-token');
         if (field) field.removeAttribute('data-name-token');
       }
-      if (suspect) {
+      if (nameRes.invalid) {
+        try {
+          setFieldHint(field as Element | null, 'Informe nome e sobrenome');
+        } catch (e) {
+          /* ignore */
+        }
+      } else if (suspect) {
         try {
           setFieldHint(field as Element | null, 'Nome incorreto!');
         } catch (e) {
@@ -455,8 +549,9 @@ function setupNameValidation(): void {
       if (field) field.classList.remove('name-suspect');
       const value = (input as HTMLInputElement).value || '';
       if (value) {
+        const nameRes = validateName(value, { minWords: 2 });
         const result = validator.check(value);
-        const suspect = !!result.suspicious;
+        const suspect = !!result.suspicious || !!nameRes.invalid;
         (input as HTMLElement).classList.toggle('invalid', suspect);
         if (field) field.classList.toggle('name-suspect', suspect);
         const token = result && result.token ? String(result.token).trim() : '';
@@ -525,11 +620,11 @@ function setupCasamentoNationalityDefaults(): void {
 function setupOutputButtons(): void {
   document.getElementById('btn-json')?.addEventListener('click', (e) => {
     e.preventDefault();
-    generateJson();
+    void generateJson();
   });
   document.getElementById('btn-xml')?.addEventListener('click', (e) => {
     e.preventDefault();
-    generateXml();
+    void generateXml();
   });
 }
 
@@ -609,6 +704,7 @@ function setup(): void {
   setupValidation();
   setupNameValidation();
   setupConfigPanel();
+  setupOutputDirs();
   // drawer setup intentionally skipped; drawer controls handled elsewhere
   setupSettingsPanelCasamento();
   setupDrawerInlineToggle();

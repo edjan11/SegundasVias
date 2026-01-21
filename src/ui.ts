@@ -232,7 +232,22 @@ function bindInputs() {
   document.querySelectorAll('[data-bind]').forEach((el) => {
     const path = (el as any).getAttribute('data-bind') || '';
     const handler = () => {
-      const input = el as HTMLInputElement;
+      const input = el as HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement;
+      const tag = (input as any).tagName || '';
+      const isTextArea = tag === 'TEXTAREA';
+      const isSelect = tag === 'SELECT';
+      const type = !isTextArea && !isSelect ? (input as HTMLInputElement).type || '' : '';
+      if (!isSelect && !['checkbox', 'radio', 'password', 'number'].includes(type)) {
+        const upper = (input as any).value?.toUpperCase?.() ?? (input as any).value;
+        if (upper !== (input as any).value) {
+          const start = (input as any).selectionStart;
+          const end = (input as any).selectionEnd;
+          (input as any).value = upper;
+          if (start !== null && end !== null && typeof (input as any).setSelectionRange === 'function') {
+            (input as any).setSelectionRange(start, end);
+          }
+        }
+      }
       if (input.type === 'checkbox') {
         setByPath(state, path, (input as any).checked);
       } else if (path === 'registro.cpf') {
@@ -276,7 +291,7 @@ function bindInputs() {
       if (path === 'registro.municipio_nascimento' || path === 'registro.uf_nascimento') {
         syncNaturalidadeLockedToBirth();
       }
-      validateLiveField(path, input);
+      validateLiveField(path, input as any);
       updateDirty();
     };
     el.addEventListener('input', handler);
@@ -403,7 +418,7 @@ function updateNaturalidadeVisibility(fromToggle: boolean) {
       : 'Municipio (nascimento e naturalidade)';
   }
   if (labelUf) {
-    labelUf.textContent = isDifferent ? 'UF de nascimento' : 'UF (nascimento e naturalidade)';
+    labelUf.textContent = isDifferent ? 'UF de nascimento' : 'UF ';
   }
   if (!fromToggle) return;
   if (isDifferent) {
@@ -1756,30 +1771,8 @@ function setupLocalAutofill() {
   const suggestionWrap = document.getElementById('local-suggestion') as HTMLElement | null;
   const suggestionText = document.getElementById('local-suggestion-text') as HTMLElement | null;
   const suggestionApply = document.getElementById('local-suggestion-apply') as HTMLElement | null;
-  const localSelect = document.getElementById('localNascimento') as HTMLSelectElement | null;
   const copyBtn = document.getElementById(
     'copy-naturalidade',
-  );
-
-  // Sync select -> input: when a type is selected, populate the input with the option label
-  if (localSelect) {
-    localSelect.addEventListener('change', () => {
-      const sel = localSelect.selectedOptions?.[0];
-      const localElInput = document.getElementById('local-nascimento') as HTMLInputElement | null;
-      if (sel && sel.value) {
-        // set visible text to option label for clarity; the mapper will prefer the select value
-        if (localElInput) localElInput.value = sel.textContent?.trim() || '';
-      }
-    });
-  }
-
-  // If user edits the textual local, clear the select so the free text takes precedence
-  const localElInput = document.getElementById('local-nascimento') as HTMLInputElement | null;
-  if (localElInput && localSelect) {
-    localElInput.addEventListener('input', () => {
-      if (localSelect.value) localSelect.value = '';
-    });
-  }
   ) as HTMLElement | null as HTMLButtonElement | null;
   if (!localEl || !cityEl || !ufEl) return;
 

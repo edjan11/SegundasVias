@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ListaRegistrosNascimento>
+  <PNAS>
+    <CodigoCNJ></CodigoCNJ>
+    <DataRegistro></DataRegistro>
+
+    <!-- Pessoa principal -->
+    <Nome></Nome>
+    <CPF></CPF>
+    <Sexo></Sexo>
+    <DataNascimento></DataNascimento>
+    <HoraNascimento></HoraNascimento>
+
+    <!-- Local / Estabelecimento -->
+    <DescricaoLocalNascimento></DescricaoLocalNascimento>
+    <CodigoLocalDoNascimento></CodigoLocalDoNascimento>
+
+    <!-- Livro / Folha / Termo -->
+    <NomeLivro></NomeLivro>
+    <NumeroLivro></NumeroLivro>
+    <NumeroPagina></NumeroPagina>
+    <NumeroRegistro></NumeroRegistro>
+
+    <!-- Metadados CRC/TJ -->
+    <CartorioCNS></CartorioCNS>
+    <Transcricao></Transcricao>
+    <TipoDeclaracao></TipoDeclaracao>
+    <OpcaoNaturalidade></OpcaoNaturalidade>
+    <CodigoGemelaridade></CodigoGemelaridade>
+    <OrdemNascimento></OrdemNascimento>
+
+    <!-- Participantes / Genitores -->
+    <Participantes></Participantes>
+
+    <!-- Observações / Averbacoes -->
+    <ObservacaoCertidao></ObservacaoCertidao>
+  </PNAS>
+</ListaRegistrosNascimento>

@@ -110,14 +110,9 @@
           <label class="label-row">
             <span>Nome completo <span class="req">*</span></span>
 
-            <!-- compact label + select to mark suspect names (non-blocking) -->
-            <label class="name-suggest" title="Adicionar ao vocabulário (ao salvar)" data-tooltip="Adicionar ao vocabulário">
-              <span class="name-suggest-label">Add exceção</span>
-              <select class="name-suggest-select" aria-label="Ação para nome suspeito">
-                <option value="">—</option>
-                <option value="incluir">Incluir</option>
-                <option value="marcar">Marcar</option>
-              </select>
+            <label class="name-suggest" title="Adicionar nome ao banco" data-tooltip="Adicionar nome ao banco (quando estiver correto)">
+              <input type="checkbox" class="name-suggest-check" aria-label="Adicionar nome ao banco" />
+              <span class="name-suggest-label">Adicionar ao banco</span>
             </label>
           </label>
 
@@ -128,7 +123,7 @@
         </div>
 
 
-          <div class="field">
+          <div class="field" style="width: 160px;">
             <label>Sexo <span class="req">*</span></label>
             <select data-bind="registro.sexo" id="sexo" class="w-sexo" data-required>
               <option></option>
@@ -148,32 +143,30 @@
 
       <div class="section">
         <div class="row row-place">
-          <div class="field w-local-wide">
-            <label>Local de nascimento <span class="req">*</span></label>
-            <div style="display:flex;gap:8px;align-items:center">
-              <input
-                id="local-nascimento"
-                data-bind="registro.local_nascimento"
-                data-required
-                placeholder="Ex: Na Clínica Santa Helena, Aracaju/SE"
-                autocomplete="off"
-                style="flex:1"
-              />
-              <!-- Seleção do tipo de local (define o código usado no XML) -->
-              <select name="localNascimento" class="campo" id="localNascimento" style="width:220px">
-                <option value=""></option>
-                <option value="H">HOSPITAL</option>
-                <option value="S">OUTROS ESTABELECIMENTOS DE SAÚDE SEM INTERNAÇÃO</option>
-                <option value="D">DOMICÍLIO</option>
-                <option value="V">VIA PÚBLICA</option>
-                <option value="O">OUTROS</option>
-                <option value="I">IGNORADO</option>
-              </select>
-            </div>
+          <div class="field grow" style="min-width: 400px;">
+            <label>Descricao do local de nascimento <span class="req">*</span></label>
+            <input
+              id="local-nascimento"
+              data-bind="registro.local_nascimento"
+              data-required
+              placeholder="Ex: Na Clinica Santa Helena, Aracaju/SE"
+              autocomplete="off"
+            />
             <div id="local-suggestion" class="suggestion-bar">
               <span id="local-suggestion-text" class="suggestion-text"></span>
               <button type="button" class="btn secondary tiny" id="local-suggestion-apply">Aplicar sugestao</button>
             </div>
+          </div>
+          <div class="field" style="width: 120px;">
+            <label>Local de nascimento</label>
+            <select name="localNascimento" data-bind="ui.local_nascimento_tipo" id="localNascimento" class="campo">
+              <option value="O" selected>OUTROS</option>
+              <option value="H">HOSPITAL</option>
+              <option value="S">OUTROS ESTABELECIMENTOS DE SAUDE SEM INTERNACAO</option>
+              <option value="D">DOMICILIO</option>
+              <option value="V">VIA PUBLICA</option>
+              <option value="I">IGNORADO</option>
+            </select>
           </div>
         </div>
 
@@ -184,7 +177,7 @@
           </div>
 
           <div class="field" style="width: 130px;">
-            <label><span id="label-uf-principal">UF (nascimento e naturalidade)</span> <span class="req">*</span></label>
+            <label><span id="label-uf-principal">UF </span> <span class="req">*</span></label>
             <select data-bind="registro.uf_nascimento" data-required class="w-uf">
               <option></option>
               <option>IG</option>
@@ -406,6 +399,7 @@
           <button class="tab-btn active" data-tab="tab-config">Configuracoes</button>
           <button class="tab-btn" data-tab="tab-json">JSON</button>
           <button class="tab-btn" data-tab="tab-xml">XML</button>
+          <button class="tab-btn" data-tab="tab-admin">Administracao</button>
           <button class="tab-btn" data-tab="tab-debug">Debug</button>
         </div>
 
@@ -520,23 +514,6 @@
             </div>
           </div>
 
-          <div class="card">
-            <div class="cardTitle">Administracao</div>
-            <div class="grid">
-              <div class="field span-9">
-                <label>Assinante</label>
-                <input id="admin-signer-name" placeholder="Nome do assinante" />
-              </div>
-              <div class="field span-3">
-                <label>&nbsp;</label>
-                <button id="admin-signer-add" class="btn secondary" type="button">Adicionar</button>
-              </div>
-              <div class="field span-12">
-                <div id="admin-signer-list"></div>
-              </div>
-            </div>
-          </div>
-
           <div class="toolbar-left" style="margin-top: 8px;">
             <button id="btn-save" class="btn save dirty" type="button">Salvar (Ctrl+B)</button>
           </div>
@@ -564,7 +541,27 @@
 
         </div>
 
-        <div id="tab-debug" class="tab-pane">
+        
+      <div id="tab-admin" class="tab-pane">
+        <div class="card">
+          <div class="cardTitle">Administracao</div>
+          <div class="grid">
+            <div class="field span-9">
+              <label>Assinante</label>
+              <input id="admin-signer-name" placeholder="Nome do assinante" />
+            </div>
+            <div class="field span-3">
+              <label>&nbsp;</label>
+              <button id="admin-signer-add" class="btn secondary" type="button">Adicionar</button>
+            </div>
+            <div class="field span-12">
+              <div id="admin-signer-list"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div id="tab-debug" class="tab-pane">
           <div class="grid">
             <div class="field span-8">
               <label>Base matricula</label>

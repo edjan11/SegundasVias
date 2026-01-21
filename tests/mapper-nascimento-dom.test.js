@@ -15,8 +15,19 @@ const html = `
     <input data-bind="ui.mae_nome" value="MAE COMPLETA" />
     <input data-bind="ui.pai_nome" value="PAI COMPLETO" />
 
+    <select id="localNascimento">
+      <option value=""> </option>
+      <option value="H">HOSPITAL</option>
+      <option value="S">OUTROS</option>
+      <option value="D">DOMICÍLIO</option>
+    </select>
   </div>
 `;
+
+// extra assertion to verify local_nascimento mapping for camelCase id
+const dom2 = new JSDOM(`<div><select id="localNascimento"><option value="H">HOSPITAL</option></select></div>`);
+const payload2 = mapper(dom2.window.document);
+assert(payload2.registro.local_nascimento === 'H', 'local_nascimento não mapeou valor do select com id localNascimento');
 
 const dom = new JSDOM(html);
 const payload = mapper(dom.window.document);

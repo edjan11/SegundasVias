@@ -9,7 +9,8 @@ const sample = require('./sample-nascimento-crc.json');
 const xml = buildNascimentoXmlFromJson(template, sample);
 
 function stripValues(x) {
-  return x.replace(/>[^<]*</g, '><');
+  const normalized = x.replace(/<([A-Za-z0-9:_-]+)\s*\/\>/g, '<$1></$1>');
+  return normalized.replace(/>[^<]*</g, '><');
 }
 
 assert.strictEqual(stripValues(xml), stripValues(template), 'Estrutura do XML CRC divergiu do template');

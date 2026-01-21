@@ -24,6 +24,7 @@ type NascimentoJson = {
     municipio_naturalidade?: string;
     uf_naturalidade?: string;
     local_nascimento?: string;
+    local_nascimento_codigo?: string;
     municipio_nascimento?: string;
     uf_nascimento?: string;
     sexo?: string;
@@ -81,10 +82,10 @@ function setTag(
       return safe ? `${openTag}${safe}</${tag}>` : selfClosing;
     }    // If forceEmpty is requested and the value is empty, prefer to keep self-closing
     if (!safe && forceEmpty) {
-      // Preserve the original element format: if the template used a self-closing tag, keep it;
-      // otherwise return an open/close pair without inner content to match template structure.
-      return selfClosing ? selfClosing : `${open}${close}`;
-    }    return `${open}${safe}${close}`;
+      // Quando for forçar vazio, prefira tag explícita vazia para coincidir com o template
+      return `${open}</${tag}>`;
+    }
+    return `${open}${safe}${close}`;
   });
 }
 
@@ -155,26 +156,26 @@ function parseAvos(raw?: string): { avo1: string; avo2: string } {
   return { avo1: parts[0] || "", avo2: parts[1] || "" };
 }
 
-export function mapLocalNascimentoCode(local?: string): string {
+function mapLocalNascimentoCode(local?: string, tipo?: string): string {
+  const rawTipo = String(tipo ?? "").trim().toUpperCase();
   const s = String(local ?? "").trim().toUpperCase();
-  if (!s) return "";
-  // If the value starts with digits (e.g. "1 - Hospital"), return the leading digits
-  const leading = (s.match(/^\s*(\d+)/) || [])[1];
-  if (leading) return leading;
-  if (/^\d+$/.test(s)) return s;
-  if (s.length === 1) {
-    if (s === "H") return "1";
-    if (s === "S") return "2";
-    if (s === "D") return "3";
-    if (s === "V") return "4";
-    if (s === "O") return "5";
-    if (s === "I") return "0";
+
+  const fromTipo = rawTipo || s;
+  if (/^\d+$/.test(fromTipo)) return fromTipo;
+  if (fromTipo.length === 1) {
+    if (fromTipo === "H") return "1";
+    if (fromTipo === "S") return "2";
+    if (fromTipo === "D") return "3";
+    if (fromTipo === "V") return "4";
+    if (fromTipo === "O") return "5";
+    if (fromTipo === "I") return "9";
   }
+
   if (/HOSP|CLINIC|MATERN/.test(s)) return "1";
   if (/DOMIC/.test(s)) return "3";
   if (/VIA/.test(s)) return "4";
-  if (/IGNOR/.test(s)) return "0";
-  return "";
+  if (/IGNOR/.test(s)) return "9";
+  return "5";
 }
 
 function mapGemeosCode(qtd?: string | number): string {
@@ -304,7 +305,7 @@ export function buildNascimentoXmlFromJson(templateXml: string, data: Nascimento
   const hasRegistrado = /<Registrado(?=\s|\/|>)/.test(templateXml);
 
   const matriculaDigits = onlyDigits(r.matricula);
-  const codigoCnj = matriculaDigits.slice(0, 6) || onlyDigits(data?.certidao?.cartorio_cns);
+  const codigoCnj = matriculaDigits.slice(0, 6) || onlyDigits(data?.certidao?.cartorio_cns) || '163659';
 
   xml = setTagAny(xml, ["CodigoCNJ", "MatriculaCNJ", "CNJ", "CodigoMatricula"], codigoCnj || "", true);
 
@@ -338,7 +339,12 @@ export function buildNascimentoXmlFromJson(templateXml: string, data: Nascimento
     localNascimento,
     true,
   );
-  xml = setTagAny(xml, ["CodigoLocalDoNascimento", "CodLocalNascimento"], mapLocalNascimentoCode(localNascimento), true);
+  xml = setTagAny(
+    xml,
+    ["CodigoLocalDoNascimento", "CodLocalNascimento"],
+    mapLocalNascimentoCode(localNascimento, (r as any).local_nascimento_codigo),
+    true,
+  );
 
   const dataNasc = r.data_nascimento_ignorada ? "" : (r.data_nascimento ?? "");
   const horaNasc = r.hora_nascimento_ignorada ? "" : normalizeHoraToXml(r.hora_nascimento);
@@ -440,42 +446,6 @@ export function buildNascimentoXmlFromJson(templateXml: string, data: Nascimento
   if (r.nome_assinante) {
     xml = setTagAny(xml, ["Assinante", "NomeAssinante"], r.nome_assinante, true);
   }
-
-  // Preserve self-closing empty tags from the template.
-  // For any tag that is self-closing in the template (e.g. <Genitores/>),
-  // if the generated XML ended up producing an explicit empty pair (<Genitores></Genitores>),
-  // convert that empty pair back to the self-closing form so the output preserves
-  // the template's structure exactly.
-  function preserveTemplateSelfClosing(templateStr: string, generatedStr: string): string {
-    // Find all self-closing tags in the template like <TagName/> (capture tag names)
-    const selfClosingTags = new Set();
-    const reSelfClosing = /<([A-Za-z0-9_]+)(?=\s|\/|>)[^>]*\/>/g;
-    let m;
-    while ((m = reSelfClosing.exec(templateStr))) {
-      selfClosingTags.add(m[1]);
-    }
-
-    if (selfClosingTags.size === 0) return generatedStr;
-
-    // For each tag name, replace occurrences of an explicit empty pair with self-closing.
-    for (const tag of selfClosingTags) {
-      // Replace occurrences of <Tag></Tag> (optionally with whitespace) with <Tag/>
-      const emptyPairRe = new RegExp(`<${tag}(?=\\s|/|>)[^>]*>\\s*<\\/${tag}>`, "g");
-      generatedStr = generatedStr.replace(emptyPairRe, (match) => {
-        // Replace with self-closing form retaining any attributes on the opening tag if present in the empty pair
-        const openTagMatch = match.match(new RegExp(`(<${tag}[^>]*>)`));
-        if (openTagMatch && openTagMatch[1]) {
-          // convert opening tag to self-closing
-          return openTagMatch[1].replace(/>\s*$/, "/>");
-        }
-        return `<${tag}/>`;
-      });
-    }
-
-    return generatedStr;
-  }
-
-  xml = preserveTemplateSelfClosing(templateXml, xml);
 
   return xml;
 }

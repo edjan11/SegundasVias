@@ -1,0 +1,118 @@
+body {
+	font-family: verdana;
+	font-size: 7pt;
+	margin: 0px;
+	padding: 0px;
+	font-family: sans-serif;
+}
+
+td {
+	font-size: 4pt;
+}
+
+.tabela {
+	width: 100%;
+}
+
+.tabela-anotacaoes {
+	width: 100%;
+}
+
+.anotacaoes {
+	width: 80%;
+}
+
+.label {
+	font-weight: bold;
+	font-size: 6pt;
+}
+
+.label-centralizado {
+	font-weight: bold;
+	text-align: center
+}
+
+.dados {
+	padding: 5px;
+	font-size: 6pt;
+	border-style: solid;
+	border-width: 1px;
+	vertical-align: top;
+	text-align: justify
+}
+
+.novodado {
+	padding: 5px;
+	font-size: 6pt;
+	border-style: solid;
+	border-width: 1px;
+	vertical-align: top;
+	text-align: justify;
+	border-color: black;
+}
+
+
+
+@media print {
+	.naoImprimir {
+		display: none;
+		page-break-after:always;		
+	}
+	.total{
+		width: 100%
+	}
+}
+
+#anotacoes-tabela {
+	border-collapse: collapse;
+	width: 88%;
+}
+
+.anotacoes {
+	border: 1px solid black;
+	padding: 8px;
+	text-align: left;
+	font-size: 6pt;
+}
+
+.rodape-esquerdo, 
+.tabelafinal td {
+	font-size: 5pt;
+}
+
+
+ .rodape-esquerdo { vertical-align: top; padding-right: 15px; }
+
+ .rodape-esquerdo div {
+ 	margin: 0 auto;
+ 	text-align: center;
+ }
+ 
+ .via {display:block; float:right; font-weight:bold; } 
+ .rodape-direito{ text-align:center; width:50%; }
+ 
+ .rodape-blocoAssinatura{ display:block; border-top:1px black solid; margin: 20px 0 4px; }
+ 
+ .rodape-valorPago,
+ .rodape-isentoEmolumentos { border-style: solid; border-width: 1px 1px 1px 1px; vertical-align: top } 
+ 							
+ .rodape-valorPago{ height: 20px; }
+ .rodape-isentoEmolumentos{ height: 10px; margin-bottom: 3px; padding: 0.5px; }
+ 
+ .rodape-direito,
+ .novomodelo { font-size: 7pt;  }
+
+ .novomodelo {
+	vertical-align: top;
+	text-align: justify;
+	padding-left: 3px;
+	padding-right: 3px;
+}
+
+fieldset {
+	border-style: solid;
+	border-width: 1px;
+	border-color: black;
+	padding: 2px;
+}
+ 

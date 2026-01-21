@@ -989,6 +989,7 @@ function downloadJson(obj: Record<string, unknown>, filename: string): void {
 // Anti-autofill helper: programmatically ensure attributes for dynamic content or missed elements
 export function disableBrowserAutofill(root: Document | HTMLElement = document, selectors: string[] = []) {
   const defaultSelectors = [
+    'input[name*="nome"]',
     'input[name*="cidade"]',
     'select[name*="uf"]',
     'input[name*="municipio"]',

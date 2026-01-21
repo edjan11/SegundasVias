@@ -7,7 +7,7 @@ const builder = require('../dist-src/acts/nascimento/printNascimentoXmlFromJson'
 const tpl = fs.readFileSync(tplPath, 'utf8');
 const out = builder.buildNascimentoXmlFromJson(tpl, sample);
 
-function stripValues(x) { return x.replace(/>[^<]*</g, '><'); }
+function stripValues(x) { const normalized = x.replace(/<([A-Za-z0-9:_-]+)\s*\/>/g, '<$1></$1>'); return normalized.replace(/>[^<]*</g, '><'); }
 
 const sTpl = stripValues(tpl);
 const sOut = stripValues(out);

@@ -1,0 +1,51 @@
+{
+  "certidao": {
+    "plataformaId": "certidao-eletronica",
+    "tipo_registro": "casamento",
+    "tipo_certidao": "Breve relato",
+    "transcricao": false,
+    "cartorio_cns": "110742",
+    "selo": "",
+    "cod_selo": "",
+    "modalidade": "eletronica",
+    "cota_emolumentos": "",
+    "cota_emolumentos_isento": false
+  },
+  "registro": {
+    "conjuges": [
+      {
+        "nome_atual_habilitacao": "GERALDO DE LIMA CAVALCANTE",
+        "cpf_sem_inscricao": false,
+        "cpf": "266.148.715-87",
+        "novo_nome": "GERALDO DE LIMA CAVALCANTE",
+        "data_nascimento": "09/04/1963",
+        "nacionalidade": "BRASILEIRO",
+        "estado_civil": "SOLTEIRO(A)",
+        "municipio_naturalidade": "ARACAJU",
+        "uf_naturalidade": "SE",
+        "genitores": "DALVA MARIA LIMA CAVALCANTE; ADMY CAVALCANTE"
+      },
+      {
+        "nome_atual_habilitacao": "VALDELICE LIMEIRA SANTOS",
+        "cpf_sem_inscricao": false,
+        "cpf": "451.780.975-72",
+        "novo_nome": "VALDELICE SANTOS CAVALCANTE",
+        "data_nascimento": "26/07/1964",
+        "nacionalidade": "BRASILEIRA",
+        "estado_civil": "SOLTEIRO(A)",
+        "municipio_naturalidade": "GARARU",
+        "uf_naturalidade": "SE",
+        "genitores": "NEUSA MOTA DE ARAÚJO; JOSÉ LIMEIRA SANTOS"
+      }
+    ],
+    "matricula": "11074201551987300001022000002295",
+    "data_celebracao": "11/07/1987",
+    "regime_bens": "COMUNHÃO PARCIAL DE BENS",
+    "data_registro": "22/07/1987",
+    "averbacao_anotacao": "AVERBA-SE A CONVERSÃO DA SEPARAÇÃO EM DIVÓRCIO DE ORDEM DO MM. JUIZ DE DIREITO DA 19ª VARA CÍVEL DA COMARCA DE ARACAJU/SE, DR. JOSÉ ARTÊMIO BARRETO, CONFORME SENTENÇA DATADA DE 14/02/1996, QUE TRANSITOU EM JULGADO. A DIVORCIADA VOLTARÁ A USAR O NOME DE SOLTEIRA: VALDELICE LIMEIRA SANTOS. ARACAJU/SE, 23/05/1996. SELO TJSE: 202229501002052 ACESSE: WWW.TJSE.JUS.BR/X/TQ48XH A PRESENTE CERTIDÃO, HOJE ANEXADA AO 9º OFÍCIO DE ARACAJU, PERTENCIA AO ANTIGO CARTÓRIO DO OFÍCIO NÚMERO 6ºCASAMENTO RELIGIOSO CELEBRADO NO DIA 11/07/1987.",
+    "anotacoes_cadastro": {
+      "primeiro_conjuge": [],
+      "segundo_conjuge": []
+    }
+  }
+}
