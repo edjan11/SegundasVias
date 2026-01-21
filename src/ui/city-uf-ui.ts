@@ -1,8 +1,41 @@
 import { resolveCityToUf, loadIndexFromProjectData, buildIndexFromData } from '../shared/city-uf-resolver.js';
 import { attachAutocomplete } from './city-autocomplete.js';
 
+const CITY_UF_WARNING_CLASS = 'city-uf-warning';
+const UF_TAB_SKIP_ATTR = 'data-uf-tab-skip';
+
+function trimValue(value?: string | null): string {
+  return String(value || '').trim();
+}
+
+function getFieldContainer(el: HTMLElement | null): HTMLElement | null {
+  if (!el) return null;
+  return (el.closest('.field') || el.closest('.campo') || el.parentElement) as HTMLElement | null;
+}
+
+function isTabbable(el: HTMLElement): boolean {
+  if (!el) return false;
+  if (el instanceof HTMLInputElement && el.type === 'hidden') return false;
+  if ((el as HTMLInputElement).disabled) return false;
+  if (el.getAttribute('tabindex') === '-1') return false;
+  if (el.getAttribute('aria-hidden') === 'true') return false;
+  return true;
+}
+
+function findNextTabbable(from: HTMLElement): HTMLElement | null {
+  const root = (from.closest('form') as HTMLElement | null) || document.body;
+  const selector = 'input, select, textarea, button, a[href], [tabindex]';
+  const nodes = Array.from(root.querySelectorAll<HTMLElement>(selector)).filter(isTabbable);
+  const idx = nodes.indexOf(from);
+  if (idx === -1) return null;
+  for (let i = idx + 1; i < nodes.length; i += 1) {
+    if (isTabbable(nodes[i])) return nodes[i];
+  }
+  return null;
+}
+
 /**
- * Attach city→UF autofill behavior between cityInput and ufInput
+ * Attach city->UF autofill behavior between cityInput and ufInput
  * - resolverIndex: prebuilt index (pass loadIndexFromProjectData())
  * - onAutofilled callback receives ({ uf, status, reason }) for instrumentation
  */
@@ -13,57 +46,89 @@ export function attachCityUfAutofill(
   onAutofilled?: (res: any) => void
 ) {
   let lastAutoFilled = false;
+  let skipBlur = false;
 
-  async function handleCityConfirm() {
-    const city = cityInput.value;
-    const currentUf = (ufInput as any).value;
+  const ufEl = ufInput as HTMLElement;
+  const cityField = getFieldContainer(cityInput);
+  const ufField = getFieldContainer(ufEl);
+
+  function setWarningState(active: boolean) {
+    cityInput.classList.toggle(CITY_UF_WARNING_CLASS, active);
+    ufEl.classList.toggle(CITY_UF_WARNING_CLASS, active);
+    if (cityField) cityField.classList.toggle(CITY_UF_WARNING_CLASS, active);
+    if (ufField) ufField.classList.toggle(CITY_UF_WARNING_CLASS, active);
+  }
+
+  function clearAutoFilled() {
+    if ((ufInput as HTMLInputElement).tagName === 'SELECT') {
+      ufEl.removeAttribute('data-auto-filled');
+      ufEl.classList.remove('auto-filled');
+    } else {
+      (ufInput as HTMLInputElement).removeAttribute('readonly');
+    }
+    lastAutoFilled = false;
+  }
+
+  function ensureTabSkip() {
+    if (!ufEl.getAttribute(UF_TAB_SKIP_ATTR)) {
+      ufEl.setAttribute('tabindex', '-1');
+      ufEl.setAttribute(UF_TAB_SKIP_ATTR, '1');
+    }
+  }
+
+  function maybeAdvanceFocus() {
+    const active = document.activeElement as HTMLElement | null;
+    if (active && active !== cityInput && active !== document.body && active !== document.documentElement)
+      return;
+    const next = findNextTabbable(cityInput);
+    if (next) next.focus();
+  }
+
+  function resolveAndValidate() {
+    const city = trimValue(cityInput.value);
+    if (!city) {
+      setWarningState(false);
+      clearAutoFilled();
+      return null;
+    }
+    if (!resolverIndex || resolverIndex.size === 0) {
+      setWarningState(false);
+      return null;
+    }
+
+    const currentUf = trimValue((ufInput as any).value);
     const res = resolveCityToUf(city, currentUf ? currentUf : null, resolverIndex);
+    const warn = res.status === 'invalid' || res.status === 'ambiguous' || res.status === 'divergent';
+    setWarningState(warn);
+    return res;
+  }
 
-    if (res.status === 'inferred' || res.status === 'ok') {
+  async function handleCityConfirm(options: { advanceFocus?: boolean } = {}) {
+    const res = resolveAndValidate();
+    if (!res) return;
+
+    if (res.status === 'inferred') {
       // Autofill UF and set temporary readonly-ish state
       const ufValue = (res as any).uf || '';
       if ((ufInput as HTMLInputElement).tagName === 'SELECT') {
         (ufInput as HTMLSelectElement).value = ufValue;
-        (ufInput as HTMLElement).setAttribute('data-auto-filled', 'true');
-        (ufInput as HTMLElement).classList.add('auto-filled');
-        (ufInput as HTMLElement).dispatchEvent(new Event('input', { bubbles: true }));
-        (ufInput as HTMLElement).dispatchEvent(new Event('change', { bubbles: true }));
+        ufEl.setAttribute('data-auto-filled', 'true');
+        ufEl.classList.add('auto-filled');
+        ufEl.dispatchEvent(new Event('input', { bubbles: true }));
+        ufEl.dispatchEvent(new Event('change', { bubbles: true }));
       } else {
         (ufInput as HTMLInputElement).value = ufValue;
         (ufInput as HTMLInputElement).setAttribute('readonly', 'true');
-        (ufInput as HTMLElement).dispatchEvent(new Event('input', { bubbles: true }));
-        (ufInput as HTMLElement).dispatchEvent(new Event('change', { bubbles: true }));
+        ufEl.dispatchEvent(new Event('input', { bubbles: true }));
+        ufEl.dispatchEvent(new Event('change', { bubbles: true }));
       }
-
       lastAutoFilled = true;
-
-      // Move focus forward (like TAB). Use focus on next tabbable element.
-      // Prefer nextElementSibling, if it exists and is focusable.
-      const next = findNextTabbable(cityInput);
-      if (next) next.focus();
+    } else if (res.status === 'divergent' || res.status === 'invalid' || res.status === 'ambiguous') {
+      clearAutoFilled();
     }
 
+    if (options.advanceFocus) maybeAdvanceFocus();
     if (typeof onAutofilled === 'function') onAutofilled(res);
-  }
-
-  function findNextTabbable(el: HTMLElement): HTMLElement | null {
-    // Simple approach: query the form's tab order — walk to nextElementSibling until focusable
-    let node: HTMLElement | null = el.nextElementSibling as HTMLElement | null;
-    while (node) {
-      if (isFocusable(node)) return node;
-      node = node.nextElementSibling as HTMLElement | null;
-    }
-    // fallback: try document.activeElement's nextElementSibling
-    return null;
-  }
-
-  function isFocusable(el: HTMLElement) {
-    if (!el) return false;
-    const tag = el.tagName.toLowerCase();
-    if (['input', 'select', 'textarea', 'button', 'a'].includes(tag)) {
-      return !(el as HTMLInputElement).disabled && el.getAttribute('tabindex') !== '-1';
-    }
-    return el.hasAttribute('tabindex');
   }
 
   function removeReadonlyIfUserFocused(e: FocusEvent) {
@@ -79,17 +144,38 @@ export function attachCityUfAutofill(
     }
   }
 
-  // When city is confirmed (blur or Enter), try to autofill
+  ensureTabSkip();
+
+  // When city is confirmed (blur/Enter/autocomplete), try to autofill
   cityInput.addEventListener('blur', () => {
     // Slight delay for selection events
-    setTimeout(handleCityConfirm, 0);
+    setTimeout(() => {
+      if (skipBlur) {
+        skipBlur = false;
+        return;
+      }
+      handleCityConfirm({ advanceFocus: true });
+    }, 0);
   });
 
   cityInput.addEventListener('keydown', (ev: KeyboardEvent) => {
-    if (ev.key === 'Enter' || ev.key === 'Tab') {
-      // If user presses Enter while in city, confirm then allow natural Tab behaviour
+    if (ev.key === 'Enter') {
+      ev.preventDefault();
+      skipBlur = true;
+      handleCityConfirm({ advanceFocus: true });
+    } else if (ev.key === 'Tab') {
+      skipBlur = true;
       handleCityConfirm();
     }
+  });
+
+  cityInput.addEventListener('city-autocomplete:select', () => {
+    skipBlur = true;
+    handleCityConfirm({ advanceFocus: true });
+  });
+
+  cityInput.addEventListener('input', () => {
+    setWarningState(false);
   });
 
   // If user goes back (Shift+Tab) or clicks UF, allow editing and remove readonly
@@ -106,22 +192,31 @@ export function attachCityUfAutofill(
       lastAutoFilled = false;
     }
   });
+  ufInput.addEventListener('change', () => {
+    resolveAndValidate();
+  });
+  ufInput.addEventListener('input', () => {
+    resolveAndValidate();
+  });
 
   // Return an detach function so caller can remove listeners
   return function detach() {
     cityInput.removeEventListener('blur', handleCityConfirm as any);
     cityInput.removeEventListener('keydown', handleCityConfirm as any);
+    cityInput.removeEventListener('city-autocomplete:select', handleCityConfirm as any);
     ufInput.removeEventListener('focus', removeReadonlyIfUserFocused as any);
     ufInput.removeEventListener('mousedown', removeReadonlyIfUserFocused as any);
+    ufInput.removeEventListener('change', resolveAndValidate as any);
+    ufInput.removeEventListener('input', resolveAndValidate as any);
   };
 }
 
 /**
- * Attach city autocomplete + city→UF autofill to all fields that look like cities.
+ * Attach city autocomplete + city->UF autofill to all fields that look like cities.
  * - If `resolverIndex` is not provided, tries to fetch project JSON and falls back to local loader.
  * - Heuristics to find UF element:
- *    1) matching data-bind replacing `_cidade` → `_uf`
- *    2) matching name replacing `cidade` → `uf`
+ *    1) matching data-bind replacing `_cidade` -> `_uf`
+ *    2) matching name replacing `cidade` -> `uf`
  *    3) nearest `select.w-uf` or select in same field container
  * Marks inputs with `data-city-integrated` to avoid duplicate attaching.
  * Returns a detach function that removes all handlers.

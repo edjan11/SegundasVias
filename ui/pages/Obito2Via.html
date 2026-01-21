@@ -186,11 +186,6 @@
     <div class="section">
       <div class="subTitulo">Evento do óbito</div>
       <div class="grid">
-        <div class="campo span-4">
-          <label class="label">Cidade de nascimento <span class="obrigatorio">*</span></label>
-          <input name="cidadeNascimento" maxlength="200" data-required autocomplete="nope" autocorrect="off" autocapitalize="off" spellcheck="false" />
-        </div>
-
         <div class="campo span-2">
           <label class="label">UF <span class="obrigatorio">*</span></label>
           <select name="ufNascimento" data-required autocomplete="nope" spellcheck="false">
@@ -204,6 +199,12 @@
             <option value="RO">RO</option><option value="RR">RR</option><option value="SC">SC</option><option value="SP">SP</option>
             <option value="SE">SE</option><option value="TO">TO</option>
           </select>
+        </div>
+        
+
+        <div class="campo span-4">
+          <label class="label">Cidade de nascimento <span class="obrigatorio">*</span></label>
+          <input name="cidadeNascimento" maxlength="200" data-required autocomplete="nope" autocorrect="off" autocapitalize="off" spellcheck="false" />
         </div>
 
         <div class="campo span-3">
@@ -266,12 +267,6 @@
           <label class="label">Descrição do local <span class="obrigatorio">*</span></label>
           <input name="descricaoLocalObito" maxlength="150" data-required />
         </div>
-
-        <div class="campo span-3">
-          <label class="label">Cidade do óbito <span class="obrigatorio">*</span></label>
-          <input name="municipioObito" maxlength="50" data-required autocomplete="nope" autocorrect="off" autocapitalize="off" spellcheck="false" />
-        </div>
-
         <div class="campo span-1">
           <label class="label">UF <span class="obrigatorio">*</span></label>
           <select name="ufMunicipioObito" id="ufMunicipioObito" data-required autocomplete="nope" spellcheck="false">
@@ -287,16 +282,15 @@
           </select>
         </div>
 
+        <div class="campo span-3">
+          <label class="label">Cidade do óbito <span class="obrigatorio">*</span></label>
+          <input name="municipioObito" maxlength="50" data-required autocomplete="nope" autocorrect="off" autocapitalize="off" spellcheck="false" />
+        </div>
+
         <div class="campo span-6">
           <label class="label">Local do sepultamento</label>
           <input name="sepultamento" maxlength="300" autocomplete="nope" autocorrect="off" autocapitalize="off" spellcheck="false" />
         </div>
-
-        <div class="campo span-4">
-          <label class="label">Cidade sepultamento <span class="obrigatorio">*</span></label>
-          <input name="municipioSepultamento" maxlength="300" data-required autocomplete="nope" autocorrect="off" autocapitalize="off" spellcheck="false" />
-        </div>
-
         <div class="campo span-2">
           <label class="label">UF <span class="obrigatorio">*</span></label>
           <select name="ufMunicipioSepultamento" id="ufMunicipioSepultamento" data-required autocomplete="nope" spellcheck="false">
@@ -310,6 +304,11 @@
             <option value="RO">RO</option><option value="RR">RR</option><option value="SC">SC</option><option value="SP">SP</option>
             <option value="SE">SE</option><option value="TO">TO</option>
           </select>
+        </div>
+
+        <div class="campo span-4">
+          <label class="label">Cidade sepultamento <span class="obrigatorio">*</span></label>
+          <input name="municipioSepultamento" maxlength="300" data-required autocomplete="nope" autocorrect="off" autocapitalize="off" spellcheck="false" />
         </div>
       </div>
     </div>

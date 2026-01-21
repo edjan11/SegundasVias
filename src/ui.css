@@ -190,6 +190,19 @@ body {
 .field textarea.invalid {
   border-color: var(--danger);
 }
+.field input.city-uf-warning,
+.field select.city-uf-warning {
+  border-color: #dc2626;
+  box-shadow: 0 0 0 2px rgba(220, 38, 38, 0.12);
+  background: #fff5f5;
+}
+.field.city-uf-warning label {
+  color: #b42318;
+}
+.city-uf-warning:focus {
+  border-color: #dc2626;
+  box-shadow: 0 0 0 2px rgba(220, 38, 38, 0.18);
+}
 
 .checkboxField {
   flex-direction: row;

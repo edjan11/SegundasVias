@@ -171,11 +171,6 @@
         </div>
 
         <div class="row row-place">
-          <div class="field grow">
-            <label><span id="label-municipio-principal">Municipio (nascimento e naturalidade)</span> <span class="req">*</span></label>
-            <input data-bind="registro.municipio_nascimento" data-required placeholder="Cidade" />
-          </div>
-
           <div class="field" style="width: 130px;">
             <label><span id="label-uf-principal">UF </span> <span class="req">*</span></label>
             <select data-bind="registro.uf_nascimento" data-required class="w-uf">
@@ -185,6 +180,11 @@
             </select>
           </div>
 
+          <div class="field grow">
+            <label><span id="label-municipio-principal">Municipio (nascimento e naturalidade)</span> <span class="req">*</span></label>
+            <input data-bind="registro.municipio_nascimento" data-required placeholder="Cidade" />
+          </div>
+
           <div class="field checkboxField nat-toggle">
             <input type="checkbox" data-bind="ui.naturalidade_diferente" id="naturalidade-diferente" />
             <label for="naturalidade-diferente">Naturalidade diferente do nascimento</label>
@@ -192,14 +192,6 @@
         </div>
 
         <div class="row naturalidade-extra" id="naturalidade-extra">
-          <div class="field" style="width: 260px;">
-            <label class="label-row">
-              <span>Municipio de naturalidade</span>
-              <button type="button" class="link-btn" id="copy-naturalidade">Copiar nascimento</button>
-            </label>
-            <input data-bind="registro.municipio_naturalidade" placeholder="Cidade" />
-          </div>
-
           <div class="field" style="width: 180px;">
             <label>UF de naturalidade</label>
             <select data-bind="registro.uf_naturalidade" class="w-uf">
@@ -207,6 +199,14 @@
               <option>IG</option>
           <option>AC</option><option>AL</option><option>AP</option><option>AM</option><option>BA</option><option>CE</option><option>DF</option><option>ES</option><option>GO</option><option>MA</option><option>MT</option><option>MS</option><option>MG</option><option>PA</option><option>PB</option><option>PR</option><option>PE</option><option>PI</option><option>RJ</option><option>RN</option><option>RS</option><option>RO</option><option>RR</option><option>SC</option><option>SP</option><option>SE</option><option>TO</option>
             </select>
+          </div>
+
+          <div class="field" style="width: 260px;">
+            <label class="label-row">
+              <span>Municipio de naturalidade</span>
+              <button type="button" class="link-btn" id="copy-naturalidade">Copiar nascimento</button>
+            </label>
+            <input data-bind="registro.municipio_naturalidade" placeholder="Cidade" />
           </div>
         </div>
       </div>

@@ -152,6 +152,13 @@ export function attachAutocomplete(
     // set input value and trigger input event
     cityInput.value = city;
     cityInput.dispatchEvent(new Event('input'));
+    try {
+      cityInput.dispatchEvent(
+        new CustomEvent('city-autocomplete:select', { detail: { city, uf }, bubbles: true }),
+      );
+    } catch (e) {
+      /* ignore */
+    }
 
     // increment frequency locally (best-effort, non-blocking)
     try {

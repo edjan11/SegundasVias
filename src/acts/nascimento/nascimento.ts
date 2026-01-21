@@ -38,6 +38,7 @@ const OUTPUT_DIR_KEY_JSON = 'outputDir.nascimento.json';
 const OUTPUT_DIR_KEY_XML = 'outputDir.nascimento.xml';
 
 let outputDirs = { json: '', xml: '' };
+const FIXED_CARTORIO_CNS = '110742';
 
 // =========================
 // UI helpers
@@ -170,6 +171,27 @@ function toXml(obj: any, nodeName: string, indent = 0): string {
   return `${pad}<${nodeName}>\n${children}\n${pad}</${nodeName}>`;
 }
 
+function withFixedCartorioCns<T>(data: T): T {
+  if (!data || typeof data !== 'object') return data;
+  const certidao = (data as any).certidao || {};
+  return {
+    ...(data as any),
+    certidao: { ...certidao, cartorio_cns: FIXED_CARTORIO_CNS },
+  } as T;
+}
+
+function getNameValidationInputs(): HTMLInputElement[] {
+  const inputs = Array.from(document.querySelectorAll<HTMLInputElement>('[data-name-validate]'));
+  ['input[data-bind="ui.mae_nome"]', 'input[data-bind="ui.pai_nome"]'].forEach((selector) => {
+    const el = document.querySelector<HTMLInputElement>(selector);
+    if (el && !inputs.includes(el)) {
+      el.setAttribute('data-name-validate', '');
+      inputs.push(el);
+    }
+  });
+  return inputs;
+}
+
 // =========================
 // Debug / outputs
 // =========================
@@ -235,9 +257,10 @@ let xmlUpdateTimer: number | null = null;
 
 function updateOutputs(): void {
   const data = mapperHtmlToJson(document);
+  const jsonData = withFixedCartorioCns(data);
 
   const jsonEl = document.getElementById('json-output') as any;
-  if (jsonEl) jsonEl.value = JSON.stringify(data, null, 2);
+  if (jsonEl) jsonEl.value = JSON.stringify(jsonData, null, 2);
 
   const xmlEl = document.getElementById('xml-output') as any;
   if (xmlEl) xmlEl.value = '';
@@ -338,7 +361,7 @@ function downloadText(filename: string, content: string, mime: string): void {
 async function generateJson(): Promise<void> {
   if (!canProceed()) return;
   const data = mapperHtmlToJson(document);
-  const json = JSON.stringify(data, null, 2);
+  const json = JSON.stringify(withFixedCartorioCns(data), null, 2);
   const jsonEl = document.getElementById('json-output') as any;
   if (jsonEl) jsonEl.value = json;
 
@@ -394,50 +417,6 @@ async function fetchPnasTemplate(codigoCnj?: string): Promise<string> {
   return `<?xml version="1.0" encoding="UTF-8"?><ListaRegistrosNascimento><PNAS><CodigoCNJ></CodigoCNJ><DataRegistro></DataRegistro><Nome></Nome><CPF></CPF><Sexo></Sexo><DataNascimento></DataNascimento><HoraNascimento></HoraNascimento><DescricaoLocalNascimento></DescricaoLocalNascimento><CodigoLocalDoNascimento></CodigoLocalDoNascimento><NomeLivro></NomeLivro><NumeroLivro></NumeroLivro><NumeroPagina></NumeroPagina><NumeroRegistro></NumeroRegistro><CartorioCNS></CartorioCNS><Transcricao></Transcricao><Participantes></Participantes><ObservacaoCertidao></ObservacaoCertidao></PNAS></ListaRegistrosNascimento>`;
 }
 
-function previewXmlContent(content: string, suggestedName?: string): void {
-  // Open a preview window with the XML content and print / download buttons
-  const popup = window.open('', '_blank', 'noopener,noreferrer,width=900,height=700');
-  if (!popup) {
-    // Popup blocked - fallback to download
-    const name = suggestedName || `NASCIMENTO_${new Date().toISOString().slice(0, 19).replace(/[:T]/g, '')}.xml`;
-    downloadText(name, content, 'application/xml');
-    setStatus(`Popup bloqueado. XML baixado: ${name}`);
-    return;
-  }
-
-  const safeContent = String(content || '').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-  const html = `<!doctype html><html><head><meta charset="utf-8"><title>Visualizar XML</title>
-    <style>body{font-family:system-ui,Segoe UI,Roboto,Arial; padding:12px} .controls{margin-bottom:8px} button{margin-right:8px} pre{white-space:pre-wrap; word-wrap:break-word; background:#f7f7f9; border:1px solid #e1e1e8; padding:12px; border-radius:6px; max-height:76vh; overflow:auto}</style></head>
-    <body>
-      <div class="controls">
-        <button id="btn-print">Imprimir</button>
-        <button id="btn-download">Baixar</button>
-        <button id="btn-close">Fechar</button>
-      </div>
-      <pre id="xml-pre">${safeContent}</pre>
-      <script>
-        document.getElementById('btn-print').addEventListener('click', ()=>{ window.print(); });
-        document.getElementById('btn-close').addEventListener('click', ()=>{ window.close(); });
-        document.getElementById('btn-download').addEventListener('click', ()=>{
-          const content = (document.getElementById('xml-pre').textContent || '');
-          const blob = new Blob([content], {type: 'application/xml'});
-          const url = URL.createObjectURL(blob);
-          const a = document.createElement('a');
-          a.href = url;
-          a.download = '${suggestedName || 'NASCIMENTO.xml'}';
-          document.body.appendChild(a);
-          a.click();
-          a.remove();
-          URL.revokeObjectURL(url);
-        });
-      <\/script>
-    </body></html>`;
-
-  popup.document.open();
-  popup.document.write(html);
-  popup.document.close();
-}
-
 async function generatePnasXml(): Promise<void> {
   if (!canProceed()) return;
   const data = mapperHtmlToJson(document);
@@ -458,9 +437,8 @@ async function generatePnasXml(): Promise<void> {
       return;
     }
 
-    // Open preview with print & download options. If popup blocked, fallback to download.
-    previewXmlContent(pnas, name);
-    setStatus(`XML pronto: ${name}`);
+    downloadText(name, pnas, 'application/xml');
+    setStatus(`XML baixado: ${name}`);
   } catch (e) {
     console.error('generatePnasXml error', e);
     setStatus('Falha ao gerar XML', true);
@@ -540,7 +518,7 @@ function setupValidation(): void {
   // Name validation
   const enableName = localStorage.getItem(ENABLE_NAME_KEY) !== 'false';
   if (enableName) {
-    document.querySelectorAll<HTMLInputElement>('[data-name-validate]').forEach((input) => {
+    getNameValidationInputs().forEach((input) => {
       const field = resolveField(input);
       const required = input.hasAttribute('data-required');
 
@@ -582,7 +560,7 @@ function setupNameValidationLocal(): void {
     // ignore
   }
 
-  const fields = document.querySelectorAll<HTMLInputElement>('[data-name-validate]');
+  const fields = getNameValidationInputs();
   fields.forEach((input) => {
     const field = resolveField(input);
     if (field) field.classList.add('name-field');

@@ -25,12 +25,15 @@ import { updateActionButtons } from '../../ui';
 import { resolveCasamentoTipo } from '../../shared/productivity/casamento-rules';
 import { validateMatriculaType } from '../../shared/matricula/type';
 import { buildCasamentoXmlFromJson } from './printCasamentoXml';
+import { buildCasamentoPdfHtmlFromTemplate } from '../../prints/casamento/printCasamentoTjTemplate';
+import { openHtmlAndSavePdf } from '../../prints/shared/openAndSavePdf';
 
 const NAME_MODE_KEY = 'ui.nameValidationMode';
 let nameValidationMode = localStorage.getItem(NAME_MODE_KEY) || 'blur';
 const PANEL_INLINE_KEY = 'ui.panelInline';
 const OUTPUT_DIR_KEY_JSON = 'outputDir.casamento.json';
 const OUTPUT_DIR_KEY_XML = 'outputDir.casamento.xml';
+const FIXED_CARTORIO_CNS = '110742';
 
 let outputDirs = { json: '', xml: '' };
 const TEMPLATE_CACHE = new Map<string, string>();
@@ -163,6 +166,15 @@ function onlyDigits(value?: string): string {
   return String(value || '').replace(/\D+/g, '');
 }
 
+function withFixedCartorioCns<T>(data: T): T {
+  if (!data || typeof data !== 'object') return data;
+  const certidao = (data as any).certidao || {};
+  return {
+    ...(data as any),
+    certidao: { ...certidao, cartorio_cns: FIXED_CARTORIO_CNS },
+  } as T;
+}
+
 async function fetchCasamentoTemplate(cns?: string): Promise<string | null> {
   const bases = ['/templates', '/pages/templates'];
   const candidates: string[] = [];
@@ -195,7 +207,7 @@ function isValidCasamentoXml(xml: string): boolean {
 async function generateJson(): Promise<void> {
   if (!canProceed()) return;
   const data = mapperHtmlToJson(document as any);
-  const json = JSON.stringify(data, null, 2);
+  const json = JSON.stringify(withFixedCartorioCns(data), null, 2);
   const out = document.getElementById('json-output') as any;
   if (out) out.value = json;
   const name = buildFileName('json');
@@ -418,7 +430,7 @@ function setupLiveOutputs(): void {
     try {
       const data = mapperHtmlToJson(document as any);
       const jsonEl = document.getElementById('json-output') as HTMLInputElement | null;
-      if (jsonEl) jsonEl.value = JSON.stringify(data, null, 2);
+      if (jsonEl) jsonEl.value = JSON.stringify(withFixedCartorioCns(data), null, 2);
       void updateXml(data);
     } catch {
       /* ignore */
@@ -721,7 +733,33 @@ function setup(): void {
 
   setupCityIntegration();
   setupDisableAutofill();
+  setupPrintButton();
   setupActionButtonsListeners();
+
+function setupPrintButton(): void {
+  (document.getElementById('btn-print') as HTMLElement | null)?.addEventListener('click', async (e) => {
+    e.preventDefault();
+    if (!canProceed()) return;
+
+    const data = mapperHtmlToJson(document as any);
+    let html = '';
+    try {
+      html = await buildCasamentoPdfHtmlFromTemplate(data, { cssHref: '/assets/pdfElementsCasamento/pdf-casamento.css' });
+    } catch (err) {
+      console.error('PDF template load error', err);
+      setStatus('Falha ao carregar template do PDF', true);
+      return;
+    }
+
+    try {
+      openHtmlAndSavePdf(html, 'CASAMENTO_');
+      setStatus('Gerando PDF…');
+    } catch {
+      showToast('Permita popups para imprimir/baixar PDF');
+      setStatus('Popup bloqueado', true);
+    }
+  });
+}
 }
 
 function setupValidation(): void {

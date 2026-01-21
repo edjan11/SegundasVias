@@ -29,6 +29,7 @@ const ENABLE_NAME_KEY = 'ui.enableNameValidation';
 const PANEL_INLINE_KEY = 'ui.panelInline';
 const OUTPUT_DIR_KEY_JSON = 'outputDir.obito.json';
 const OUTPUT_DIR_KEY_XML = 'outputDir.obito.xml';
+const FIXED_CARTORIO_CNS = '110742';
 
 let outputDirs = { json: '', xml: '' };
 
@@ -188,10 +189,16 @@ function buildFileName(data, ext) {
   return `OBITO_${nome}_${cpfPart}_${stamp}.${ext}`;
 }
 
+function withFixedCartorioCns(data) {
+  if (!data || typeof data !== 'object') return data;
+  const certidao = data.certidao || {};
+  return { ...data, certidao: { ...certidao, cartorio_cns: FIXED_CARTORIO_CNS } };
+}
+
 async function generateJson() {
   if (!canProceed()) return;
   const data = mapperHtmlToJson(document);
-  const json = JSON.stringify(data, null, 2);
+  const json = JSON.stringify(withFixedCartorioCns(data), null, 2);
   const out = document.getElementById('json-output') as HTMLElement | null;
   if (out) (out as any).value = json;
   const name = buildFileName(data, 'json');
@@ -747,8 +754,9 @@ function updateDebug(data) {
 
 function updateOutputs() {
   const data = mapperHtmlToJson(document);
+  const jsonData = withFixedCartorioCns(data);
   const jsonEl = document.getElementById('json-output') as HTMLElement | null;
-  if (jsonEl) (jsonEl as any).value = JSON.stringify(data, null, 2);
+  if (jsonEl) (jsonEl as any).value = JSON.stringify(jsonData, null, 2);
   const xmlEl = document.getElementById('xml-output') as HTMLElement | null;
   if (xmlEl) (xmlEl as any).value = toXml(data, 'certidao_obito', 0);
   const printEl = document.getElementById('print-html') as HTMLElement | null;

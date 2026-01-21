@@ -328,6 +328,22 @@ a.type-btn {
 .campo textarea.invalid {
   border-color: var(--danger);
 }
+.field input.city-uf-warning,
+.field select.city-uf-warning,
+.campo input.city-uf-warning,
+.campo select.city-uf-warning {
+  border-color: #dc2626;
+  box-shadow: 0 0 0 2px rgba(220, 38, 38, 0.12);
+  background: #fff5f5;
+}
+.field.city-uf-warning label,
+.campo.city-uf-warning label {
+  color: #b42318;
+}
+.city-uf-warning.focus-emphasis {
+  border-color: #dc2626 !important;
+  box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.14) !important;
+}
 .field--error {
   position: relative; /* allow compact hint to be absolutely positioned near label */
 }
@@ -1269,7 +1285,9 @@ details.collapse summary {
 
 .row.row--fixed-2{
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 140px;
+  grid-template-columns: minmax(0, 1fr);
+  grid-auto-flow: column;
+  grid-auto-columns: max-content;
   gap: 12px;
   align-items: end;
 }
@@ -1301,7 +1319,9 @@ details.collapse summary {
    ========================================================= */
 .row.row--fixed-2{
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 140px;
+  grid-template-columns: minmax(0, 1fr);
+  grid-auto-flow: column;
+  grid-auto-columns: max-content;
   gap: 12px;
   align-items: end;
 }
