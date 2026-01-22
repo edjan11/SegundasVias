@@ -202,7 +202,7 @@ function getByPath(obj: any, path: string): any {
   return path.split('.').reduce((acc: any, p: string) => (acc ? acc[p] : undefined), obj);
 }
 
-function syncInputsFromState() {
+export function syncInputsFromState() {
   document.querySelectorAll('[data-bind]').forEach((el) => {
     const path = (el as any).getAttribute('data-bind') || '';
     const val = getByPath(state, path);

@@ -8,6 +8,7 @@ import {
   onlyDigits,
   dispatchInputEvents,
 } from './bind';
+import { syncInputsFromState } from '../../ui';
 
 type CertificatePayload = {
   certidao?: Record<string, unknown>;
@@ -408,6 +409,13 @@ export function applyCertificatePayloadToSecondCopy(
   } else {
     applyObjectToBinds('certidao', payload.certidao as Record<string, unknown>, root, warnings);
     applyObjectToBinds('registro', payload.registro as Record<string, unknown>, root, warnings);
+  }
+
+  // Ensure UI state is synced after programmatic application of values
+  try {
+    syncInputsFromState();
+  } catch (e) {
+    // ignore
   }
 
   return { ok: true, warnings };
