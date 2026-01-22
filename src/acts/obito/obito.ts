@@ -17,6 +17,7 @@ import { setupPrimaryShortcut, setupAutoNationality } from '../../shared/product
 import { setupAdminPanel } from '../../shared/ui/admin';
 import { setupActSelect, disableBrowserAutofill } from '../../ui/setup-ui';
 import { attachCityIntegrationToAll } from '../../ui/city-uf-ui';
+import { initUsability } from '../../shared/usability';
 import { createNameValidator } from '../../shared/nameValidator';
 import { buildObitoPrintHtml } from './printTemplate';
 import { validateMatriculaType } from '../../shared/matricula/type';
@@ -1199,6 +1200,7 @@ function setup() {
   // apply persisted drawer position and wire settings
   applyDrawerPosition(localStorage.getItem(DRAWER_POS_KEY) || 'top');
   setupSettingsPanel();
+  initUsability();
   // arrange panel according to saved preference (inline vs floating)
   arrangePanel();
   setupActSelect('obito');

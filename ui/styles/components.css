@@ -249,7 +249,7 @@ a.type-btn {
 .campo {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: var(--ui-gap, 4px);
 }
 .label {
   font-size: var(--labelFont);
@@ -281,17 +281,18 @@ a.type-btn {
   gap: 8px;
 }
 
-.field input,
+..field input,
 .field select,
 .field textarea,
 .campo input,
 .campo select,
 .campo textarea {
   height: var(--h);
+  min-height: var(--ui-input-min-height);
   border: 1px solid var(--border);
   border-radius: 8px;
   padding: 4px 8px;
-  font-size: var(--font);
+  font-size: var(--ui-font-size, var(--font));
   outline: none;
   width: 100%;
   background: #fff;
@@ -343,6 +344,26 @@ a.type-btn {
 .city-uf-warning.focus-emphasis {
   border-color: #dc2626 !important;
   box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.14) !important;
+}
+
+/* Focus emphasis (toggled by usability settings) */
+body.focus-strong .field input:focus,
+body.focus-strong .field select:focus,
+body.focus-strong .campo input:focus,
+body.focus-strong .campo select:focus,
+body.focus-strong .field textarea:focus,
+body.focus-strong .campo textarea:focus {
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.14);
+  border-color: var(--accent2);
+}
+
+/* ensure labels don't overflow layout when font is larger */
+.field label {
+  display: block;
+  line-height: 1.1;
+  max-height: calc(1.1em * 2);
+  overflow: hidden;
+  word-break: break-word;
 }
 .field--error {
   position: relative; /* allow compact hint to be absolutely positioned near label */

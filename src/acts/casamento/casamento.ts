@@ -19,6 +19,7 @@ import {
 } from '../../shared/productivity/index';
 import { setupAdminPanel } from '../../shared/ui/admin';
 import { setupActSelect, disableBrowserAutofill } from '../../ui/setup-ui';
+import { initUsability } from '../../shared/usability';
 import { attachCityIntegrationToAll } from '../../ui/city-uf-ui';
 import { createNameValidator } from '../../shared/nameValidator';
 import { updateActionButtons } from '../../ui';
@@ -804,6 +805,8 @@ function setup(): void {
   setupOutputDirs();
   // drawer setup intentionally skipped; drawer controls handled elsewhere
   setupSettingsPanelCasamento();
+  // Usability panel init (UI-only)
+  initUsability();
   setupDrawerInlineToggle();
   setupActSelect('casamento');
   setupPrimaryShortcut(
@@ -824,13 +827,16 @@ function setup(): void {
 function setupPrintButton(): void {
   (document.getElementById('btn-print') as HTMLElement | null)?.addEventListener('click', async (e) => {
     e.preventDefault();
-    if (!canProceed()) return;
+    const can = canProceed();
 
     const popup = window.open('', '_blank', 'width=900,height=1100');
     if (!popup) {
       showToast('Permita popups para imprimir/baixar PDF');
       setStatus('Popup bloqueado', true);
       return;
+    }
+    if (!can) {
+      setStatus('Campos invalidos: abrindo PDF mesmo assim.', true);
     }
 
     const data = mapperHtmlToJson(document as any);
@@ -840,7 +846,11 @@ function setupPrintButton(): void {
     } catch (err) {
       console.error('PDF template load error', err);
       setStatus('Falha ao carregar template do PDF', true);
-      try { popup.close(); } catch { /* ignore */ }
+      try {
+        popup.document.open();
+        popup.document.write('<!doctype html><meta charset="utf-8"><title>PDF</title><p>Falha ao carregar template do PDF.</p>');
+        popup.document.close();
+      } catch { /* ignore */ }
       return;
     }
 

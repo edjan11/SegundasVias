@@ -8,7 +8,7 @@
   <link rel="stylesheet" href="../styles/layout.css" />
   <link rel="stylesheet" href="../styles/components.css" />
 </head>
-<body>
+<body data-page="casamento">
   <div class="container">
     <div class="toolbar">
       <div class="toolbar-left">
@@ -103,6 +103,10 @@
             <label class="label">Data de nascimento</label>
             <input name="dataNascimentoNoivo" placeholder="DD/MM/AAAA" inputmode="tel" maxlength="10" autocomplete="off" data-date />
           </div>
+          <div class="campo span-6">
+            <label class="label">Cidade nascimento</label>
+            <input name="cidadeNascimentoNoivo" autocomplete="nope" autocorrect="off" autocapitalize="off" spellcheck="false" />
+          </div>
           <div class="campo span-3">
             <label class="label">UF nascimento</label>
             <select name="ufNascimentoNoivo" autocomplete="nope" spellcheck="false">
@@ -114,10 +118,6 @@
               <option>PI</option><option>RJ</option><option>RN</option><option>RS</option><option>RO</option>
               <option>RR</option><option>SC</option><option>SP</option><option>SE</option><option>TO</option>
             </select>
-          </div>
-          <div class="campo span-6">
-            <label class="label">Cidade nascimento</label>
-            <input name="cidadeNascimentoNoivo" autocomplete="nope" autocorrect="off" autocapitalize="off" spellcheck="false" />
           </div>
           <div class="campo span-3">
             <label class="label">Nacionalidade</label>
@@ -167,6 +167,10 @@
             <label class="label">Data de nascimento</label>
             <input name="dataNascimentoNoiva" placeholder="DD/MM/AAAA" inputmode="tel" maxlength="10" autocomplete="off" data-date />
           </div>
+          <div class="campo span-6">
+            <label class="label">Cidade nascimento</label>
+            <input name="cidadeNascimentoNoiva" autocomplete="nope" autocorrect="off" autocapitalize="off" spellcheck="false" />
+          </div>
           <div class="campo span-3">
             <label class="label">UF nascimento</label>
             <select name="ufNascimentoNoiva" autocomplete="nope" spellcheck="false">
@@ -178,10 +182,6 @@
               <option>PI</option><option>RJ</option><option>RN</option><option>RS</option><option>RO</option>
               <option>RR</option><option>SC</option><option>SP</option><option>SE</option><option>TO</option>
             </select>
-          </div>
-          <div class="campo span-6">
-            <label class="label">Cidade nascimento</label>
-            <input name="cidadeNascimentoNoiva" autocomplete="nope" autocorrect="off" autocapitalize="off" spellcheck="false" />
           </div>
           <div class="campo span-3">
             <label class="label">Nacionalidade</label>
@@ -368,14 +368,25 @@
                 <option value="side">Lateral</option>
               </select>
             </div>
-            <div class="field span-6">
-              <label>Preferencias</label>
-              <div class="field-line">
-                <label class="inline-check"><input type="checkbox" id="settings-enable-cpf" /> Validar CPF</label>
-                <label class="inline-check"><input type="checkbox" id="settings-enable-name" /> Validar Nomes</label>
+              <div class="field span-6">
+                <label>Preferencias</label>
+                <div class="field-line">
+                  <label class="inline-check"><input type="checkbox" id="settings-enable-cpf" /> Validar CPF</label>
+                  <label class="inline-check"><input type="checkbox" id="settings-enable-name" /> Validar Nomes</label>
+                </div>
+              </div>
+              <div class="field span-6">
+                <label>Layout</label>
+                <div class="field-line">
+                  <label class="inline-check"><input type="checkbox" id="settings-fixed-layout" /> Layout fixo (nao quebrar no zoom)</label>
+                </div>
+                <div class="field-line" style="margin-top:4px;">
+                  <label class="inline-check">Zoom interno</label>
+                  <input type="range" id="settings-zoom" min="80" max="110" step="1" />
+                  <span id="settings-zoom-value">100%</span>
+                </div>
               </div>
             </div>
-          </div>
           <div style="margin-top:10px;" class="toolbar-left">
             <button id="settings-save" class="btn" type="button">Salvar</button>
             <button id="settings-apply" class="btn secondary" type="button">Aplicar sem salvar</button>
