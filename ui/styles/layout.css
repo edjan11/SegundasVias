@@ -9,7 +9,14 @@
   border: 1px solid var(--border);
   border-radius: var(--radius);
   background: var(--bg);
-  padding: 10px;
+  padding: 12px;
+  box-shadow: 0 1px 4px rgba(17, 24, 39, 0.03);
+}
+
+/* usability card distinct but subtle */
+#usability-card {
+  border-left: 3px solid rgba(37, 99, 235, 0.08);
+  background: linear-gradient(180deg, rgba(255,255,255,0.98), rgba(250,250,252,0.98));
 }
 
 .cardTitle {
@@ -49,6 +56,25 @@
 .row .field.grow {
   flex: 1 1 auto;
   min-width: 120px;
+}
+
+body.ui-fixed-layout {
+  overflow-x: auto;
+}
+
+body.ui-fixed-layout .container {
+  min-width: 1100px;
+  width: 1100px;
+  max-width: none;
+  margin: 0;
+}
+
+body.ui-fixed-layout .row {
+  flex-wrap: nowrap;
+}
+
+.container.ui-zoomed {
+  transform-origin: top left;
 }
 
 .span-1 {

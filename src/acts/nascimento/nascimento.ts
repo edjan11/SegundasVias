@@ -20,7 +20,6 @@ import { setupAdminPanel } from '../../shared/ui/admin';
 
 import { setupActSelect } from '../../ui/setup-ui';
 import { attachAutocomplete } from '../../ui/city-autocomplete';
-import { initUsability } from '../../shared/usability';
 import { attachCityUfAutofill, attachCityIntegrationToAll } from '../../ui/city-uf-ui';
 import { buildIndexFromData } from '../../shared/city-uf-resolver';
 
@@ -959,8 +958,6 @@ function setupApp(): void {
   setupFocusEmphasis();
   setupAdminPanel();
   setupSettingsPanel();
-  // Init usability controls (UI-only)
-  initUsability();
   setupOutputDirs();
   setupPrintButton();
   setupActions();

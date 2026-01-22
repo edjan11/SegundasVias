@@ -1,6 +1,6 @@
 // src/prints/shared/openAndSavePdf.ts
-export function openHtmlAndSavePdf(html: string, filenamePrefix: string) {
-  const w = window.open('', '_blank', 'width=900,height=1100');
+export function openHtmlAndSavePdf(html: string, filenamePrefix: string, targetWindow?: Window | null) {
+  const w = targetWindow || window.open('', '_blank', 'width=900,height=1100');
   if (!w) throw new Error('Popup bloqueado');
 
   w.document.open();
@@ -8,5 +8,6 @@ export function openHtmlAndSavePdf(html: string, filenamePrefix: string) {
   w.document.close();
 
   void filenamePrefix;
+  w.focus();
   w.focus();
 }

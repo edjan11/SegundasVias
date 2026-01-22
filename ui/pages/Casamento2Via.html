@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8" />
@@ -8,11 +8,11 @@
   <link rel="stylesheet" href="../styles/layout.css" />
   <link rel="stylesheet" href="../styles/components.css" />
 </head>
-<body data-page="casamento">
+<body class="page-casamento">
   <div class="container">
     <div class="toolbar">
       <div class="toolbar-left">
-        <div class="app-title">2ª Via de Certidão</div>
+        <div class="app-title">2Âª Via de CertidÃ£o</div>
         <div class="ato-picker">
           <label class="label" for="ato-select">Ato</label>
           <select id="ato-select" class="ato-select">
@@ -55,8 +55,8 @@
             <input name="dataCasamento" placeholder="DD/MM/AAAA" inputmode="tel" maxlength="10" autocomplete="off" data-date data-required />
           </div>
           <div class="campo span-3">
-            <label class="label">Tipo de casamento</label>
-            <select data-bind="ui.casamento_tipo" name="tipoCasamento" id="casamento-tipo-select">
+            <label class="label">Tipo de casamento <span class="obrigatorio">*</span></label>
+            <select data-bind="ui.casamento_tipo" name="tipoCasamento" id="casamento-tipo-select" data-required>
               <option value=""></option>
               <option value="2">Civil</option>
               <option value="3">Religioso</option>
@@ -220,7 +220,7 @@
         <div class="subTitulo">Livro / Folha / Termo</div>
         <div class="grid">
           <div class="campo span-3">
-            <label class="label">Cartório (ofício)</label>
+            <label class="label">CartÃ³rio (ofÃ­cio)</label>
             <select data-bind="ui.cartorio_oficio" id="cartorio-oficio" class="w-cartorio">
               <option></option>
               <option value="6">6</option>
@@ -315,25 +315,55 @@
       <div class="drawer-title">Painel</div>
       <button id="drawer-close" class="btn tiny secondary" type="button">Fechar</button>
     </div>
-    <div class="drawer-body">
+        <div class="drawer-body">
       <div class="tabbar">
         <button class="tab-btn active" data-tab="tab-config">Configuracoes</button>
         <button class="tab-btn" data-tab="tab-json">JSON</button>
         <button class="tab-btn" data-tab="tab-xml">XML</button>
         <button class="tab-btn" data-tab="tab-admin">Administracao</button>
-          <button class="tab-btn" data-tab="tab-debug">Debug</button>
+        <button class="tab-btn" data-tab="tab-debug">Debug</button>
       </div>
 
       <div id="tab-config" class="tab-pane active">
+        <div id="name-db-status" style="display:none;"></div>
+
         <div class="card">
           <div class="cardTitle">Settings</div>
           <div class="grid">
             <div class="field span-12">
               <label>Exibir painel inline</label>
               <div class="field-line">
-                <label class="inline-check"><input type="checkbox" id="settings-panel-inline" /> Exibir inline (se desmarcado, painel flutuante será usado)</label>
+                <label class="inline-check"><input type="checkbox" id="settings-panel-inline" /> Exibir inline (se desmarcado, painel flutuante sera usado)</label>
               </div>
             </div>
+            <div class="field span-6">
+              <label>Posicionamento do painel (nao usado em modo inline)</label>
+              <select id="settings-drawer-position" class="campo">
+                <option value="bottom-right">Inferior direito</option>
+                <option value="top">Topo central</option>
+                <option value="side">Lateral</option>
+              </select>
+            </div>
+            <div class="field span-6">
+              <label>Preferencias</label>
+              <div class="field-line">
+                <label class="inline-check"><input type="checkbox" id="settings-enable-cpf" /> Validar CPF</label>
+                <label class="inline-check"><input type="checkbox" id="settings-enable-name" /> Validar Nomes</label>
+              </div>
+            </div>
+            <div class="field span-6">
+              <label>Layout</label>
+              <div class="field-line">
+                <label class="inline-check"><input type="checkbox" id="settings-fixed-layout" /> Layout fixo (nao quebrar no zoom)</label>
+              </div>
+              <div class="field-line" style="margin-top:4px;">
+                <label class="inline-check">Zoom interno</label>
+                <input type="range" id="settings-zoom" min="80" max="110" step="1" />
+                <span id="settings-zoom-value">100%</span>
+              </div>
+            </div>
+          </div>
+        </div>
 
         <div class="card">
           <div class="cardTitle">Pastas</div>
@@ -360,38 +390,6 @@
           </div>
         </div>
 
-            <div class="field span-6">
-              <label>Posicionamento do painel (não usado em modo inline)</label>
-              <select id="settings-drawer-position" class="campo">
-                <option value="bottom-right">Inferior direito</option>
-                <option value="top">Topo central</option>
-                <option value="side">Lateral</option>
-              </select>
-            </div>
-              <div class="field span-6">
-                <label>Preferencias</label>
-                <div class="field-line">
-                  <label class="inline-check"><input type="checkbox" id="settings-enable-cpf" /> Validar CPF</label>
-                  <label class="inline-check"><input type="checkbox" id="settings-enable-name" /> Validar Nomes</label>
-                </div>
-              </div>
-              <div class="field span-6">
-                <label>Layout</label>
-                <div class="field-line">
-                  <label class="inline-check"><input type="checkbox" id="settings-fixed-layout" /> Layout fixo (nao quebrar no zoom)</label>
-                </div>
-                <div class="field-line" style="margin-top:4px;">
-                  <label class="inline-check">Zoom interno</label>
-                  <input type="range" id="settings-zoom" min="80" max="110" step="1" />
-                  <span id="settings-zoom-value">100%</span>
-                </div>
-              </div>
-            </div>
-          <div style="margin-top:10px;" class="toolbar-left">
-            <button id="settings-save" class="btn" type="button">Salvar</button>
-            <button id="settings-apply" class="btn secondary" type="button">Aplicar sem salvar</button>
-          </div>
-        </div>
         <div class="card">
           <div class="cardTitle">Certidao</div>
           <div class="grid">
@@ -455,10 +453,15 @@
               </div>
             </div>
           </div>
-        <div class="toolbar-left" style="margin-top: 10px;">
-          <button id="config-save" class="btn" type="button">Salvar configuracao</button>
+          <div class="toolbar-left" style="margin-top: 10px;">
+            <button id="config-save" class="btn" type="button">Salvar configuracao</button>
+          </div>
         </div>
-      </div>
+
+        <div style="margin-top:10px;" class="toolbar-left">
+          <button id="settings-save" class="btn" type="button">Salvar</button>
+          <button id="settings-apply" class="btn secondary" type="button">Aplicar sem salvar</button>
+        </div>
       </div>
 
       <div id="tab-json" class="tab-pane">
@@ -477,7 +480,6 @@
         <button id="btn-xml" type="button" class="btn xml compact">XML</button>
       </div>
 
-      
       <div id="tab-admin" class="tab-pane">
         <div class="card">
           <div class="cardTitle">Administracao</div>
@@ -541,6 +543,43 @@
         });
       }catch(e){}
     })();
+    (function(){
+      try{
+        const drawer = document.getElementById('drawer');
+        if (!drawer) return;
+        const tabbar = drawer.querySelector('.tabbar');
+        if (!tabbar) return;
+        const buttons = Array.from(tabbar.querySelectorAll('.tab-btn'));
+        const panes = Array.from(drawer.querySelectorAll('.tab-pane'));
+        const activate = (id) => {
+          buttons.forEach((b) => b.classList.toggle('active', b.getAttribute('data-tab') === id));
+          panes.forEach((p) => p.classList.toggle('active', p.getAttribute('id') === id));
+        };
+        tabbar.addEventListener('click', (e) => {
+          const btn = e.target && e.target.closest ? e.target.closest('.tab-btn') : null;
+          if (!btn) return;
+          e.preventDefault();
+          const id = btn.getAttribute('data-tab');
+          if (id) activate(id);
+        });
+        const initial = (tabbar.querySelector('.tab-btn.active') || tabbar.querySelector('.tab-btn'));
+        if (initial) activate(initial.getAttribute('data-tab'));
+
+        const normalizeStatus = () => {
+          const statusEl = document.getElementById('name-db-status');
+          if (statusEl && statusEl.textContent) {
+            statusEl.textContent = statusEl.textContent
+              .replace(/disponÃ­vel/g, 'disponível')
+              .replace(/nÃ£o/g, 'não')
+              .replace(/padrÃ£o/g, 'padrão');
+          }
+        };
+        normalizeStatus();
+        setTimeout(normalizeStatus, 600);
+        setTimeout(normalizeStatus, 1500);
+      }catch(e){}
+    })();
   </script>
 </body>
 </html>
+

@@ -19,7 +19,6 @@ import {
 } from '../../shared/productivity/index';
 import { setupAdminPanel } from '../../shared/ui/admin';
 import { setupActSelect, disableBrowserAutofill } from '../../ui/setup-ui';
-import { initUsability } from '../../shared/usability';
 import { attachCityIntegrationToAll } from '../../ui/city-uf-ui';
 import { createNameValidator } from '../../shared/nameValidator';
 import { updateActionButtons } from '../../ui';
@@ -28,6 +27,7 @@ import { validateMatriculaType } from '../../shared/matricula/type';
 import { buildCasamentoXmlFromJson } from './printCasamentoXml';
 import { buildCasamentoPdfHtmlFromTemplate } from '../../prints/casamento/printCasamentoTjTemplate';
 import { openHtmlAndSavePdf } from '../../prints/shared/openAndSavePdf';
+import { validateCasamentoTipo } from '../../shared/validators/casamento';
 
 const NAME_MODE_KEY = 'ui.nameValidationMode';
 let nameValidationMode = localStorage.getItem(NAME_MODE_KEY) || 'blur';
@@ -805,8 +805,6 @@ function setup(): void {
   setupOutputDirs();
   // drawer setup intentionally skipped; drawer controls handled elsewhere
   setupSettingsPanelCasamento();
-  // Usability panel init (UI-only)
-  initUsability();
   setupDrawerInlineToggle();
   setupActSelect('casamento');
   setupPrimaryShortcut(
@@ -893,6 +891,21 @@ function setupValidation(): void {
     input.addEventListener('blur', onBlur);
     onInput();
   });
+
+  const tipoCasamento = document.querySelector<HTMLSelectElement>('select[name="tipoCasamento"]');
+  if (tipoCasamento) {
+    const field = tipoCasamento.closest('.campo');
+    const required = true;
+    const handler = () => {
+      const res = validateCasamentoTipo(tipoCasamento.value);
+      const state = getFieldState({ required, value: tipoCasamento.value, isValid: res.ok });
+      applyFieldState(field as HTMLElement | null, state);
+    };
+    tipoCasamento.addEventListener('change', handler);
+    tipoCasamento.addEventListener('blur', handler);
+    handler();
+  }
+
   document.querySelectorAll('[data-name-validate]').forEach((input) => {
     const field = (input as Element).closest('.campo');
     const required = (input as HTMLElement).hasAttribute('data-required');

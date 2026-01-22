@@ -1,9 +1,6 @@
 :root {
   --gap: 8px;
-  --ui-gap: 8px; /* spacing for UI components */
-  --ui-padding: 8px;
   --radius: 10px;
-  --ui-radius: var(--radius);
   --border: #d6dde8;
   --label: #637083;
   --text: #1f2a37;
@@ -14,18 +11,9 @@
   --danger: #dc2626;
   --ok: #16a34a;
   --h: 30px;
-  --ui-input-min-height: var(--h);
-  /* default font slightly smaller than before */
-  --font: 11px;
-  --ui-font-size: 11px;
+  --font: 12px;
   --labelFont: 11px;
 }
-
-/* font size utility classes (applied on body) */
-.font-sm { --ui-font-size: 11px; --h: 28px; --ui-input-min-height: 28px; }
-.font-md { --ui-font-size: 12px; --h: 32px; --ui-input-min-height: 32px; }
-.font-lg { --ui-font-size: 14px; --h: 36px; --ui-input-min-height: 36px; }
-.font-xl { --ui-font-size: 16px; --h: 40px; --ui-input-min-height: 40px; }
 
 * {
   box-sizing: border-box;

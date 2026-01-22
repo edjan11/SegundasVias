@@ -81,8 +81,42 @@
   color: #1f2937;
 }
 .drawer-body {
-  padding: 8px 10px;
+  padding: 12px 14px;
   overflow: auto;
+}
+
+body.page-casamento #drawer .drawer-body {
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+}
+
+body.page-casamento #drawer .tabbar {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: #fff;
+  padding-bottom: 8px;
+}
+
+body.page-casamento #drawer .tab-pane {
+  display: none;
+}
+
+body.page-casamento #drawer .tab-pane.active {
+  display: block;
+}
+
+body.page-casamento #name-db-status {
+  word-break: break-word;
+}
+
+.cardTitle {
+  font-weight: 700;
+  font-size: 13px;
+  margin-bottom: 10px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid rgba(15,23,42,0.04);
 }
 .toolbar-left {
   display: flex;
@@ -141,8 +175,14 @@ a.btn {
   transform: translateY(-1px);
 }
 .btn.tiny {
-  padding: 3px 6px;
-  font-size: 10px;
+  padding: 4px 8px;
+  font-size: 11px;
+  border-radius: 6px;
+  background: #f8fafc;
+  border-color: #e6edf7;
+  color: var(--text);
+  min-width: 56px;
+  text-transform: none;
 }
 
 /* Compact button variant for toolbar quick actions */
@@ -281,7 +321,7 @@ a.type-btn {
   gap: 8px;
 }
 
-..field input,
+.field input,
 .field select,
 .field textarea,
 .campo input,
@@ -291,25 +331,28 @@ a.type-btn {
   min-height: var(--ui-input-min-height);
   border: 1px solid var(--border);
   border-radius: 8px;
-  padding: 4px 8px;
+  padding: 6px 10px;
   font-size: var(--ui-font-size, var(--font));
+  line-height: 1.25;
   outline: none;
   width: 100%;
   background: #fff;
-  text-transform: uppercase;
+  text-transform: none;
+  color: var(--text);
 }
 .field select,
 .campo select {
   appearance: none;
   background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'><path d='M1 1l4 4 4-4' stroke='%23334155' stroke-width='1.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/></svg>");
   background-repeat: no-repeat;
-  background-position: right 8px center;
+  background-position: right 12px center;
   background-size: 10px 6px;
-  padding-right: 26px;
+  padding-right: 36px;
 }
 .field select option,
 .campo select option {
-  text-transform: uppercase;
+  text-transform: none;
+  color: var(--text);
 }
 .input-locked {
   background: #f1f5f9 !important;
@@ -374,8 +417,9 @@ body.layout-fixed .container { min-width: 980px; }
 body.compact-mode { --ui-gap: 6px; --ui-padding: 6px; }
 
 /* font selection active styling */
-#usability-card .btn.tiny.active { background: var(--accent); color: white; border-color: var(--accent); }
+#usability-card .btn.tiny.active { background: var(--accent); color: white; border-color: var(--accent); box-shadow: 0 1px 2px rgba(37,99,235,0.12); }
 #usability-card .btn.tiny { margin-right: 6px; }
+#usability-card .field-line { gap: 8px; align-items: center; display: flex; }
 .field--error {
   position: relative; /* allow compact hint to be absolutely positioned near label */
 }
@@ -942,6 +986,35 @@ body.compact-mode { --ui-gap: 6px; --ui-padding: 6px; }
 
 .filiacao-grid .w-uf {
   max-width: none;
+}
+
+body.page-nascimento select.w-uf {
+  max-width: 70px;
+  width: 70px;
+}
+
+body.page-nascimento select:not([multiple]):not([size]) {
+  padding-right: 22px;
+}
+
+body.page-nascimento .name-field > .label-row {
+  gap: 6px;
+}
+
+body.page-nascimento .name-field .label-row .name-suggest {
+  padding: 0 4px;
+  min-height: 16px;
+}
+
+body.page-nascimento .filiacao-avos .name-suggest {
+  padding: 0 4px;
+  min-height: 16px;
+  font-size: 10px;
+}
+
+body.page-nascimento .filiacao-avos .name-suggest-check {
+  width: 12px;
+  height: 12px;
 }
 
 .link-btn {

@@ -117,6 +117,7 @@ export async function buildCasamentoPdfHtmlFromTemplate(
     '{{CONJUGE2_GENITORES}}': fallback(c2.genitores ?? '', 'NAO CONSTA'),
 
     '{{DATA_CELEBRACAO_EXTENSO}}': fallback(dataCelebracaoExtenso, 'NAO CONSTA'),
+    '{{DATA_REGISTRO_EXTENSO}}': fallback(dataRegistroExtenso, 'NAO CONSTA'),
     '{{DATA_CELEBRACAO_DIA}}': fallback(parseDateParts(reg.data_celebracao || '')?.dd || '', 'NAO CONSTA'),
     '{{DATA_CELEBRACAO_MES}}': fallback(parseDateParts(reg.data_celebracao || '')?.mm || '', 'NAO CONSTA'),
     '{{DATA_CELEBRACAO_ANO}}': fallback(parseDateParts(reg.data_celebracao || '')?.yyyy || '', 'NAO CONSTA'),
