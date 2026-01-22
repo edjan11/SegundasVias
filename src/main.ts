@@ -392,6 +392,10 @@ ipcMain.handle('db:ingest', async (_event, payload) => {
   return _db.ingest(payload || {});
 });
 
+ipcMain.handle('db:search', async (_event, payload) => {
+  return _db.search(payload || {});
+});
+
 ipcMain.handle('db:list', async (_event, payload) => {
   return _db.list(payload || {});
 });

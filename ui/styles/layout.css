@@ -4,6 +4,17 @@
   padding: 12px;
 }
 
+.app-shell {
+  display: flex;
+  gap: 12px;
+  align-items: stretch;
+}
+
+.main-pane {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
 .card {
   margin-top: 10px;
   border: 1px solid var(--border);

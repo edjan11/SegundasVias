@@ -16,6 +16,7 @@ contextBridge.exposeInMainWorld('api', {
   openXmlDir: () => ipcRenderer.invoke('app:open-xml-dir'),
   dbSaveDraft: (payload) => ipcRenderer.invoke('db:save-draft', payload),
   dbIngest: (payload) => ipcRenderer.invoke('db:ingest', payload),
+  dbSearch: (payload) => ipcRenderer.invoke('db:search', payload),
   dbList: (payload) => ipcRenderer.invoke('db:list', payload),
   dbGet: (id) => ipcRenderer.invoke('db:get', id),
   dbUpdateStatus: (payload) => ipcRenderer.invoke('db:update-status', payload),

@@ -60,6 +60,9 @@ export function setDirty(flag: boolean): void {
   }
 }
 
+export { setupDrawerTabs } from './panels/drawer-tabs';
+export { setupOpsPanel } from './panels/ops-panel';
+
 // ensure drawer toggle works even if per-act setup skipped or button recreated
 try {
   if (!window._drawerDelegated) {

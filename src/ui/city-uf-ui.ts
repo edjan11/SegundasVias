@@ -387,7 +387,18 @@ export async function attachCityIntegrationToAll(
           } catch (e) {}
         } else {
           try {
-            const detachFill = attachCityUfAutofill(node, ufEl as any, resolverIndex, () => {});
+            const detachFill = attachCityUfAutofill(node, ufEl as any, resolverIndex, (res) => {
+              try {
+                const dataBind = node.getAttribute('data-bind') || '';
+                if (res && res.status === 'inferred') {
+                  // When parents' city autofills, jump to maternal grandmother
+                  if (dataBind && (dataBind.includes('pai') || dataBind.includes('mae'))) {
+                    const target = document.querySelector('input[data-bind="ui.mae_avo_materna"]') as HTMLInputElement | null;
+                    if (target) setTimeout(() => target.focus(), 0);
+                  }
+                }
+              } catch (e) {}
+            });
             detaches.push(() => {
               try {
                 (detachFill as any)();

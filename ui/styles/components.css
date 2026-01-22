@@ -1264,6 +1264,76 @@ details.collapse summary {
   top: 80px;
   bottom: 12px;
   width: min(520px, 38vw);
+  transform: translateX(110%);
+}
+
+/* Operational side rail + panels */
+.ops-rail {
+  width: 48px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: center;
+  padding: 8px 4px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 6px 18px rgba(15, 23, 42, 0.06);
+  position: sticky;
+  top: 12px;
+  height: fit-content;
+}
+.ops-rail .ops-btn {
+  width: 40px;
+  height: 32px;
+  padding: 0;
+  font-size: 10px;
+  border-radius: 8px;
+}
+.ops-rail .ops-btn.active {
+  background: linear-gradient(180deg,#2563eb,#1e40af);
+  color: #fff;
+  border-color: #1e40af;
+}
+
+.ops-pane {
+  width: min(520px, 40vw);
+  max-height: calc(100vh - 24px);
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.12);
+  display: none;
+  flex-direction: column;
+  overflow: hidden;
+  position: sticky;
+  top: 12px;
+}
+.ops-pane.open {
+  display: flex;
+}
+.ops-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--border);
+}
+.ops-title {
+  font-weight: 700;
+  font-size: 12px;
+}
+.ops-body {
+  padding: 10px 12px;
+  overflow: auto;
+}
+.ops-panel {
+  display: none;
+}
+.ops-panel.active {
+  display: block;
+}
+.drawer.position-side.open {
   transform: translateX(0);
 }
 
@@ -1571,5 +1641,48 @@ details.collapse summary {
   border: 1px solid rgba(6,95,70,0.08);
   background: #fff;
   color: #065f46;
+}
+
+/* Search panel (drawer) */
+.search-results {
+  margin-top: 10px;
+  overflow-x: auto;
+}
+.search-summary {
+  font-size: 11px;
+  color: #475569;
+  margin: 6px 0;
+}
+.search-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 11px;
+}
+.search-table th,
+.search-table td {
+  border-bottom: 1px solid var(--border);
+  padding: 6px 6px;
+  text-align: left;
+  vertical-align: top;
+}
+.search-table th {
+  font-weight: 700;
+  color: #1f2937;
+  background: #f8fafc;
+}
+.search-table tbody tr:hover {
+  background: #f8fafc;
+}
+.import-status {
+  margin-top: 8px;
+  font-size: 11px;
+  color: #64748b;
+  display: none;
+}
+.import-status.visible {
+  display: block;
+}
+.import-status.error {
+  color: #b91c1c;
 }
 

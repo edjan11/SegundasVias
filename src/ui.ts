@@ -152,6 +152,8 @@ declare global {
   interface Window {
     api?: {
       dbSaveDraft?: Function;
+      dbIngest?: Function;
+      dbSearch?: Function;
       saveXml?: Function;
       saveJson?: Function;
       getConfig?: Function;

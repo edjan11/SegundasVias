@@ -9,7 +9,9 @@
   <link rel="stylesheet" href="../styles/components.css" />
 </head>
 <body class="page-casamento">
-  <div class="container">
+  <div class="app-shell">
+    <div class="main-pane">
+      <div class="container">
     <div class="toolbar">
       <div class="toolbar-left">
         <div class="app-title">2Âª Via de CertidÃ£o</div>
@@ -306,9 +308,89 @@
       </div>
       </div>
     </form>
-  </div>
+      </div>
+    </div>
 
-  <div id="panel-inline"></div>
+    <div id="panel-inline"></div>
+
+    <div class="ops-pane" id="ops-pane" aria-hidden="true">
+      <div class="ops-header">
+        <div class="ops-title">Operacoes</div>
+        <button class="btn tiny secondary ops-close" type="button">Fechar</button>
+      </div>
+      <div class="ops-body">
+        <div id="op-search" class="ops-panel">
+          <div class="card">
+            <div class="cardTitle">Busca</div>
+            <div class="grid search-grid">
+              <div class="field span-12">
+                <label>Busca livre</label>
+                <input id="search-q" placeholder="Nome, CPF, matricula, municipio..." />
+              </div>
+              <div class="field span-6">
+                <label>Nome</label>
+                <input id="search-nome" />
+              </div>
+              <div class="field span-6">
+                <label>Nome da mae</label>
+                <input id="search-mae" />
+              </div>
+              <div class="field span-4">
+                <label>CPF</label>
+                <input id="search-cpf" inputmode="numeric" />
+              </div>
+              <div class="field span-4">
+                <label>Data de nascimento</label>
+                <input id="search-data" placeholder="DD/MM/AAAA" inputmode="tel" maxlength="10" />
+              </div>
+              <div class="field span-4">
+                <label>Matricula</label>
+                <input id="search-matricula" inputmode="numeric" />
+              </div>
+              <div class="field span-4">
+                <label>CNS</label>
+                <input id="search-cns" inputmode="numeric" />
+              </div>
+              <div class="field span-4">
+                <label>Tipo</label>
+                <select id="search-kind">
+                  <option value="">Todos</option>
+                  <option value="nascimento">Nascimento</option>
+                  <option value="casamento">Casamento</option>
+                  <option value="obito">Obito</option>
+                </select>
+              </div>
+            </div>
+            <div class="toolbar-left" style="margin-top: 10px;">
+              <button id="btn-search" class="btn secondary" type="button">Buscar</button>
+            </div>
+          </div>
+          <div id="search-results" class="search-results"></div>
+        </div>
+
+        <div id="op-import" class="ops-panel">
+          <div class="card">
+            <div class="cardTitle">Importar</div>
+            <div class="grid">
+              <div class="field span-12">
+                <label>Arquivo (JSON ou XML)</label>
+                <input id="import-file" type="file" accept=".json,.xml,application/json,text/xml,application/xml" />
+              </div>
+            </div>
+            <div class="toolbar-left" style="margin-top: 10px;">
+              <button id="btn-import" class="btn secondary" type="button">Importar</button>
+            </div>
+            <div id="import-status" class="import-status"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="ops-rail" aria-hidden="true">
+      <button class="btn secondary ops-btn" data-target="op-search" type="button">BUSCA</button>
+      <button class="btn secondary ops-btn" data-target="op-import" type="button">IMPORTAR</button>
+    </div>
+  </div>
 
   <div id="drawer" class="drawer">
     <div class="drawer-header">
@@ -318,8 +400,6 @@
         <div class="drawer-body">
       <div class="tabbar">
         <button class="tab-btn active" data-tab="tab-config">Configuracoes</button>
-        <button class="tab-btn" data-tab="tab-json">JSON</button>
-        <button class="tab-btn" data-tab="tab-xml">XML</button>
         <button class="tab-btn" data-tab="tab-admin">Administracao</button>
         <button class="tab-btn" data-tab="tab-debug">Debug</button>
       </div>
@@ -462,22 +542,6 @@
           <button id="settings-save" class="btn" type="button">Salvar</button>
           <button id="settings-apply" class="btn secondary" type="button">Aplicar sem salvar</button>
         </div>
-      </div>
-
-      <div id="tab-json" class="tab-pane">
-        <div class="field">
-          <label>JSON</label>
-          <textarea id="json-output" rows="10" readonly></textarea>
-        </div>
-        <button id="btn-json" type="button" class="btn json compact">JSON</button>
-      </div>
-
-      <div id="tab-xml" class="tab-pane">
-        <div class="field">
-          <label>XML</label>
-          <textarea id="xml-output" rows="10" readonly></textarea>
-        </div>
-        <button id="btn-xml" type="button" class="btn xml compact">XML</button>
       </div>
 
       <div id="tab-admin" class="tab-pane">

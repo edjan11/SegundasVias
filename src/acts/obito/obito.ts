@@ -15,10 +15,11 @@ import {
 } from '../../shared/matricula/cnj';
 import { setupPrimaryShortcut, setupAutoNationality } from '../../shared/productivity/index';
 import { setupAdminPanel } from '../../shared/ui/admin';
-import { setupActSelect, disableBrowserAutofill } from '../../ui/setup-ui';
+import { setupActSelect, disableBrowserAutofill, setupDrawerTabs, setupOpsPanel } from '../../ui/setup-ui';
 import { attachCityIntegrationToAll } from '../../ui/city-uf-ui';
 import { createNameValidator } from '../../shared/nameValidator';
 import { buildObitoPrintHtml } from './printTemplate';
+import { setupSearchPanel } from '../../ui/panels/search-panel';
 import { validateMatriculaType } from '../../shared/matricula/type';
 
 const NAME_MODE_KEY = 'ui.nameValidationMode';
@@ -1197,8 +1198,10 @@ function setup() {
   }
   // drawer removed for inline layout; no setupDrawer call
   // apply persisted drawer position and wire settings
-  applyDrawerPosition(localStorage.getItem(DRAWER_POS_KEY) || 'top');
+  applyDrawerPosition(localStorage.getItem(DRAWER_POS_KEY) || 'side');
   setupSettingsPanel();
+  setupDrawerTabs();
+  setupOpsPanel();
   // arrange panel according to saved preference (inline vs floating)
   arrangePanel();
   setupActSelect('obito');
@@ -1210,6 +1213,7 @@ function setup() {
   setupTogglePanels();
   setupLiveOutputs();
   setupFocusEmphasis();
+  setupSearchPanel();
   // ensure action buttons reflect current validity
   updateActionButtons();
   (document.getElementById('form-obito') as HTMLElement | null)?.addEventListener(

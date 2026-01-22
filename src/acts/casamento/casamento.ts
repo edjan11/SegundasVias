@@ -18,7 +18,7 @@ import {
   setupCasamentoDates,
 } from '../../shared/productivity/index';
 import { setupAdminPanel } from '../../shared/ui/admin';
-import { setupActSelect, disableBrowserAutofill } from '../../ui/setup-ui';
+import { setupActSelect, disableBrowserAutofill, setupDrawerTabs, setupOpsPanel } from '../../ui/setup-ui';
 import { attachCityIntegrationToAll } from '../../ui/city-uf-ui';
 import { createNameValidator } from '../../shared/nameValidator';
 import { updateActionButtons } from '../../ui';
@@ -28,6 +28,7 @@ import { buildCasamentoXmlFromJson } from './printCasamentoXml';
 import { buildCasamentoPdfHtmlFromTemplate } from '../../prints/casamento/printCasamentoTjTemplate';
 import { openHtmlAndSavePdf } from '../../prints/shared/openAndSavePdf';
 import { validateCasamentoTipo } from '../../shared/validators/casamento';
+import { setupSearchPanel } from '../../ui/panels/search-panel';
 
 const NAME_MODE_KEY = 'ui.nameValidationMode';
 let nameValidationMode = localStorage.getItem(NAME_MODE_KEY) || 'blur';
@@ -51,12 +52,13 @@ function setupSettingsPanelCasamento(): void {
   const zoomValue = document.getElementById('settings-zoom-value') as HTMLElement | null;
   const saveBtn = document.getElementById('settings-save') as HTMLElement | null;
   const applyBtn = document.getElementById('settings-apply') as HTMLElement | null;
-  const pos = localStorage.getItem('ui.drawerPosition') || 'top';
+  const pos = localStorage.getItem('ui.drawerPosition') || 'side';
   const enableCpf = localStorage.getItem('ui.enableCpfValidation') !== 'false';
   const enableName = localStorage.getItem('ui.enableNameValidation') !== 'false';
   const fixedLayout = localStorage.getItem(FIXED_LAYOUT_KEY) === 'true';
   const zoomStored = Number(localStorage.getItem(INTERNAL_ZOOM_KEY) || '100') || 100;
   if (select) select.value = pos;
+  applyDrawerPosition(pos);
   if (cbCpf) cbCpf.checked = !!enableCpf;
   if (cbName) cbName.checked = !!enableName;
   if (cbFixed) cbFixed.checked = !!fixedLayout;
@@ -805,6 +807,8 @@ function setup(): void {
   setupOutputDirs();
   // drawer setup intentionally skipped; drawer controls handled elsewhere
   setupSettingsPanelCasamento();
+  setupDrawerTabs();
+  setupOpsPanel();
   setupDrawerInlineToggle();
   setupActSelect('casamento');
   setupPrimaryShortcut(
@@ -816,6 +820,7 @@ function setup(): void {
   setupFocusEmphasis();
   setupLiveOutputs();
   updateActionButtons();
+  setupSearchPanel();
 
   setupCityIntegration();
   setupDisableAutofill();

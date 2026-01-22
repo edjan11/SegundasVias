@@ -18,13 +18,14 @@ import { buildMatriculaBase30, calcDv2Digits, buildMatriculaFinal } from '../../
 import { setupNameCopy, setupAutoNationality } from '../../shared/productivity/index';
 import { setupAdminPanel } from '../../shared/ui/admin';
 
-import { setupActSelect } from '../../ui/setup-ui';
+import { setupActSelect, setupDrawerTabs, setupOpsPanel } from '../../ui/setup-ui';
 import { attachAutocomplete } from '../../ui/city-autocomplete';
 import { attachCityUfAutofill, attachCityIntegrationToAll } from '../../ui/city-uf-ui';
 import { buildIndexFromData } from '../../shared/city-uf-resolver';
 
 import { buildNascimentoPdfHtmlFromTemplate } from '../../prints/nascimento/printNascimentoTjTemplate';
 import { openHtmlAndSavePdf } from '../../prints/shared/openAndSavePdf';
+import { setupSearchPanel } from '../../ui/panels/search-panel';
 
 // (mantido aqui só se você realmente usa em algum lugar desse arquivo)
 // import { escapeHtml, sanitizeHref, sanitizeCss } from '../../prints/shared/print-utils.js';
@@ -587,7 +588,13 @@ function setupNameValidationLocal(): void {
       .forEach((inp) => {
         const el = inp as HTMLInputElement;
         el.addEventListener('input', () => {
-          const s = (el.value || '').replace(/[^\p{L}'\- ]/gu, '');
+          // try Unicode property escape first, fallback to common Latin ranges for older environments
+          let s = el.value || '';
+          try {
+            s = s.replace(/[^\p{L}'\- ]/gu, '');
+          } catch (e) {
+            s = s.replace(/[^A-Za-zÀ-ÖØ-öø-ÿ' \-]/g, '');
+          }
           if (s !== el.value) el.value = s;
         });
       });
@@ -624,7 +631,12 @@ function setupNameValidationLocal(): void {
 
     const sanitize = () => {
       const v = input.value || '';
-      const s = v.replace(/[^\p{L}'\- ]/gu, '');
+      let s = v;
+      try {
+        s = v.replace(/[^\p{L}'\- ]/gu, '');
+      } catch (e) {
+        s = v.replace(/[^A-Za-zÀ-ÖØ-öø-ÿ' \-]/g, '');
+      }
       if (s !== v) input.value = s;
     };
 
@@ -741,22 +753,64 @@ async function setupCityIntegration(): Promise<void> {
 
     if (cidadeNasc && ufNasc) {
       attachAutocomplete(cidadeNasc, { index, minSuggestions: 5 });
-      attachCityUfAutofill(cidadeNasc, ufNasc as any, index, (res) => console.debug('autofill(nascimento):', res));
+      attachCityUfAutofill(cidadeNasc, ufNasc as any, index, (res) => {
+        console.debug('autofill(nascimento):', res);
+        try {
+          if (res && res.status === 'inferred') {
+            const target = document.querySelector('input[data-bind="ui.mae_nome"]') as HTMLInputElement | null;
+            if (target) setTimeout(() => target.focus(), 0);
+          }
+        } catch (e) {}
+      });
     }
     if (cidadeNat && ufNat) {
       attachAutocomplete(cidadeNat, { index, minSuggestions: 5 });
-      attachCityUfAutofill(cidadeNat, ufNat as any, index, (res) => console.debug('autofill(naturalidade):', res));
+      attachCityUfAutofill(cidadeNat, ufNat as any, index, (res) => {
+        console.debug('autofill(naturalidade):', res);
+        try {
+          if (res && res.status === 'inferred') {
+            const target = document.querySelector('input[data-bind="ui.mae_nome"]') as HTMLInputElement | null;
+            if (target) setTimeout(() => target.focus(), 0);
+          }
+        } catch (e) {}
+      });
     }
 
     await attachCityIntegrationToAll(index, { minSuggestions: 5 }).catch?.(() => {});
+    // Accessibility: skip some checkboxes from tab order per UX request
+    try {
+      setupCheckboxTabSkips();
+    } catch (e) {
+      /* ignore */
+    }
   } catch (e) {
     console.warn('City autocomplete bootstrap skipped:', e);
+  }
+}
+
+function setupCheckboxTabSkips(): void {
+  const skipIds = ['dn-ign', 'hn-ign', 'naturalidade-diferente', 'cpf-sem'];
+  for (const id of skipIds) {
+    const el = document.getElementById(id) as HTMLInputElement | null;
+    if (el && el.type === 'checkbox') {
+      el.setAttribute('tabindex', '-1');
+      el.setAttribute('data-skip-tab', '1');
+    }
   }
 }
 
 // =========================
 // Settings panel
 // =========================
+function applyDrawerPosition(pos: string): void {
+  const drawer = document.getElementById('drawer') as HTMLElement | null;
+  if (!drawer) return;
+  drawer.classList.remove('position-top', 'position-bottom-right', 'position-side');
+  if (pos === 'top') drawer.classList.add('position-top');
+  else if (pos === 'side') drawer.classList.add('position-side');
+  else drawer.classList.add('position-bottom-right');
+}
+
 function setupSettingsPanel(): void {
   const select = document.getElementById('settings-drawer-position') as HTMLSelectElement | null;
   const cbCpf = document.getElementById('settings-enable-cpf') as HTMLInputElement | null;
@@ -767,7 +821,7 @@ function setupSettingsPanel(): void {
   const saveBtn = document.getElementById('settings-save') as HTMLButtonElement | null;
   const applyBtn = document.getElementById('settings-apply') as HTMLButtonElement | null;
 
-  const pos = localStorage.getItem(DRAWER_POS_KEY) || 'top';
+  const pos = localStorage.getItem(DRAWER_POS_KEY) || 'side';
   const enableCpf = localStorage.getItem(ENABLE_CPF_KEY) !== 'false';
   const enableName = localStorage.getItem(ENABLE_NAME_KEY) !== 'false';
   const panelInlineStored = localStorage.getItem(PANEL_INLINE_KEY);
@@ -776,6 +830,7 @@ function setupSettingsPanel(): void {
   const zoomStored = Number(localStorage.getItem(INTERNAL_ZOOM_KEY) || '100') || 100;
 
   if (select) select.value = pos;
+  applyDrawerPosition(pos);
   if (cbCpf) cbCpf.checked = !!enableCpf;
   if (cbName) cbName.checked = !!enableName;
   if (cbFixed) cbFixed.checked = !!fixedLayout;
@@ -802,14 +857,8 @@ function setupSettingsPanel(): void {
 
   applyBtn?.addEventListener('click', () => {
     const newPos = select?.value || 'top';
-    const drawer = document.getElementById('drawer') as HTMLElement | null;
-    if (drawer) {
-      drawer.classList.remove('position-top', 'position-bottom-right', 'position-side');
-      if (newPos === 'top') drawer.classList.add('position-top');
-      else if (newPos === 'side') drawer.classList.add('position-side');
-      else drawer.classList.add('position-bottom-right');
-    }
-    setStatus('Posição aplicada (não salva)', false);
+    applyDrawerPosition(newPos);
+    setStatus('Posi????o aplicada (n??o salva)', false);
   });
 
   saveBtn?.addEventListener('click', () => {
@@ -958,6 +1007,8 @@ function setupApp(): void {
   setupFocusEmphasis();
   setupAdminPanel();
   setupSettingsPanel();
+  setupDrawerTabs();
+  setupOpsPanel();
   setupOutputDirs();
   setupPrintButton();
   setupActions();
@@ -970,6 +1021,7 @@ function setupApp(): void {
   setupLiveOutputs();
   setupActSelect('nascimento');
   updateActionButtons();
+  setupSearchPanel();
 
   void setupCityIntegration();
 }
