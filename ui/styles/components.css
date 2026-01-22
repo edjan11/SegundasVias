@@ -997,6 +997,26 @@ body.page-nascimento select:not([multiple]):not([size]) {
   padding-right: 22px;
 }
 
+body.page-nascimento .filiacao-grid {
+  grid-template-columns: minmax(220px, 1fr) 200px 70px;
+}
+
+body.page-nascimento .filiacao-grid input[data-bind="ui.mae_cidade"],
+body.page-nascimento .filiacao-grid input[data-bind="ui.pai_cidade"] {
+  width: 200px;
+}
+
+body.page-nascimento .row.row--matricula {
+  display: grid;
+  grid-template-columns: 340px 180px;
+  gap: 10px;
+  align-items: end;
+}
+
+body.page-nascimento .row.row--cpf {
+  margin-top: 6px;
+}
+
 body.page-nascimento .name-field > .label-row {
   gap: 6px;
 }

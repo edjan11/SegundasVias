@@ -241,26 +241,19 @@ export async function attachCityIntegrationToAll(
         if (typeof window !== 'undefined') {
           const origin = (window.location && window.location.origin) ? window.location.origin : '';
           candidates.push(`/data/jsonCidades/${filename}`);
-          candidates.push(`/public/data/jsonCidades/${filename}`);
-          candidates.push(`./data/jsonCidades/${filename}`);
-          candidates.push(`./public/data/jsonCidades/${filename}`);
           candidates.push(`../data/jsonCidades/${filename}`);
-          candidates.push(`../public/data/jsonCidades/${filename}`);
+          candidates.push(`./data/jsonCidades/${filename}`);
           candidates.push(`data/jsonCidades/${filename}`);
-          candidates.push(`public/data/jsonCidades/${filename}`);
           if (origin) {
             candidates.push(`${origin}/data/jsonCidades/${filename}`);
-            candidates.push(`${origin}/public/data/jsonCidades/${filename}`);
             candidates.push(`${origin}/../data/jsonCidades/${filename}`);
           }
         } else {
           candidates.push(`/data/jsonCidades/${filename}`);
-          candidates.push(`/public/data/jsonCidades/${filename}`);
         }
       } catch (e) {
         // fallback
         candidates.push(`/data/jsonCidades/${filename}`);
-        candidates.push(`/public/data/jsonCidades/${filename}`);
       }
 
       for (const url of candidates) {

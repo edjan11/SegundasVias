@@ -77,12 +77,7 @@ export async function buildCasamentoPdfHtmlFromTemplate(
   const template = await loadTemplate([
     templateHref,
     '/pdfElementsCasamento/print-casamento-pdf-tj.html',
-    '/pages/pdfElementsCasamento/print-casamento-pdf-tj.html',
-    '/templates/casamento-modelo.html',
-    '/pages/templates/casamento-modelo.html',
     '../pdfElementsCasamento/print-casamento-pdf-tj.html',
-    './pdfElementsCasamento/print-casamento-pdf-tj.html',
-    'pdfElementsCasamento/print-casamento-pdf-tj.html',
   ].filter(Boolean) as string[]);
 
   const reg = data?.registro ?? {};

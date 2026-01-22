@@ -101,15 +101,15 @@ async function loadCsvData() {
   let gruposText = '';
   const nomesPaths = [
     '/data/nomes.csv.gz',
-    '/public/data/nomes.csv.gz',
     '/data/nomes.csv',
-    '/public/data/nomes.csv',
+    '../data/nomes.csv.gz',
+    '../data/nomes.csv',
   ];
   const gruposPaths = [
     '/data/grupos.csv.gz',
-    '/public/data/grupos.csv.gz',
     '/data/grupos.csv',
-    '/public/data/grupos.csv',
+    '../data/grupos.csv.gz',
+    '../data/grupos.csv',
   ];
   const tried = [];
   for (const p of nomesPaths) {

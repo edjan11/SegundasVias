@@ -412,10 +412,10 @@ try {
             else cfg.appendChild(statusEl);
           }
           const testPaths = [
-            '/public/data/nomes.csv.gz',
             '/data/nomes.csv.gz',
-            '/public/data/nomes.csv',
             '/data/nomes.csv',
+            '../data/nomes.csv.gz',
+            '../data/nomes.csv',
           ];
           (async () => {
             let found = false;

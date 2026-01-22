@@ -2,13 +2,17 @@ node_modules/
 *.log
 *.tmp
 *.temp
+.cache/
+.cache
 .DS_Store
 Thumbs.db
 # Generated bundles and build
 ui/js/*.bundle.js
 ui/js/*.bundle.js.map
 dist-src/
+dist/
 build.js
+*.map
 # local debug / git dumps
 tmp_*.txt
 git_*.txt
@@ -24,6 +28,11 @@ git_diff.txt
 git_saved_patch.diff
 git_saved_status.txt
 
-# Tools and migration scripts (not part of product runtime)
-tools/
+# Tools and migration scripts (kept in repo)
 archive/
+
+# Generated artifacts
+artifacts/
+out/
+tmp/
+ui/data/

@@ -284,7 +284,7 @@
       <div class="section-divider"></div>
 
       <div class="section">
-        <div class="row">
+        <div class="row row--registro">
           <div class="field">
             <label>Cartório (ofício)</label>
             <select data-bind="ui.cartorio_oficio" id="cartorio-oficio" class="w-cartorio">
@@ -323,18 +323,18 @@
           </div>
         </div>
 
-        <div class="row">
-          <div class="field" style="width: 340px;">
+        <div class="row row--matricula">
+          <div class="field">
             <label>Matricula (gerada)</label>
             <input data-bind="registro.matricula" id="matricula" readonly />
           </div>
-          <div class="field" style="margin-left:8px;">
+          <div class="field">
             <label>Assinante</label>
             <select name="idAssinante" data-signer-select></select>
           </div>
         </div>
 
-        <div class="row" style="margin-top:6px; opacity:0.9;">
+        <div class="row row--cpf" style="opacity:0.9;">
           <div class="field">
             <label class="label-row">
               <span>CPF</span>

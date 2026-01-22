@@ -230,7 +230,7 @@ function withFixedCartorioCns<T>(data: T): T {
 }
 
 async function fetchCasamentoTemplate(cns?: string): Promise<string | null> {
-  const bases = ['/templates', '/pages/templates'];
+  const bases = ['/templates'];
   const candidates: string[] = [];
   for (const base of bases) {
     if (cns) candidates.push(`${base}/casamento-modelo-${cns}.xml`);

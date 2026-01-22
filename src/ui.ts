@@ -1166,13 +1166,42 @@ function validateTimeInputValue(value: string) {
   return '';
 }
 
+function applyRequiredState(
+  input: HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement,
+) {
+  if (!input || !input.hasAttribute('data-required')) return;
+  const type = (input as HTMLInputElement).type || '';
+  if (type === 'checkbox' || type === 'radio') return;
+  const isHidden =
+    (input as HTMLElement).offsetParent === null ||
+    (input as HTMLElement).getAttribute('aria-hidden') === 'true';
+  const value = (input as HTMLInputElement).value || '';
+  const empty = !isHidden && trimValue(value) === '';
+  const wrapper =
+    (input.closest('.field') as HTMLElement | null) ||
+    (input.closest('.campo') as HTMLElement | null);
+  if (wrapper) {
+    wrapper.classList.toggle('field--empty', empty);
+  } else {
+    (input as HTMLInputElement).classList.toggle('invalid', empty);
+  }
+}
+
+function validateAllRequiredFields() {
+  const required = Array.from(
+    document.querySelectorAll('[data-required]'),
+  ) as Array<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>;
+  required.forEach((el) => applyRequiredState(el));
+}
+
 function validateLiveField(path: string, input: HTMLInputElement | HTMLSelectElement) {
-  if (path === 'registro.data_registro' || path === 'registro.data_nascimento') {
-    setFieldError(
-      input as HTMLInputElement,
-      validateDateInputValue((input as HTMLInputElement).value),
-    );
-    return;
+    applyRequiredState(input as HTMLInputElement | HTMLSelectElement);
+    if (path === 'registro.data_registro' || path === 'registro.data_nascimento') {
+      setFieldError(
+        input as HTMLInputElement,
+        validateDateInputValue((input as HTMLInputElement).value),
+      );
+      return;
   }
   if (path === 'registro.hora_nascimento') {
     setFieldError(
@@ -2248,6 +2277,7 @@ async function bootstrap() {
   }
   syncInputsFromState();
   bindInputs();
+  validateAllRequiredFields();
   //  setupMasks();
   setupActions();
   setupConfigModal();

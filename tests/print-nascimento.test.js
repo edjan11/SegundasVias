@@ -4,7 +4,7 @@ const path = require('path');
 const { buildNascimentoXmlFromJson } = require('../dist-src/acts/nascimento/printNascimentoXmlFromJson');
 
 const template = fs.readFileSync(path.resolve(__dirname, '../ui/templates/nascimento-modelo-110635.xml'), 'utf8');
-const sample = require('./sample-nascimento.json');
+const sample = require('./fixtures/sample-nascimento.json');
 
 const xml = buildNascimentoXmlFromJson(template, sample);
 

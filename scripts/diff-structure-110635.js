@@ -1,7 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const tplPath = path.resolve(__dirname, '../ui/templates/nascimento-modelo-110635.xml');
-const sample = require('../tests/sample-nascimento.json');
+const sample = require('../tests/fixtures/sample-nascimento.json');
 const builder = require('../dist-src/acts/nascimento/printNascimentoXmlFromJson');
 
 const tpl = fs.readFileSync(tplPath, 'utf8');

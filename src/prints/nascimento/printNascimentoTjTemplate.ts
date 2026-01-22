@@ -46,15 +46,7 @@ export async function buildNascimentoPdfHtmlFromTemplate(
   const template = await loadTemplate([
     templateHref,
     '/pdfElementsNascimento/print-nascimento-tj.html',
-    '/pages/pdfElementsNascimento/print-nascimento-tj.html',
-    '/templates/print-nascimento-tj.html',
-    '/pages/templates/print-nascimento-tj.html',
     '../pdfElementsNascimento/print-nascimento-tj.html',
-    '../templates/print-nascimento-tj.html',
-    './pdfElementsNascimento/print-nascimento-tj.html',
-    './templates/print-nascimento-tj.html',
-    'pdfElementsNascimento/print-nascimento-tj.html',
-    'templates/print-nascimento-tj.html',
   ].filter(Boolean) as string[]);
 
   const reg = data?.registro ?? {};

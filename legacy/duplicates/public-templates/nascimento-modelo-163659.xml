@@ -1,22 +1,22 @@
-﻿<ListaRegistrosNascimento xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+<ListaRegistrosNascimento xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
 <PNAS>
-<CodigoCNJ>163659</CodigoCNJ>
+<CodigoCNJ>110072</CodigoCNJ>
 <Acervo>1</Acervo>
 <InteiroTeor/>
 <NumeroGuiaRecolhimento>NIHIL</NumeroGuiaRecolhimento>
-<DataRegistro>01/01/2020</DataRegistro>
+<DataRegistro>28/03/1990</DataRegistro>
 <NomeLivro>A</NomeLivro>
-<NumeroLivro>12</NumeroLivro>
-<NumeroPagina>34</NumeroPagina>
+<NumeroLivro>5</NumeroLivro>
+<NumeroPagina>160</NumeroPagina>
 <CodigoFrenteVerso> </CodigoFrenteVerso>
-<NumeroRegistro>5678901</NumeroRegistro>
+<NumeroRegistro>4242</NumeroRegistro>
 <TipoDeclaracao>1</TipoDeclaracao>
 <NumeroDNV_DO/>
 <ProtocoloConsultaDNV_DO/>
 <RealizadoNoPrazo>S</RealizadoNoPrazo>
 <CodigoDeclarante> </CodigoDeclarante>
 <CodigoARogo> </CodigoARogo>
-<EstabelecimentoDoNascimento>Hospital Municipal</EstabelecimentoDoNascimento>
+<EstabelecimentoDoNascimento>MATERNIDADE TSYLLA BALBINO</EstabelecimentoDoNascimento>
 <PesoRegistradoNascimento>-1</PesoRegistradoNascimento>
 <CodigoLocalDoNascimento>1</CodigoLocalDoNascimento>
 <OpcaoNaturalidade>0</OpcaoNaturalidade>
@@ -53,18 +53,18 @@
 <TelaExibicao>2</TelaExibicao>
 <Bloqueado>false</Bloqueado>
 <Registrado>
-<Nome>FULANO DA SILVA</Nome>
-<Sexo></Sexo>
+<Nome>ANA CARLA MORAIS DA CONCEIÇÃO</Nome>
+<Sexo>F</Sexo>
 <NomeOriginal/>
 <SexoOriginal/>
 <Nacionalidade/>
-<DataNascimento>31/12/2019</DataNascimento>
-<HoraNascimento>09:35:00</HoraNascimento>
+<DataNascimento>11/12/1989</DataNascimento>
+<HoraNascimento>09:20:00</HoraNascimento>
 <Profissao/>
 <EstadoCivil>0</EstadoCivil>
 <EstadoCivil650>Indefinido</EstadoCivil650>
 <Idade>0</Idade>
-<CidadeNascimento></CidadeNascimento>
+<CidadeNascimento>ARACAJU</CidadeNascimento>
 <UFNascimento/>
 <PaisNascimento>Brasil</PaisNascimento>
 <GrauInstrucao>0</GrauInstrucao>
@@ -72,7 +72,7 @@
 <GrupoSanguineo>0</GrupoSanguineo>
 <CorPele>1</CorPele>
 <Contatos/>
-<Genitores>PAI COMPLETO; MAE COMPLETA</Genitores>
+<Genitores/>
 <Enderecos/>
 <Documentos>
 <Documento>
@@ -84,7 +84,7 @@
 <DataCriacao/>
 <DataEmissao/>
 <DataVencimento/>
-<Numero>12345678901</Numero>
+<Numero>04893695533</Numero>
 <OrgaoEmissor>0</OrgaoEmissor>
 <OrgaoEmissorDescricao/>
 <UF/>
@@ -100,7 +100,7 @@
 <Participante>
 <Tipo>1</Tipo>
 <Pessoa>
-<Nome>PAI COMPLETO</Nome>
+<Nome>FRANCISCO CESAR MATEUS LIMA</Nome>
 <Sexo>M</Sexo>
 <NomeOriginal/>
 <SexoOriginal/>
@@ -111,7 +111,7 @@
 <EstadoCivil>1</EstadoCivil>
 <EstadoCivil650>Indefinido</EstadoCivil650>
 <Idade>0</Idade>
-<CidadeNascimento></CidadeNascimento>
+<CidadeNascimento>PROPRIÁ</CidadeNascimento>
 <UFNascimento/>
 <PaisNascimento>Brasil</PaisNascimento>
 <GrauInstrucao>0</GrauInstrucao>
@@ -121,11 +121,11 @@
 <Contatos/>
 <Genitores>
 <Genitor>
-<Nome></Nome>
+<Nome/>
 <Sexo>F</Sexo>
 </Genitor>
 <Genitor>
-<Nome></Nome>
+<Nome/>
 <Sexo>M</Sexo>
 </Genitor>
 </Genitores>
@@ -154,7 +154,7 @@
 <Participante>
 <Tipo>0</Tipo>
 <Pessoa>
-<Nome>MAE COMPLETA</Nome>
+<Nome>MARIA INÊS MORAIS DA CONCEIÇÃO</Nome>
 <Sexo>F</Sexo>
 <NomeOriginal/>
 <SexoOriginal/>
@@ -165,8 +165,8 @@
 <EstadoCivil>0</EstadoCivil>
 <EstadoCivil650>Indefinido</EstadoCivil650>
 <Idade>0</Idade>
-<CidadeNascimento></CidadeNascimento>
-<UFNascimento/>
+<CidadeNascimento>ARACAJU</CidadeNascimento>
+<UFNascimento>SE</UFNascimento>
 <PaisNascimento>Brasil</PaisNascimento>
 <GrauInstrucao>0</GrauInstrucao>
 <Maioridade> </Maioridade>
@@ -175,11 +175,11 @@
 <Contatos/>
 <Genitores>
 <Genitor>
-<Nome></Nome>
+<Nome>MARIA CONCEIÇÃO DA SILVA</Nome>
 <Sexo>F</Sexo>
 </Genitor>
 <Genitor>
-<Nome></Nome>
+<Nome>ALFREDO MESSIAS MORAIS</Nome>
 <Sexo>M</Sexo>
 </Genitor>
 </Genitores>
@@ -246,5 +246,5 @@
 <VariaveisAdicionais/>
 <Origem/>
 </PNAS>
-<ObservacaoCertidao>Teste de averbacao</ObservacaoCertidao>
+<ObservacaoCertidao>A presente certidão, hoje anexada ao 9º ofício de Aracaju, pertencia ao antigo cartório do ofício número 15º</ObservacaoCertidao>
 </ListaRegistrosNascimento>

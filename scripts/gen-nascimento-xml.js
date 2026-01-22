@@ -3,8 +3,8 @@ const path = require('path');
 
 // caminho default do template e do json
 const templatePath = process.argv[2] || path.resolve(__dirname, '../ui/templates/nascimento-modelo.xml');
-const jsonPath = process.argv[3] || path.resolve(__dirname, '../tests/sample-nascimento.json');
-const outPath = process.argv[4] || path.resolve(__dirname, '../out/nascimento-gerado.xml');
+const jsonPath = process.argv[3] || path.resolve(__dirname, '../tests/fixtures/sample-nascimento.json');
+const outPath = process.argv[4] || path.resolve(__dirname, '../artifacts/out/nascimento-gerado.xml');
 
 function main() {
   try {
