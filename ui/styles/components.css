@@ -365,6 +365,17 @@ body.focus-strong .campo textarea:focus {
   overflow: hidden;
   word-break: break-word;
 }
+
+/* layout fixed mode: prevent fields from squeezing; wrapper will get horizontal scroll */
+body.layout-fixed { overflow-x: auto; }
+body.layout-fixed .container { min-width: 980px; }
+
+/* compact mode tweaks */
+body.compact-mode { --ui-gap: 6px; --ui-padding: 6px; }
+
+/* font selection active styling */
+#usability-card .btn.tiny.active { background: var(--accent); color: white; border-color: var(--accent); }
+#usability-card .btn.tiny { margin-right: 6px; }
 .field--error {
   position: relative; /* allow compact hint to be absolutely positioned near label */
 }
