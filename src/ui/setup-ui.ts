@@ -3,6 +3,7 @@
 
 import { createNameValidator } from '../shared/nameValidator';
 import { clearFieldHint } from '../ui';
+import { sanitizeNameForDisplay } from '../shared/stringUtils';
 
 // Minimal types for UI helpers
 export type AppState = {
@@ -800,7 +801,7 @@ export function setupNameValidation(
     }
     const sanitize = () => {
       const v = getValue(input);
-      const s = v.replace(/[^A-Za-z'\- ]/g, '');
+      const s = sanitizeNameForDisplay(v);
       if (s !== v) setValue(input, s);
     };
 

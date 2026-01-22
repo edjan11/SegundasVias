@@ -168,6 +168,7 @@ function extractDisplayFields(data) {
   let cpf = '';
   let dataNascimento = '';
   let matricula = reg.matricula || '';
+  let termo = reg.termo || '';
   let cns = cert.cartorio_cns || '';
 
   if (reg.nome_completo) nome = reg.nome_completo;
@@ -192,7 +193,7 @@ function extractDisplayFields(data) {
     if (parts[1]) mae = parts[1];
   }
 
-  return { nome, mae, cpf, dataNascimento, matricula, cns };
+  return { nome, mae, cpf, dataNascimento, matricula, termo, cns };
 }
 
 function buildSearchText(record) {
@@ -247,6 +248,9 @@ function matchesFilters(record, payload) {
   const matricula = onlyDigits(payload.matricula || '');
   if (matricula && !digits.includes(matricula)) return false;
 
+  const termo = onlyDigits(payload.termo || '');
+  if (termo && !digits.includes(termo)) return false;
+
   const cns = onlyDigits(payload.cns || '');
   if (cns && !digits.includes(cns)) return false;
 
@@ -279,6 +283,7 @@ function search(payload) {
       cpf: display.cpf || '',
       dataNascimento: display.dataNascimento || '',
       matricula: display.matricula || '',
+      termo: display.termo || '',
       cns: display.cns || '',
     });
   }

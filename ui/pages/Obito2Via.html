@@ -501,6 +501,16 @@
             <div class="cardTitle">Busca</div>
             <div class="grid search-grid">
               <div class="field span-12">
+                <label>Tipo</label>
+                <div class="segmented">
+                  <button type="button" class="seg-btn active" data-kind-toggle data-kind="">Todos</button>
+                  <button type="button" class="seg-btn" data-kind-toggle data-kind="nascimento">Nascimento</button>
+                  <button type="button" class="seg-btn" data-kind-toggle data-kind="casamento">Casamento</button>
+                  <button type="button" class="seg-btn" data-kind-toggle data-kind="obito">Obito</button>
+                </div>
+                <input type="hidden" id="search-kind" value="" />
+              </div>
+              <div class="field span-12">
                 <label>Busca livre</label>
                 <input id="search-q" placeholder="Nome, CPF, matricula, municipio..." />
               </div>
@@ -517,25 +527,8 @@
                 <input id="search-cpf" inputmode="numeric" />
               </div>
               <div class="field span-4">
-                <label>Data de nascimento</label>
-                <input id="search-data" placeholder="DD/MM/AAAA" inputmode="tel" maxlength="10" />
-              </div>
-              <div class="field span-4">
-                <label>Matricula</label>
-                <input id="search-matricula" inputmode="numeric" />
-              </div>
-              <div class="field span-4">
-                <label>CNS</label>
-                <input id="search-cns" inputmode="numeric" />
-              </div>
-              <div class="field span-4">
-                <label>Tipo</label>
-                <select id="search-kind">
-                  <option value="">Todos</option>
-                  <option value="nascimento">Nascimento</option>
-                  <option value="casamento">Casamento</option>
-                  <option value="obito">Obito</option>
-                </select>
+                <label>Termo</label>
+                <input id="search-termo" inputmode="numeric" />
               </div>
             </div>
             <div class="toolbar-left" style="margin-top: 10px;">
@@ -631,6 +624,10 @@
                 <div class="field-line">
                   <label class="inline-check"><input type="checkbox" id="settings-enable-cpf" /> Validar CPF</label>
                   <label class="inline-check"><input type="checkbox" id="settings-enable-name" /> Validar Nomes</label>
+                </div>
+                <div class="field-line" style="margin-top:4px;">
+                  <label class="inline-check"><input type="checkbox" id="settings-auto-json" /> Auto gerar JSON</label>
+                  <label class="inline-check"><input type="checkbox" id="settings-auto-xml" /> Auto gerar XML</label>
                 </div>
               </div>
               <div class="field span-6">

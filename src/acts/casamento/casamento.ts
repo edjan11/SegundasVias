@@ -19,6 +19,8 @@ import {
 } from '../../shared/productivity/index';
 import { setupAdminPanel } from '../../shared/ui/admin';
 import { setupActSelect, disableBrowserAutofill, setupDrawerTabs, setupOpsPanel } from '../../ui/setup-ui';
+import { buildCertidaoFileName, readOficioValue } from '../../shared/ui/file-name';
+import { setupDraftAutosave } from '../../shared/ui/draft-autosave';
 import { attachCityIntegrationToAll } from '../../ui/city-uf-ui';
 import { createNameValidator } from '../../shared/nameValidator';
 import { updateActionButtons } from '../../ui';
@@ -29,6 +31,8 @@ import { buildCasamentoPdfHtmlFromTemplate } from '../../prints/casamento/printC
 import { openHtmlAndSavePdf } from '../../prints/shared/openAndSavePdf';
 import { validateCasamentoTipo } from '../../shared/validators/casamento';
 import { setupSearchPanel } from '../../ui/panels/search-panel';
+import { setupSettingsPanelBase } from '../../ui/panels/settings-panel';
+import { applyCertificatePayloadToSecondCopy, consumePendingPayload } from '../../ui/payload/apply-payload';
 
 const NAME_MODE_KEY = 'ui.nameValidationMode';
 let nameValidationMode = localStorage.getItem(NAME_MODE_KEY) || 'blur';
@@ -38,68 +42,34 @@ const OUTPUT_DIR_KEY_XML = 'outputDir.casamento.xml';
 const FIXED_CARTORIO_CNS = '163659';
 const FIXED_LAYOUT_KEY = 'ui.fixedLayout';
 const INTERNAL_ZOOM_KEY = 'ui.internalZoom';
+const AUTO_JSON_KEY = 'ui.autoGenerateJson';
+const AUTO_XML_KEY = 'ui.autoGenerateXml';
 
 let outputDirs = { json: '', xml: '' };
 const TEMPLATE_CACHE = new Map<string, string>();
 let templatePromise: Promise<string | null> | null = null;
 
 function setupSettingsPanelCasamento(): void {
-  const select = document.getElementById('settings-drawer-position') as HTMLSelectElement | null;
-  const cbCpf = document.getElementById('settings-enable-cpf') as HTMLInputElement | null;
-  const cbName = document.getElementById('settings-enable-name') as HTMLInputElement | null;
-  const cbFixed = document.getElementById('settings-fixed-layout') as HTMLInputElement | null;
-  const zoomRange = document.getElementById('settings-zoom') as HTMLInputElement | null;
-  const zoomValue = document.getElementById('settings-zoom-value') as HTMLElement | null;
-  const saveBtn = document.getElementById('settings-save') as HTMLElement | null;
-  const applyBtn = document.getElementById('settings-apply') as HTMLElement | null;
-  const pos = localStorage.getItem('ui.drawerPosition') || 'side';
-  const enableCpf = localStorage.getItem('ui.enableCpfValidation') !== 'false';
-  const enableName = localStorage.getItem('ui.enableNameValidation') !== 'false';
-  const fixedLayout = localStorage.getItem(FIXED_LAYOUT_KEY) === 'true';
-  const zoomStored = Number(localStorage.getItem(INTERNAL_ZOOM_KEY) || '100') || 100;
-  if (select) select.value = pos;
-  applyDrawerPosition(pos);
-  if (cbCpf) cbCpf.checked = !!enableCpf;
-  if (cbName) cbName.checked = !!enableName;
-  if (cbFixed) cbFixed.checked = !!fixedLayout;
-  if (zoomRange) zoomRange.value = String(zoomStored);
-  updateZoomLabel(zoomValue, zoomStored);
-  applyFixedLayout(fixedLayout);
-  applyInternalZoom(zoomStored);
-  saveBtn?.addEventListener('click', () => {
-    const newPos = select?.value || 'top';
-    const newCpf = cbCpf?.checked ? 'true' : 'false';
-    const newName = cbName?.checked ? 'true' : 'false';
-    const newInline = (document.getElementById('settings-panel-inline') as HTMLInputElement | null)
-      ?.checked
-      ? 'true'
-      : 'false';
-    localStorage.setItem('ui.drawerPosition', newPos);
-    localStorage.setItem('ui.enableCpfValidation', newCpf);
-    localStorage.setItem('ui.enableNameValidation', newName);
-    localStorage.setItem(PANEL_INLINE_KEY, newInline);
-    if (cbFixed) localStorage.setItem(FIXED_LAYOUT_KEY, cbFixed.checked ? 'true' : 'false');
-    if (zoomRange) localStorage.setItem(INTERNAL_ZOOM_KEY, String(zoomRange.value || '100'));
-    setStatus('Preferências salvas. Atualizando...', false);
-    setTimeout(() => window.location.reload(), 300);
-  });
-  applyBtn?.addEventListener('click', () => {
-    const newPos = select?.value || 'top';
-    applyDrawerPosition(newPos);
-    setStatus('Posição aplicada (não salva)', false);
-  });
-
-  cbFixed?.addEventListener('change', () => {
-    const enabled = !!cbFixed.checked;
-    applyFixedLayout(enabled);
-    localStorage.setItem(FIXED_LAYOUT_KEY, enabled ? 'true' : 'false');
-  });
-
-  zoomRange?.addEventListener('input', () => {
-    const value = Number(zoomRange.value || '100') || 100;
-    updateZoomLabel(zoomValue, value);
-    applyInternalZoom(value);
-    localStorage.setItem(INTERNAL_ZOOM_KEY, String(value));
+  setupSettingsPanelBase({
+    drawerPositionKey: 'ui.drawerPosition',
+    enableCpfKey: 'ui.enableCpfValidation',
+    enableNameKey: 'ui.enableNameValidation',
+    panelInlineKey: PANEL_INLINE_KEY,
+    autoJsonKey: AUTO_JSON_KEY,
+    autoXmlKey: AUTO_XML_KEY,
+    fixedLayoutKey: FIXED_LAYOUT_KEY,
+    internalZoomKey: INTERNAL_ZOOM_KEY,
+    defaultDrawerPosition: 'side',
+    defaultPanelInline: false,
+    applyDrawerPosition,
+    applyFixedLayout,
+    applyInternalZoom,
+    updateZoomLabel,
+    onAfterApply: () => setStatus('Posicao aplicada (nao salva)', false),
+    onAfterSave: () => {
+      setStatus('Preferencias salvas. Atualizando...', false)
+      setTimeout(() => window.location.reload(), 300)
+    },
   });
 }
 
@@ -214,8 +184,30 @@ function makeTimestamp(): string {
   )}${pad(d.getSeconds())}`;
 }
 
-function buildFileName(ext: string): string {
-  return `CASAMENTO_${makeTimestamp()}.${ext}`;
+function resolveRegisteredName(data: any): string {
+  const conjuges = Array.isArray(data?.registro?.conjuges) ? data.registro.conjuges : [];
+  const names = conjuges
+    .map((c: any) => {
+      return (
+        String(c?.nome_atual_habilitacao || c?.nome_atual || c?.nome_completo || c?.nome || '').trim()
+      );
+    })
+    .filter(Boolean);
+  return names.join(' E ');
+}
+
+function resolveOficioLabel(): string {
+  const select = document.getElementById('cartorio-oficio') as HTMLSelectElement | null;
+  return readOficioValue(select);
+}
+
+function buildFileName(ext: string, data: any): string {
+  return buildCertidaoFileName({
+    nome: resolveRegisteredName(data),
+    oficio: resolveOficioLabel(),
+    ext,
+    fallback: `CASAMENTO_${makeTimestamp()}`,
+  });
 }
 
 function onlyDigits(value?: string): string {
@@ -273,7 +265,7 @@ async function generateJson(): Promise<void> {
   const json = JSON.stringify(withFixedCartorioCns(data), null, 2);
   const out = document.getElementById('json-output') as any;
   if (out) out.value = json;
-  const name = buildFileName('json');
+  const name = buildFileName('json', data);
   try {
     if (window.api && window.api.saveJson) {
       const path = await window.api.saveJson({ name, content: json });
@@ -311,7 +303,7 @@ async function generateXml(): Promise<void> {
     return;
   }
   if (result.warnings.length) console.warn('[XML casamento warnings]', result.warnings);
-  const name = buildFileName('xml');
+  const name = buildFileName('xml', data);
   try {
     if (window.api && window.api.saveXml) {
       const path = await window.api.saveXml({ name, content: xml });
@@ -500,10 +492,12 @@ function setupLiveOutputs(): void {
   };
   const handler = () => {
     try {
+      const autoJson = localStorage.getItem(AUTO_JSON_KEY) !== 'false';
+      const autoXml = localStorage.getItem(AUTO_XML_KEY) !== 'false';
       const data = mapperHtmlToJson(document as any);
       const jsonEl = document.getElementById('json-output') as HTMLInputElement | null;
-      if (jsonEl) jsonEl.value = JSON.stringify(withFixedCartorioCns(data), null, 2);
-      void updateXml(data);
+      if (jsonEl && autoJson) jsonEl.value = JSON.stringify(withFixedCartorioCns(data), null, 2);
+      if (autoXml) void updateXml(data);
     } catch {
       /* ignore */
     }
@@ -513,6 +507,15 @@ function setupLiveOutputs(): void {
   drawer?.addEventListener('input', handler);
   drawer?.addEventListener('change', handler);
   handler();
+}
+
+function setupLocalDraftAutosave(): void {
+  setupDraftAutosave({
+    key: 'draft.casamento',
+    getData: () => mapperHtmlToJson(document as any),
+    root: document,
+    debounceMs: 600,
+  });
 }
 
 function setupNameValidation(): void {
@@ -819,6 +822,7 @@ function setup(): void {
   setupMatriculaDateTriggers(triggerMatricula);
   setupFocusEmphasis();
   setupLiveOutputs();
+  setupLocalDraftAutosave();
   updateActionButtons();
   setupSearchPanel();
 
@@ -826,6 +830,9 @@ function setup(): void {
   setupDisableAutofill();
   setupPrintButton();
   setupActionButtonsListeners();
+
+  const pending = consumePendingPayload();
+  if (pending) applyCertificatePayloadToSecondCopy(pending);
 
 function setupPrintButton(): void {
   (document.getElementById('btn-print') as HTMLElement | null)?.addEventListener('click', async (e) => {

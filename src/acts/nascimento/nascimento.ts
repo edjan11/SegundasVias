@@ -17,6 +17,8 @@ import { buildMatriculaBase30, calcDv2Digits, buildMatriculaFinal } from '../../
 
 import { setupNameCopy, setupAutoNationality } from '../../shared/productivity/index';
 import { setupAdminPanel } from '../../shared/ui/admin';
+import { buildCertidaoFileName, readOficioValue } from '../../shared/ui/file-name';
+import { setupDraftAutosave } from '../../shared/ui/draft-autosave';
 
 import { setupActSelect, setupDrawerTabs, setupOpsPanel } from '../../ui/setup-ui';
 import { attachAutocomplete } from '../../ui/city-autocomplete';
@@ -26,6 +28,8 @@ import { buildIndexFromData } from '../../shared/city-uf-resolver';
 import { buildNascimentoPdfHtmlFromTemplate } from '../../prints/nascimento/printNascimentoTjTemplate';
 import { openHtmlAndSavePdf } from '../../prints/shared/openAndSavePdf';
 import { setupSearchPanel } from '../../ui/panels/search-panel';
+import { setupSettingsPanelBase } from '../../ui/panels/settings-panel';
+import { applyCertificatePayloadToSecondCopy, consumePendingPayload } from '../../ui/payload/apply-payload';
 
 // (mantido aqui só se você realmente usa em algum lugar desse arquivo)
 // import { escapeHtml, sanitizeHref, sanitizeCss } from '../../prints/shared/print-utils.js';
@@ -39,9 +43,11 @@ const FIXED_LAYOUT_KEY = 'ui.fixedLayout';
 const INTERNAL_ZOOM_KEY = 'ui.internalZoom';
 const OUTPUT_DIR_KEY_JSON = 'outputDir.nascimento.json';
 const OUTPUT_DIR_KEY_XML = 'outputDir.nascimento.xml';
+const AUTO_JSON_KEY = 'ui.autoGenerateJson';
+const AUTO_XML_KEY = 'ui.autoGenerateXml';
 
 let outputDirs = { json: '', xml: '' };
-const FIXED_CARTORIO_CNS = '110742';
+const FIXED_CARTORIO_CNS = '163659';
 
 // =========================
 // UI helpers
@@ -292,16 +298,22 @@ let pnasRenderToken = 0;
 let xmlUpdateTimer: number | null = null;
 
 function updateOutputs(): void {
+  const autoJson = localStorage.getItem(AUTO_JSON_KEY) !== 'false';
+  const autoXml = localStorage.getItem(AUTO_XML_KEY) !== 'false';
   const data = mapperHtmlToJson(document);
   const jsonData = withFixedCartorioCns(data);
 
   const jsonEl = document.getElementById('json-output') as any;
-  if (jsonEl) jsonEl.value = JSON.stringify(jsonData, null, 2);
+  if (jsonEl && autoJson) jsonEl.value = JSON.stringify(jsonData, null, 2);
 
   const xmlEl = document.getElementById('xml-output') as any;
-  if (xmlEl) xmlEl.value = '';
+  if (xmlEl && autoXml) xmlEl.value = '';
 
   if (xmlUpdateTimer) window.clearTimeout(xmlUpdateTimer);
+  if (!autoXml) {
+    updateDebug();
+    return;
+  }
   xmlUpdateTimer = window.setTimeout(() => {
     const token = ++pnasRenderToken;
     void (async () => {
@@ -401,7 +413,12 @@ async function generateJson(): Promise<void> {
   const jsonEl = document.getElementById('json-output') as any;
   if (jsonEl) jsonEl.value = json;
 
-  const name = `NASCIMENTO_${new Date().toISOString().slice(0, 19).replace(/[:T]/g, '')}.json`;
+  const name = buildCertidaoFileName({
+    nome: resolveRegisteredName(data),
+    oficio: resolveOficioLabel(),
+    ext: 'json',
+    fallback: 'NASCIMENTO',
+  });
   try {
     if (window.api && window.api.saveJson) {
       const path = await window.api.saveJson({ name, content: json });
@@ -465,7 +482,12 @@ async function generatePnasXml(): Promise<void> {
     const xmlEl = document.getElementById('xml-output') as any;
     if (xmlEl) xmlEl.value = pnas;
 
-    const name = `NASCIMENTO_${new Date().toISOString().slice(0, 19).replace(/[:T]/g, '')}.xml`;
+    const name = buildCertidaoFileName({
+      nome: resolveRegisteredName(data),
+      oficio: resolveOficioLabel(),
+      ext: 'xml',
+      fallback: 'NASCIMENTO',
+    });
 
     if (window.api && window.api.saveXml) {
       const path = await window.api.saveXml({ name, content: pnas });
@@ -716,6 +738,15 @@ function setupLiveOutputs(): void {
   updateOutputs();
 }
 
+function setupLocalDraftAutosave(): void {
+  setupDraftAutosave({
+    key: 'draft.nascimento',
+    getData: () => mapperHtmlToJson(document),
+    root: document,
+    debounceMs: 600,
+  });
+}
+
 // =========================
 // City autocomplete bootstrap
 // =========================
@@ -744,7 +775,13 @@ async function setupCityIntegration(): Promise<void> {
     const raw2 = raw1 ? null : await tryFetch('estados-cidades2.json');
 
     const index = raw1 ? buildIndexFromData(raw1) : raw2 ? buildIndexFromData(raw2) : new Map();
-    if (!index || index.size === 0) return;
+    if (!index || index.size === 0) {
+      try {
+        if (typeof console !== 'undefined') console.info('city-uf: no local index found, continuing with on-demand fetch support');
+      } catch (e) {
+        /* ignore */
+      }
+    }
 
     const cidadeNasc = document.querySelector<HTMLInputElement>('input[data-bind="registro.municipio_nascimento"]');
     const ufNasc = document.querySelector<HTMLSelectElement | HTMLInputElement>('select[data-bind="registro.uf_nascimento"]');
@@ -812,65 +849,26 @@ function applyDrawerPosition(pos: string): void {
 }
 
 function setupSettingsPanel(): void {
-  const select = document.getElementById('settings-drawer-position') as HTMLSelectElement | null;
-  const cbCpf = document.getElementById('settings-enable-cpf') as HTMLInputElement | null;
-  const cbName = document.getElementById('settings-enable-name') as HTMLInputElement | null;
-  const cbFixed = document.getElementById('settings-fixed-layout') as HTMLInputElement | null;
-  const zoomRange = document.getElementById('settings-zoom') as HTMLInputElement | null;
-  const zoomValue = document.getElementById('settings-zoom-value') as HTMLElement | null;
-  const saveBtn = document.getElementById('settings-save') as HTMLButtonElement | null;
-  const applyBtn = document.getElementById('settings-apply') as HTMLButtonElement | null;
-
-  const pos = localStorage.getItem(DRAWER_POS_KEY) || 'side';
-  const enableCpf = localStorage.getItem(ENABLE_CPF_KEY) !== 'false';
-  const enableName = localStorage.getItem(ENABLE_NAME_KEY) !== 'false';
-  const panelInlineStored = localStorage.getItem(PANEL_INLINE_KEY);
-  const panelInline = panelInlineStored === null ? false : panelInlineStored === 'true';
-  const fixedLayout = localStorage.getItem(FIXED_LAYOUT_KEY) === 'true';
-  const zoomStored = Number(localStorage.getItem(INTERNAL_ZOOM_KEY) || '100') || 100;
-
-  if (select) select.value = pos;
-  applyDrawerPosition(pos);
-  if (cbCpf) cbCpf.checked = !!enableCpf;
-  if (cbName) cbName.checked = !!enableName;
-  if (cbFixed) cbFixed.checked = !!fixedLayout;
-  if (zoomRange) zoomRange.value = String(zoomStored);
-  updateZoomLabel(zoomValue, zoomStored);
-  applyFixedLayout(fixedLayout);
-  applyInternalZoom(zoomStored);
-
-  const cbInline = document.getElementById('settings-panel-inline') as HTMLInputElement | null;
-  if (cbInline) cbInline.checked = !!panelInline;
-
-  cbFixed?.addEventListener('change', () => {
-    const enabled = !!cbFixed.checked;
-    applyFixedLayout(enabled);
-    localStorage.setItem(FIXED_LAYOUT_KEY, enabled ? 'true' : 'false');
-  });
-
-  zoomRange?.addEventListener('input', () => {
-    const value = Number(zoomRange.value || '100') || 100;
-    updateZoomLabel(zoomValue, value);
-    applyInternalZoom(value);
-    localStorage.setItem(INTERNAL_ZOOM_KEY, String(value));
-  });
-
-  applyBtn?.addEventListener('click', () => {
-    const newPos = select?.value || 'top';
-    applyDrawerPosition(newPos);
-    setStatus('Posi????o aplicada (n??o salva)', false);
-  });
-
-  saveBtn?.addEventListener('click', () => {
-    const newPos = select?.value || 'top';
-    localStorage.setItem(DRAWER_POS_KEY, newPos);
-    localStorage.setItem(ENABLE_CPF_KEY, cbCpf?.checked ? 'true' : 'false');
-    localStorage.setItem(ENABLE_NAME_KEY, cbName?.checked ? 'true' : 'false');
-    localStorage.setItem(PANEL_INLINE_KEY, cbInline?.checked ? 'true' : 'false');
-    if (cbFixed) localStorage.setItem(FIXED_LAYOUT_KEY, cbFixed.checked ? 'true' : 'false');
-    if (zoomRange) localStorage.setItem(INTERNAL_ZOOM_KEY, String(zoomRange.value || '100'));
-    setStatus('Preferências salvas. Atualizando...', false);
-    setTimeout(() => window.location.reload(), 300);
+  setupSettingsPanelBase({
+    drawerPositionKey: DRAWER_POS_KEY,
+    enableCpfKey: ENABLE_CPF_KEY,
+    enableNameKey: ENABLE_NAME_KEY,
+    panelInlineKey: PANEL_INLINE_KEY,
+    autoJsonKey: AUTO_JSON_KEY,
+    autoXmlKey: AUTO_XML_KEY,
+    fixedLayoutKey: FIXED_LAYOUT_KEY,
+    internalZoomKey: INTERNAL_ZOOM_KEY,
+    defaultDrawerPosition: 'side',
+    defaultPanelInline: false,
+    applyDrawerPosition,
+    applyFixedLayout,
+    applyInternalZoom,
+    updateZoomLabel,
+    onAfterApply: () => setStatus('Posicao aplicada (nao salva)', false),
+    onAfterSave: () => {
+      setStatus('Preferencias salvas. Atualizando...', false)
+      setTimeout(() => window.location.reload(), 300)
+    },
   });
 }
 
@@ -881,6 +879,15 @@ function updateOutputDirUi(): void {
   const xmlEl = document.getElementById('xml-dir') as HTMLInputElement | null;
   if (jsonEl) jsonEl.value = outputDirs.json || '';
   if (xmlEl) xmlEl.value = outputDirs.xml || '';
+}
+
+function resolveRegisteredName(data: any): string {
+  return String(data?.registro?.nome_completo || '').trim();
+}
+
+function resolveOficioLabel(): string {
+  const select = document.getElementById('cartorio-oficio') as HTMLSelectElement | null;
+  return readOficioValue(select);
 }
 
 async function pickOutputDir(kind: 'json' | 'xml'): Promise<void> {
@@ -1022,8 +1029,12 @@ function setupApp(): void {
   setupActSelect('nascimento');
   updateActionButtons();
   setupSearchPanel();
+  setupLocalDraftAutosave();
 
   void setupCityIntegration();
+
+  const pending = consumePendingPayload();
+  if (pending) applyCertificatePayloadToSecondCopy(pending);
 }
 
 setupApp();

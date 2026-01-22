@@ -333,7 +333,8 @@ a.type-btn {
   border-radius: 8px;
   padding: 6px 10px;
   font-size: var(--ui-font-size, var(--font));
-  line-height: 1.25;
+  line-height: 1.35;
+  min-height: 32px;
   outline: none;
   width: 100%;
   background: #fff;
@@ -1269,26 +1270,31 @@ details.collapse summary {
 
 /* Operational side rail + panels */
 .ops-rail {
-  width: 48px;
+  width: 32px;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 6px;
   align-items: center;
-  padding: 8px 4px;
+  padding: 6px 4px;
   border: 1px solid var(--border);
   border-radius: 12px;
   background: #fff;
   box-shadow: 0 6px 18px rgba(15, 23, 42, 0.06);
-  position: sticky;
-  top: 12px;
+  position: fixed;
+  right: calc(50% - 300px - 32px);
+  top: 140px;
   height: fit-content;
+  z-index: 50;
 }
 .ops-rail .ops-btn {
-  width: 40px;
-  height: 32px;
+  width: 26px;
+  height: 72px;
   padding: 0;
   font-size: 10px;
-  border-radius: 8px;
+  border-radius: 10px;
+  writing-mode: vertical-rl;
+  text-orientation: mixed;
+  transform: rotate(180deg);
 }
 .ops-rail .ops-btn.active {
   background: linear-gradient(180deg,#2563eb,#1e40af);
@@ -1306,8 +1312,10 @@ details.collapse summary {
   display: none;
   flex-direction: column;
   overflow: hidden;
-  position: sticky;
-  top: 12px;
+  position: fixed;
+  right: calc(50% - 300px - 8px);
+  top: 90px;
+  z-index: 60;
 }
 .ops-pane.open {
   display: flex;
@@ -1684,5 +1692,33 @@ details.collapse summary {
 }
 .import-status.error {
   color: #b91c1c;
+}
+
+.segmented {
+  display: inline-flex;
+  gap: 6px;
+  padding: 4px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: #f8fafc;
+}
+.segmented .seg-btn {
+  border-radius: 8px;
+  padding: 6px 10px;
+  font-size: 11px;
+  background: transparent;
+  border: 1px solid transparent;
+  color: #475569;
+}
+.segmented .seg-btn.active {
+  background: #1d4ed8;
+  color: #fff;
+  border-color: #1d4ed8;
+}
+
+.search-actions {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
 }
 

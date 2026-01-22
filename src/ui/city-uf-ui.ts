@@ -15,7 +15,8 @@ function getFieldContainer(el: HTMLElement | null): HTMLElement | null {
 
 function isTabbable(el: HTMLElement): boolean {
   if (!el) return false;
-  if (el instanceof HTMLInputElement && el.type === 'hidden') return false;
+  // Avoid `instanceof` checks since they may not be available in some test environments
+  if (el.tagName === 'INPUT' && (el as HTMLInputElement).type === 'hidden') return false;
   if ((el as HTMLInputElement).disabled) return false;
   if (el.getAttribute('tabindex') === '-1') return false;
   if (el.getAttribute('aria-hidden') === 'true') return false;

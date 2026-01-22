@@ -154,6 +154,9 @@ declare global {
       dbSaveDraft?: Function;
       dbIngest?: Function;
       dbSearch?: Function;
+      dbGet?: Function;
+      dbList?: Function;
+      dbUpdateStatus?: Function;
       saveXml?: Function;
       saveJson?: Function;
       getConfig?: Function;
@@ -1843,9 +1846,25 @@ function setupLocalAutofill() {
   function applyPendingSuggestion() {
     if (!pendingSuggestion) return;
     applyBirthValues(pendingSuggestion.city, pendingSuggestion.uf, true);
+    // trigger city-autocomplete handlers (autofill UF and validations)
+    try {
+      const cityInput = document.querySelector('[data-bind="registro.municipio_nascimento"]') as HTMLInputElement | null;
+      if (cityInput) {
+        cityInput.dispatchEvent(new CustomEvent('city-autocomplete:select', { detail: { city: pendingSuggestion.city, uf: pendingSuggestion.uf }, bubbles: true }));
+      }
+    } catch (e) {
+      /* ignore */
+    }
     clearSuggestion();
     updateDirty();
     recordPlaceMappingFromState();
+    // Move focus to Nome da mãe for faster data entry
+    try {
+      const target = document.querySelector('input[data-bind="ui.mae_nome"]') as HTMLInputElement | null;
+      if (target) setTimeout(() => target.focus(), 0);
+    } catch (e) {
+      /* ignore */
+    }
   }
 
   const repositionSuggestionContainer = () => {
@@ -1899,8 +1918,19 @@ function setupLocalAutofill() {
     if (!entry) return;
     applyPlaceEntry(entry, { force: true, setLocal: true, allowNatural: true });
     recordPlaceMappingFromState(entry.normalizedPlaceText || entry.key);
+    // trigger city-autocomplete handlers and focus mãe
+    try {
+      const cityInput = document.querySelector('[data-bind="registro.municipio_nascimento"]') as HTMLInputElement | null;
+      if (cityInput) {
+        cityInput.dispatchEvent(new CustomEvent('city-autocomplete:select', { detail: { city: entry.cityBirth, uf: entry.ufBirth }, bubbles: true }));
+      }
+    } catch (e) {}
     clearSuggestion();
     hideSuggestionList();
+    try {
+      const target = document.querySelector('input[data-bind="ui.mae_nome"]') as HTMLInputElement | null;
+      if (target) setTimeout(() => target.focus(), 0);
+    } catch (e) {}
   };
 
   const renderSuggestions = (list: PlaceCacheEntry[]) => {
@@ -1942,8 +1972,18 @@ function setupLocalAutofill() {
     if (!entry) return;
     applyPlaceEntry(entry, { force: true, allowNatural: true });
     recordPlaceMappingFromState(entry.normalizedPlaceText || (localEl as any).value);
+    try {
+      const cityInput = document.querySelector('[data-bind="registro.municipio_nascimento"]') as HTMLInputElement | null;
+      if (cityInput) {
+        cityInput.dispatchEvent(new CustomEvent('city-autocomplete:select', { detail: { city: entry.cityBirth, uf: entry.ufBirth }, bubbles: true }));
+      }
+    } catch (e) {}
     clearSuggestion();
     hideSuggestionList();
+    try {
+      const target = document.querySelector('input[data-bind="ui.mae_nome"]') as HTMLInputElement | null;
+      if (target) setTimeout(() => target.focus(), 0);
+    } catch (e) {}
   }
 
   function handleExtracted(city: string, uf: string) {

@@ -16,11 +16,15 @@ import {
 import { setupPrimaryShortcut, setupAutoNationality } from '../../shared/productivity/index';
 import { setupAdminPanel } from '../../shared/ui/admin';
 import { setupActSelect, disableBrowserAutofill, setupDrawerTabs, setupOpsPanel } from '../../ui/setup-ui';
+import { buildCertidaoFileName, readOficioValue } from '../../shared/ui/file-name';
+import { setupDraftAutosave } from '../../shared/ui/draft-autosave';
 import { attachCityIntegrationToAll } from '../../ui/city-uf-ui';
 import { createNameValidator } from '../../shared/nameValidator';
 import { buildObitoPrintHtml } from './printTemplate';
 import { setupSearchPanel } from '../../ui/panels/search-panel';
 import { validateMatriculaType } from '../../shared/matricula/type';
+import { setupSettingsPanelBase } from '../../ui/panels/settings-panel';
+import { applyCertificatePayloadToSecondCopy, consumePendingPayload } from '../../ui/payload/apply-payload';
 
 const NAME_MODE_KEY = 'ui.nameValidationMode';
 let nameValidationMode = localStorage.getItem(NAME_MODE_KEY) || 'blur';
@@ -33,6 +37,8 @@ const OUTPUT_DIR_KEY_XML = 'outputDir.obito.xml';
 const FIXED_CARTORIO_CNS = '110742';
 const FIXED_LAYOUT_KEY = 'ui.fixedLayout';
 const INTERNAL_ZOOM_KEY = 'ui.internalZoom';
+const AUTO_JSON_KEY = 'ui.autoGenerateJson';
+const AUTO_XML_KEY = 'ui.autoGenerateXml';
 
 let outputDirs = { json: '', xml: '' };
 
@@ -200,22 +206,27 @@ function makeTimestamp() {
   )}${pad(d.getSeconds())}`;
 }
 
-function normalizeFilePart(value, fallback) {
-  const clean = String(value || '')
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .toUpperCase()
-    .replace(/[^A-Z0-9]+/g, '_')
-    .replace(/^_+|_+$/g, '');
-  return clean || fallback;
+function resolveRegisteredName(data: any): string {
+  return String(
+    data?.registro?.nome_completo ||
+      data?.registro?.nome_falecido ||
+      data?.registro?.nome ||
+      '',
+  ).trim();
 }
 
-function buildFileName(data, ext) {
-  const nome = normalizeFilePart(data?.registro?.nome_completo, 'SEM_NOME');
-  const cpfDigits = String(data?.registro?.cpf || '').replace(/\D/g, '');
-  const cpfPart = cpfDigits ? cpfDigits : 'SEM_CPF';
-  const stamp = makeTimestamp();
-  return `OBITO_${nome}_${cpfPart}_${stamp}.${ext}`;
+function resolveOficioLabel(): string {
+  const select = document.getElementById('cartorio-oficio') as HTMLSelectElement | null;
+  return readOficioValue(select);
+}
+
+function buildFileName(data: any, ext: string): string {
+  return buildCertidaoFileName({
+    nome: resolveRegisteredName(data),
+    oficio: resolveOficioLabel(),
+    ext,
+    fallback: `OBITO_${makeTimestamp()}`,
+  });
 }
 
 function withFixedCartorioCns(data) {
@@ -373,74 +384,26 @@ function setupOutputDirs() {
 }
 
 function setupSettingsPanel() {
-  const select = document.getElementById('settings-drawer-position') as HTMLElement | null;
-  const cbCpf = document.getElementById('settings-enable-cpf') as HTMLElement | null;
-  const cbName = document.getElementById('settings-enable-name') as HTMLElement | null;
-  const cbFixed = document.getElementById('settings-fixed-layout') as HTMLInputElement | null;
-  const zoomRange = document.getElementById('settings-zoom') as HTMLInputElement | null;
-  const zoomValue = document.getElementById('settings-zoom-value') as HTMLElement | null;
-  const saveBtn = document.getElementById('settings-save') as HTMLElement | null;
-  const applyBtn = document.getElementById('settings-apply') as HTMLElement | null;
-
-  const pos = localStorage.getItem(DRAWER_POS_KEY) || 'top';
-  const enableCpf = localStorage.getItem(ENABLE_CPF_KEY) !== 'false';
-  const enableName = localStorage.getItem(ENABLE_NAME_KEY) !== 'false';
-  const panelInlineStored = localStorage.getItem(PANEL_INLINE_KEY);
-  // default: floating drawer is primary (false)
-  const panelInline = panelInlineStored === null ? false : panelInlineStored === 'true';
-  const fixedLayout = localStorage.getItem(FIXED_LAYOUT_KEY) === 'true';
-  const zoomStored = Number(localStorage.getItem(INTERNAL_ZOOM_KEY) || '100') || 100;
-
-  if (select) (select as any).value = pos;
-  if (cbCpf) (cbCpf as any).checked = !!enableCpf;
-  if (cbName) (cbName as any).checked = !!enableName;
-  if (cbFixed) cbFixed.checked = !!fixedLayout;
-  if (zoomRange) zoomRange.value = String(zoomStored);
-  updateZoomLabel(zoomValue, zoomStored);
-  applyFixedLayout(fixedLayout);
-  applyInternalZoom(zoomStored);
-  const cbInline = document.getElementById('settings-panel-inline') as HTMLElement | null;
-  if (cbInline) (cbInline as any).checked = !!panelInline;
-
-  cbFixed?.addEventListener('change', () => {
-    const enabled = !!cbFixed.checked;
-    applyFixedLayout(enabled);
-    localStorage.setItem(FIXED_LAYOUT_KEY, enabled ? 'true' : 'false');
-  });
-
-  zoomRange?.addEventListener('input', () => {
-    const value = Number(zoomRange.value || '100') || 100;
-    updateZoomLabel(zoomValue, value);
-    applyInternalZoom(value);
-    localStorage.setItem(INTERNAL_ZOOM_KEY, String(value));
-  });
-
-  applyDrawerPosition(pos);
-
-  saveBtn?.addEventListener('click', () => {
-    const newPos = (select as HTMLSelectElement | null)?.value || 'top';
-    const newCpf = (cbCpf as HTMLInputElement | null)?.checked ? 'true' : 'false';
-    const newName = (cbName as HTMLInputElement | null)?.checked ? 'true' : 'false';
-    const newInline = (document.getElementById('settings-panel-inline') as HTMLInputElement | null)
-      ?.checked
-      ? 'true'
-      : 'false';
-    localStorage.setItem(DRAWER_POS_KEY, newPos);
-    localStorage.setItem(ENABLE_CPF_KEY, newCpf);
-    localStorage.setItem(ENABLE_NAME_KEY, newName);
-    localStorage.setItem(PANEL_INLINE_KEY, newInline);
-    if (cbFixed) localStorage.setItem(FIXED_LAYOUT_KEY, cbFixed.checked ? 'true' : 'false');
-    if (zoomRange) localStorage.setItem(INTERNAL_ZOOM_KEY, String(zoomRange.value || '100'));
-    applyDrawerPosition(newPos);
-    // reload to rebind validators cleanly
-    setStatus('Prefer\u00eancias salvas. Atualizando...', false);
-    setTimeout(() => window.location.reload(), 300);
-  });
-
-  applyBtn?.addEventListener('click', () => {
-    const newPos = (select as HTMLSelectElement | null)?.value || 'top';
-    applyDrawerPosition(newPos);
-    setStatus('Posi\u00e7\u00e3o aplicada (n\u00e3o salva)', false);
+  setupSettingsPanelBase({
+    drawerPositionKey: DRAWER_POS_KEY,
+    enableCpfKey: ENABLE_CPF_KEY,
+    enableNameKey: ENABLE_NAME_KEY,
+    panelInlineKey: PANEL_INLINE_KEY,
+    autoJsonKey: AUTO_JSON_KEY,
+    autoXmlKey: AUTO_XML_KEY,
+    fixedLayoutKey: FIXED_LAYOUT_KEY,
+    internalZoomKey: INTERNAL_ZOOM_KEY,
+    defaultDrawerPosition: 'side',
+    defaultPanelInline: false,
+    applyDrawerPosition,
+    applyFixedLayout,
+    applyInternalZoom,
+    updateZoomLabel,
+    onAfterApply: () => setStatus('Posicao aplicada (nao salva)', false),
+    onAfterSave: () => {
+      setStatus('Preferencias salvas. Atualizando...', false)
+      setTimeout(() => window.location.reload(), 300)
+    },
   });
 
   // Output buttons (JSON / XML / Print) - top toolbar buttons (if present) will be bound
@@ -809,10 +772,12 @@ function updateDebug(data) {
 function updateOutputs() {
   const data = mapperHtmlToJson(document);
   const jsonData = withFixedCartorioCns(data);
+  const autoJson = localStorage.getItem(AUTO_JSON_KEY) !== 'false';
+  const autoXml = localStorage.getItem(AUTO_XML_KEY) !== 'false';
   const jsonEl = document.getElementById('json-output') as HTMLElement | null;
-  if (jsonEl) (jsonEl as any).value = JSON.stringify(jsonData, null, 2);
+  if (jsonEl && autoJson) (jsonEl as any).value = JSON.stringify(jsonData, null, 2);
   const xmlEl = document.getElementById('xml-output') as HTMLElement | null;
-  if (xmlEl) (xmlEl as any).value = toXml(data, 'certidao_obito', 0);
+  if (xmlEl && autoXml) (xmlEl as any).value = toXml(data, 'certidao_obito', 0);
   const printEl = document.getElementById('print-html') as HTMLElement | null;
   if (printEl) {
     const assinante =
@@ -840,6 +805,15 @@ function setupLiveOutputs() {
   form?.addEventListener('input', handler);
   form?.addEventListener('change', handler);
   updateOutputs();
+}
+
+function setupLocalDraftAutosave(): void {
+  setupDraftAutosave({
+    key: 'draft.obito',
+    getData: () => mapperHtmlToJson(document),
+    root: document,
+    debounceMs: 600,
+  });
 }
 
 function setupTogglePanels() {
@@ -1212,6 +1186,7 @@ function setup() {
   );
   setupTogglePanels();
   setupLiveOutputs();
+  setupLocalDraftAutosave();
   setupFocusEmphasis();
   setupSearchPanel();
   // ensure action buttons reflect current validity
@@ -1231,6 +1206,9 @@ function setup() {
   } catch (e) {
     /* ignore */
   }
+
+  const pending = consumePendingPayload();
+  if (pending) applyCertificatePayloadToSecondCopy(pending);
 
   // Disable browser autofill heuristics on form fields
   try {

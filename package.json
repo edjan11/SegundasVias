@@ -35,7 +35,8 @@
     "test:xml": "npm run build && node tests/print-nascimento.test.js",
     "gen:nascimento": "node scripts/gen-nascimento-xml.js",
     "start:freq-server": "npm run build && node dist-src/server/frequencyServer.js",
-    "start-nodemon": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/start-nodemon.ps1"
+    "start-nodemon": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/start-nodemon.ps1",
+    "collect-docs": "node tools/collect-docs.js"
   },
   "tools": {
     "import_names": "node tools/import_names.js",
