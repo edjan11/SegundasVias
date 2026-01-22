@@ -159,7 +159,7 @@
           </div>
           <div class="field" style="width: 120px;">
             <label>Local de nascimento</label>
-            <select name="localNascimento" data-bind="ui.local_nascimento_tipo" id="localNascimento" class="campo">
+            <select name="localNascimento" data-bind="ui.local_nascimento_tipo" id="localNascimento">
               <option value="O" selected>OUTROS</option>
               <option value="H">HOSPITAL</option>
               <option value="S">OUTROS ESTABELECIMENTOS DE SAUDE SEM INTERNACAO</option>
@@ -171,6 +171,11 @@
         </div>
 
         <div class="row row-place">
+          <div class="field grow">
+            <label><span id="label-municipio-principal">Municipio (nascimento e naturalidade)</span> <span class="req">*</span></label>
+            <input data-bind="registro.municipio_nascimento" data-required placeholder="Cidade" />
+          </div>
+
           <div class="field" style="width: 130px;">
             <label><span id="label-uf-principal">UF </span> <span class="req">*</span></label>
             <select data-bind="registro.uf_nascimento" data-required class="w-uf">
@@ -180,11 +185,6 @@
             </select>
           </div>
 
-          <div class="field grow">
-            <label><span id="label-municipio-principal">Municipio (nascimento e naturalidade)</span> <span class="req">*</span></label>
-            <input data-bind="registro.municipio_nascimento" data-required placeholder="Cidade" />
-          </div>
-
           <div class="field checkboxField nat-toggle">
             <input type="checkbox" data-bind="ui.naturalidade_diferente" id="naturalidade-diferente" />
             <label for="naturalidade-diferente">Naturalidade diferente do nascimento</label>
@@ -192,6 +192,14 @@
         </div>
 
         <div class="row naturalidade-extra" id="naturalidade-extra">
+          <div class="field" style="width: 260px;">
+            <label class="label-row">
+              <span>Municipio de naturalidade</span>
+              <button type="button" class="link-btn" id="copy-naturalidade">Copiar nascimento</button>
+            </label>
+            <input data-bind="registro.municipio_naturalidade" placeholder="Cidade" />
+          </div>
+
           <div class="field" style="width: 180px;">
             <label>UF de naturalidade</label>
             <select data-bind="registro.uf_naturalidade" class="w-uf">
@@ -199,14 +207,6 @@
               <option>IG</option>
           <option>AC</option><option>AL</option><option>AP</option><option>AM</option><option>BA</option><option>CE</option><option>DF</option><option>ES</option><option>GO</option><option>MA</option><option>MT</option><option>MS</option><option>MG</option><option>PA</option><option>PB</option><option>PR</option><option>PE</option><option>PI</option><option>RJ</option><option>RN</option><option>RS</option><option>RO</option><option>RR</option><option>SC</option><option>SP</option><option>SE</option><option>TO</option>
             </select>
-          </div>
-
-          <div class="field" style="width: 260px;">
-            <label class="label-row">
-              <span>Municipio de naturalidade</span>
-              <button type="button" class="link-btn" id="copy-naturalidade">Copiar nascimento</button>
-            </label>
-            <input data-bind="registro.municipio_naturalidade" placeholder="Cidade" />
           </div>
         </div>
       </div>
@@ -505,6 +505,17 @@
                 <div class="field-line">
                   <label class="inline-check"><input type="checkbox" id="settings-enable-cpf" /> Validar CPF</label>
                   <label class="inline-check"><input type="checkbox" id="settings-enable-name" /> Validar Nomes</label>
+                </div>
+              </div>
+              <div class="field span-6">
+                <label>Layout</label>
+                <div class="field-line">
+                  <label class="inline-check"><input type="checkbox" id="settings-fixed-layout" /> Layout fixo (nao quebrar no zoom)</label>
+                </div>
+                <div class="field-line" style="margin-top:4px;">
+                  <label class="inline-check">Zoom interno</label>
+                  <input type="range" id="settings-zoom" min="80" max="110" step="1" />
+                  <span id="settings-zoom-value">100%</span>
                 </div>
               </div>
             </div>
