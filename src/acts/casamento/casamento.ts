@@ -33,7 +33,7 @@ let nameValidationMode = localStorage.getItem(NAME_MODE_KEY) || 'blur';
 const PANEL_INLINE_KEY = 'ui.panelInline';
 const OUTPUT_DIR_KEY_JSON = 'outputDir.casamento.json';
 const OUTPUT_DIR_KEY_XML = 'outputDir.casamento.xml';
-const FIXED_CARTORIO_CNS = '110742';
+const FIXED_CARTORIO_CNS = '163659';
 const FIXED_LAYOUT_KEY = 'ui.fixedLayout';
 const INTERNAL_ZOOM_KEY = 'ui.internalZoom';
 
@@ -826,6 +826,13 @@ function setupPrintButton(): void {
     e.preventDefault();
     if (!canProceed()) return;
 
+    const popup = window.open('', '_blank', 'width=900,height=1100');
+    if (!popup) {
+      showToast('Permita popups para imprimir/baixar PDF');
+      setStatus('Popup bloqueado', true);
+      return;
+    }
+
     const data = mapperHtmlToJson(document as any);
     let html = '';
     try {
@@ -833,13 +840,15 @@ function setupPrintButton(): void {
     } catch (err) {
       console.error('PDF template load error', err);
       setStatus('Falha ao carregar template do PDF', true);
+      try { popup.close(); } catch { /* ignore */ }
       return;
     }
 
     try {
-      openHtmlAndSavePdf(html, 'CASAMENTO_');
+      openHtmlAndSavePdf(html, 'CASAMENTO_', popup);
       setStatus('Gerando PDF…');
     } catch {
+      try { popup.close(); } catch { /* ignore */ }
       showToast('Permita popups para imprimir/baixar PDF');
       setStatus('Popup bloqueado', true);
     }

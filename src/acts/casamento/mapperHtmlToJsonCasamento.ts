@@ -233,8 +233,8 @@ export function mapperHtmlToCrcJson(root: Root = document) {
       tipo_registro: 'casamento',
       tipo_certidao,
       transcricao,
-      // JSON deve manter CNS fixo
-      cartorio_cns: '110742',
+      // JSON deve manter CNS fixo (9º ofício)
+      cartorio_cns: '163659',
       selo,
       cod_selo,
       modalidade,
