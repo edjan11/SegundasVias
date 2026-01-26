@@ -105,8 +105,9 @@ export function initActions(opts: {
   generateFile: (f: string) => void;
   setTipoRegistro: (t: string) => void;
   getDocument: () => Document;
+  navigateToAct?: (kind: string) => void;
 }) {
-  const { saveDraft, generateFile, setTipoRegistro, getDocument } = opts;
+  const { saveDraft, generateFile, setTipoRegistro, getDocument, navigateToAct } = opts;
   const doc = getDocument();
   (doc.getElementById('btn-save') as HTMLElement | null)?.addEventListener('click', saveDraft);
   (doc.getElementById('btn-json') as HTMLElement | null)?.addEventListener('click', () =>
@@ -119,11 +120,22 @@ export function initActions(opts: {
       generateFile('xml');
     });
   }
-  doc.getElementById('btn-nascimento')?.addEventListener('click', () => setTipoRegistro('nascimento'));
-  doc.getElementById('btn-casamento')?.addEventListener('click', () => setTipoRegistro('casamento'));
-  (doc.getElementById('btn-obito') as HTMLElement | null)?.addEventListener('click', () =>
-    setTipoRegistro('obito'),
-  );
+
+  // Buttons now also trigger optional navigation when clicked
+  doc.getElementById('btn-nascimento')?.addEventListener('click', () => {
+    setTipoRegistro('nascimento');
+    navigateToAct?.('nascimento');
+  });
+
+  doc.getElementById('btn-casamento')?.addEventListener('click', () => {
+    setTipoRegistro('casamento');
+    navigateToAct?.('casamento');
+  });
+
+  (doc.getElementById('btn-obito') as HTMLElement | null)?.addEventListener('click', () => {
+    setTipoRegistro('obito');
+    navigateToAct?.('obito');
+  });
 }
 
 export function initConfigModal(opts: { refreshConfig: () => Promise<void>; updateBadge: () => void; getDocument: () => Document }) {
