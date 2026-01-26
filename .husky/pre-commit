@@ -1,0 +1,7 @@
+#!/usr/bin/env sh
+. "$(dirname "$0")/_/husky.sh"
+
+npm run check:context || {
+  echo "Context check failed. Run 'npm run check:context' and fix contexts before commit." >&2
+  exit 1
+}

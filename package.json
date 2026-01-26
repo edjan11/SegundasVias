@@ -43,8 +43,10 @@
     "start:freq-server": "npm run build && node dist-src/server/frequencyServer.js",
     "start-nodemon": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/start-nodemon.ps1",
     "check:context": "node tools/check_context_size.js",
+    "prepare": "husky install",
     "collect-docs": "node tools/collect-docs.js"
   },
+
   "tools": {
     "import_names": "node tools/import_names.js",
     "ensure_names_gz": "node tools/ensure_names_gz.js"
@@ -82,6 +84,7 @@
     "prettier": "^2.8.8",
     "source-map-explorer": "^2.5.2",
     "tailwindcss": "^4.1.18",
+    "husky": "^8.0.0",
     "ts-node": "^10.9.2",
     "ts-prune": "^0.6.0",
     "typescript": "^5.3.3"
