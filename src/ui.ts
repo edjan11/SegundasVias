@@ -4,7 +4,16 @@
   scoreTextSimilarity,
 } from './shared/city-uf-resolver.js';
 
-// FunÃ§Ãµes relacionadas Ã  interface do usuÃ¡rio
+import { logger } from './shared/logger.js';
+import {
+  initMatriculaAutoListeners,
+  initActions,
+  initConfigModal,
+  initShortcuts,
+  initBeforeUnload,
+} from './ui/setupListeners.js';
+
+// Funcoes relacionadas a interface do usuario
 export function showToast(message: string): void {
   let container = document.getElementById('toast-container') as HTMLElement | null;
   if (!container) {
@@ -29,51 +38,56 @@ export function setupConfigPanel(): void {
   // ConfiguraÃ§Ã£o do painel de configuraÃ§Ãµes
 }
 
-export function setFieldHint(field: HTMLElement | null, message: string): void {
-  if (!field) return;
-  let hint = field.querySelector('.hint');
-  if (!hint) {
-    hint = document.createElement('div');
-    hint.className = 'hint';
-    field.appendChild(hint);
-  }
-  if (message) {
-    hint.innerHTML = '';
-    const icon = document.createElement('span');
-    icon.className = 'icon';
-    icon.textContent = 'âš ';
-    icon.setAttribute('aria-hidden', 'true');
-    hint.appendChild(icon);
-    const txt = document.createElement('span');
-    txt.className = 'hint-text';
-    txt.textContent = message;
-    hint.appendChild(txt);
-    hint.classList.add('visible');
-    let aria = document.getElementById('aria-live-errors') as HTMLElement | null;
-    if (!aria) {
-      aria = document.createElement('div');
-      aria.id = 'aria-live-errors';
-      aria.className = 'sr-only';
-      aria.setAttribute('aria-live', 'assertive');
-      aria.setAttribute('role', 'status');
-      document.body.appendChild(aria);
-    }
-    aria.textContent = message;
-  } else {
-    hint.innerHTML = '';
-    hint.classList.remove('visible');
-  }
-}
-
-export function clearFieldHint(field: HTMLElement | null): void {
-  setFieldHint(field, '');
-}
+import { clearFieldHint } from './ui/field-hint';
+export { setFieldHint, clearFieldHint } from './ui/field-hint';
 
 export function updateActionButtons(): void {
   // Atualiza os botÃµes de aÃ§Ã£o com base no estado dos campos
 }
 
-export const state: any = {
+interface State {
+  certidao: Certidao & {
+    cod_selo: string;
+    cota_emolumentos: string;
+    cota_emolumentos_isento: boolean;
+  };
+  registro: Registro & {
+    cpf_sem_inscricao: boolean;
+    matricula: string;
+    data_nascimento_ignorada: boolean;
+    hora_nascimento_ignorada: boolean;
+    gemeos: { quantidade: string; irmao?: string | { nome: string; matricula: string }[] };
+    numero_dnv: string;
+    averbacao_anotacao: string;
+  };
+  ui: UIFields;
+
+  [k: string]: unknown; // allow flexible access via setByPath/getByPath
+}
+
+interface UIFields {
+  naturalidade_diferente?: boolean;
+  casamento_tipo?: string;
+  matricula_livro?: string;
+  matricula_folha?: string;
+  matricula_termo?: string;
+  cartorio_oficio?: string;
+  mae_nome?: string;
+  mae_uf?: string;
+  mae_cidade?: string;
+  mae_avo_materna?: string;
+  mae_avo_materno?: string;
+  pai_nome?: string;
+  pai_uf?: string;
+  pai_cidade?: string;
+  pai_avo_paterna?: string;
+  pai_avo_paterno?: string;
+  gemeos_irmao_raw?: string;
+  anotacoes_raw?: string;
+  // add other frequently used UI fields as optional strings
+}
+
+export const state: State = {
   certidao: {
     cod_selo: '',
     modalidade: 'eletronica',
@@ -123,6 +137,15 @@ export const state: any = {
   },
 };
 
+// Expose typed hooks on window for integration tests and legacy callers
+declare global {
+  interface Window {
+    updateMatricula?: (s?: string) => void;
+  }
+}
+
+export {};
+
 let lastSavedSnapshot = '';
 let lastSavedId = '';
 let isDirty = true;
@@ -139,29 +162,46 @@ interface Registro {
   data_nascimento?: string;
   hora_nascimento?: string;
   cpf?: string;
+  matricula?: string;
+  matricula_base?: string;
+  matricula_dv?: string;
+  matricula_livro?: string;
+  matricula_folha?: string;
+  matricula_termo?: string;
+  casamento_tipo?: string;
+  cartorio_oficio?: string;
+  cartorio_cns?: string;
+  // naturalidade (birth place) fields used in UI
+  municipio_naturalidade?: string;
+  uf_naturalidade?: string;
+  filiacao?: Array<{ nome?: string; municipio_nascimento?: string; uf_nascimento?: string; avos?: string }>;
+  // Anotações cadastradas através da UI - cada item: tipo|documento|orgao_emissor|uf_emissao|data_emissao
+  anotacoes_cadastro?: Array<{ tipo?: string; documento?: string; orgao_emissor?: string; uf_emissao?: string; data_emissao?: string }>;
 }
 interface Certidao {
   modalidade?: string;
   tipo_registro?: string;
+  plataformaId?: string;
+  tipo_certidao?: string;
+  transcricao?: boolean;
+  cartorio_cns?: string;
+  selo?: string;
 }
-interface DataObj {
-  registro?: Registro;
-  certidao?: Certidao;
-}
+
 declare global {
   interface Window {
     api?: {
-      dbSaveDraft?: Function;
-      dbIngest?: Function;
-      dbSearch?: Function;
-      dbGet?: Function;
-      dbList?: Function;
-      dbUpdateStatus?: Function;
-      saveXml?: Function;
-      saveJson?: Function;
-      getConfig?: Function;
-      pickJsonDir?: Function;
-      pickXmlDir?: Function;
+      dbSaveDraft?: (...args: unknown[]) => unknown;
+      dbIngest?: (...args: unknown[]) => unknown;
+      dbSearch?: (...args: unknown[]) => unknown;
+      dbGet?: (...args: unknown[]) => unknown;
+      dbList?: (...args: unknown[]) => unknown;
+      dbUpdateStatus?: (...args: unknown[]) => unknown;
+      saveXml?: (...args: unknown[]) => unknown;
+      saveJson?: (...args: unknown[]) => unknown;
+      getConfig?: (...args: unknown[]) => unknown;
+      pickJsonDir?: (...args: unknown[]) => unknown;
+      pickXmlDir?: (...args: unknown[]) => unknown;
     };
     __adjustMatricula?: (raw: string, obs?: string) => string;
   }
@@ -170,15 +210,19 @@ declare global {
 import { adjustMatricula } from './shared/matricula/cnj';
 
 // expose for interactive debugging and prompts
-if (typeof window !== 'undefined') (window as any).__adjustMatricula = adjustMatricula;
+if (typeof window !== 'undefined') {
+  (window as Window & { __adjustMatricula?: typeof adjustMatricula }).__adjustMatricula = adjustMatricula;
+}
 
 function setStatus(text: string, isError?: boolean) {
   const el = document.getElementById('statusText') as HTMLElement | null;
   if (!el) return;
   el.textContent = text;
   (el as HTMLElement).style.color = isError ? '#dc2626' : '#64748b';
-  const anyEl = el as any;
-  clearTimeout(anyEl._timer);
+  const anyEl = el as HTMLElement & { _timer?: number | ReturnType<typeof setTimeout> };
+  if (anyEl._timer !== undefined) {
+    try { clearTimeout(anyEl._timer as ReturnType<typeof setTimeout>); } catch (e) { /* ignore */ }
+  }
   anyEl._timer = setTimeout(() => {
     el.textContent = 'Pronto';
     (el as HTMLElement).style.color = '#64748b';
@@ -187,44 +231,32 @@ function setStatus(text: string, isError?: boolean) {
 
 // ...restante do cÃ³digo...
 
-function setByPath(obj: any, path: string, value: unknown) {
-  const parts = path.split('.');
-  let cur = obj;
-  for (let i = 0; i < parts.length - 1; i++) {
-    const p = parts[i];
-    if (cur[p] === undefined) cur[p] = {};
-    cur = cur[p];
-  }
-  cur[parts[parts.length - 1]] = value;
-}
+import { setByPath, getByPath } from './ui/bindings';
 
-function getByPath(obj: any, path: string): any {
-  return path.split('.').reduce((acc: any, p: string) => (acc ? acc[p] : undefined), obj);
-}
 
-export function syncInputsFromState() {
+export function syncInputsFromState(): void {
   document.querySelectorAll('[data-bind]').forEach((el) => {
-    const path = (el as any).getAttribute('data-bind') || '';
+    const path = (el as Element).getAttribute('data-bind') || '';
     const val = getByPath(state, path);
     const input = el as HTMLInputElement;
     if (input.type === 'checkbox') {
-      (input as any).checked = !!val;
+      (input as HTMLInputElement).checked = !!val;
       return;
     }
+    const sVal = val === undefined || val === null ? '' : String(val);
     if (path === 'registro.cpf') {
-      (input as any).value = formatCpf(val);
+      (input as HTMLInputElement).value = formatCpf(sVal);
       return;
     }
     if (path === 'registro.data_registro' || path === 'registro.data_nascimento') {
-      (input as any).value = normalizeDateValue(val);
+      (input as HTMLInputElement).value = normalizeDateValue(sVal);
       return;
     }
     if (path === 'registro.hora_nascimento') {
-      (input as any).value = normalizeTimeValue(val);
+      (input as HTMLInputElement).value = normalizeTimeValue(sVal);
       return;
     }
-    (input as any).value = val !== undefined && val !== null ? String(val) : '';
-  });
+    (input as HTMLInputElement).value = sVal;  });
   updateTipoButtons();
   updateSexoOutros();
   updateIgnoreFields();
@@ -233,92 +265,28 @@ export function syncInputsFromState() {
   updateMatricula();
 }
 
+import { initBindings } from './ui/setupListeners';
+
+// initialize bindings with explicit callbacks to avoid circular references
 function bindInputs() {
-  document.querySelectorAll('[data-bind]').forEach((el) => {
-    const path = (el as any).getAttribute('data-bind') || '';
-    const handler = () => {
-      const input = el as HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement;
-      const tag = (input as any).tagName || '';
-      const isTextArea = tag === 'TEXTAREA';
-      const isSelect = tag === 'SELECT';
-      const type = !isTextArea && !isSelect ? (input as HTMLInputElement).type || '' : '';
-      if (!isSelect && !['checkbox', 'radio', 'password', 'number'].includes(type)) {
-        const upper = (input as any).value?.toUpperCase?.() ?? (input as any).value;
-        if (upper !== (input as any).value) {
-          const start = (input as any).selectionStart;
-          const end = (input as any).selectionEnd;
-          (input as any).value = upper;
-          if (start !== null && end !== null && typeof (input as any).setSelectionRange === 'function') {
-            (input as any).setSelectionRange(start, end);
-          }
-        }
-      }
-      if (input.type === 'checkbox') {
-        setByPath(state, path, (input as any).checked);
-      } else if (path === 'registro.cpf') {
-        const digits = normalizeCpfValue((input as any).value);
-        setByPath(state, path, digits);
-        (input as any).value = formatCpf(digits);
-      } else if (path === 'registro.data_registro' || path === 'registro.data_nascimento') {
-        const formatted = formatDateInput((input as any).value);
-        setByPath(state, path, formatted);
-        (input as any).value = formatted;
-      } else if (path === 'registro.hora_nascimento') {
-        const formatted = formatTimeInput((input as any).value);
-        setByPath(state, path, formatted);
-        (input as any).value = formatted;
-      } else {
-        setByPath(state, path, (input as any).value);
-      }
-      if (path === 'registro.sexo') updateSexoOutros();
-      if (
-        path === 'registro.data_nascimento_ignorada' ||
-        path === 'registro.hora_nascimento_ignorada'
-      ) {
-        updateIgnoreFields();
-      }
-      if (path === 'registro.cpf') updateCpfState();
-      if (path === 'registro.cpf_sem_inscricao') updateCpfFromToggle();
-      if (path === 'ui.cartorio_oficio') applyCartorioChange();
-      if (path === 'registro.data_registro') updateMatricula();
-      if (
-        path === 'ui.casamento_tipo' ||
-        path === 'ui.matricula_livro' ||
-        path === 'ui.matricula_folha' ||
-        path === 'ui.matricula_termo'
-      ) {
-        updateMatricula();
-      }
-      if (path === 'ui.naturalidade_diferente') updateNaturalidadeVisibility(true);
-      if (path === 'registro.municipio_naturalidade' || path === 'registro.uf_naturalidade') {
-        rememberNaturalidadeEdit();
-      }
-      if (path === 'registro.municipio_nascimento' || path === 'registro.uf_nascimento') {
-        syncNaturalidadeLockedToBirth();
-      }
-      validateLiveField(path, input as any);
-      updateDirty();
-    };
-    el.addEventListener('input', handler);
-    el.addEventListener('change', handler);
+  initBindings({
+    getDocument: () => document,
+    setState: (path, value) => setByPath(state, path, value),
+    updateSexoOutros,
+    updateIgnoreFields,
+    updateCpfState,
+    updateCpfFromToggle,
+    applyCartorioChange,
+    updateMatricula,
+    updateNaturalidadeVisibility,
+    rememberNaturalidadeEdit,
+    syncNaturalidadeLockedToBirth,
+    validateLiveField: (p, i) => validateLiveField(p, i),
+    updateDirty,
   });
 }
 
-function updateTipoButtons() {
-  const tipo = state.certidao.tipo_registro || 'nascimento';
-  const btnN = document.getElementById('btn-nascimento') as HTMLElement | null;
-  const btnC = document.getElementById('btn-casamento') as HTMLElement | null;
-  const btnO = document.getElementById('btn-obito') as HTMLElement | null;
-  if (btnN) btnN.classList.toggle('active', tipo === 'nascimento');
-  if (btnC) btnC.classList.toggle('active', tipo === 'casamento');
-  if (btnO) btnO.classList.toggle('active', tipo === 'obito');
-  const input = document.querySelector(
-    '[data-bind="certidao.tipo_registro"]',
-  ) as HTMLInputElement | null;
-  if (input) (input as any).value = tipo;
-  const casamentoWrap = document.getElementById('casamento-tipo-wrap') as HTMLElement | null;
-  if (casamentoWrap) casamentoWrap.style.display = tipo === 'casamento' ? 'flex' : 'none';
-}
+import { getCurrentAct, navigateToAct, updateTipoButtons } from './ui/navigation';
 
 function setTipoRegistro(tipo: string) {
   state.certidao.tipo_registro = tipo;
@@ -337,9 +305,8 @@ function updateSexoOutros() {
   const enabled = sexo === 'outros';
   wrap.style.display = enabled ? 'flex' : 'none';
   if (!enabled) {
-    (input as any).value = '';
-    state.registro.sexo_outros = '';
-  }
+    input.value = '';
+    state.registro.sexo_outros = '';  }
 }
 
 function updateIgnoreFields() {
@@ -348,16 +315,16 @@ function updateIgnoreFields() {
   const dn = document.getElementById('dn') as HTMLElement | null as HTMLInputElement | null;
   const hn = document.getElementById('hn') as HTMLElement | null as HTMLInputElement | null;
   if (dn) {
-    (dn as any).disabled = dnIgn;
+    dn.disabled = dnIgn;
     if (dnIgn) {
-      (dn as any).value = '';
+      dn.value = '';
       state.registro.data_nascimento = '';
     }
   }
   if (hn) {
-    (hn as any).disabled = hnIgn;
+    hn.disabled = hnIgn;
     if (hnIgn) {
-      (hn as any).value = '';
+      hn.value = '';
       state.registro.hora_nascimento = '';
     }
   }
@@ -373,8 +340,11 @@ function setBoundValue(path: string, value: unknown) {
     | HTMLSelectElement
     | null;
   if (!el) return;
-  if ((el as HTMLInputElement).type === 'checkbox') (el as HTMLInputElement).checked = !!value;
-  else (el as any).value = value !== undefined && value !== null ? String(value) : '';
+  if ((el as HTMLInputElement).type === 'checkbox') {
+    (el as HTMLInputElement).checked = !!value;
+  } else {
+    (el as HTMLInputElement | HTMLSelectElement).value = value !== undefined && value !== null ? String(value) : '';
+  }
 }
 
 function rememberNaturalidadeEdit() {
@@ -414,7 +384,7 @@ function updateNaturalidadeVisibility(fromToggle: boolean) {
   const copyBtn = document.getElementById(
     'copy-naturalidade',
   ) as HTMLElement | null as HTMLButtonElement | null;
-  if (copyBtn) (copyBtn as any).disabled = !isDifferent;
+  if (copyBtn) copyBtn.disabled = !isDifferent;
   const labelCity = document.getElementById('label-municipio-principal') as HTMLElement | null;
   const labelUf = document.getElementById('label-uf-principal') as HTMLElement | null;
   if (labelCity) {
@@ -466,20 +436,18 @@ function updateCpfState() {
   state.registro.cpf = cpfDigits;
   if (cpfDigits.length > 0) {
     state.registro.cpf_sem_inscricao = false;
-    const cpfSemEl = document.getElementById(
-      'cpf-sem',
-    ) as HTMLElement | null as HTMLInputElement | null;
-    if (cpfSemEl) (cpfSemEl as any).checked = false;
+    const cpfSemEl = document.getElementById('cpf-sem') as HTMLInputElement | null;
+    if (cpfSemEl) cpfSemEl.checked = false;
   }
-  const cpfEl = document.getElementById('cpf') as HTMLElement | null as HTMLInputElement | null;
-  if (cpfEl) (cpfEl as any).value = formatCpf(cpfDigits);
+  const cpfEl = document.getElementById('cpf') as HTMLInputElement | null;
+  if (cpfEl) cpfEl.value = formatCpf(cpfDigits);
 }
 
 function updateCpfFromToggle() {
   const cpfSem = !!state.registro.cpf_sem_inscricao;
-  const cpfEl = document.getElementById('cpf') as HTMLElement | null as HTMLInputElement | null;
+  const cpfEl = document.getElementById('cpf') as HTMLInputElement | null;
   if (cpfSem && cpfEl) {
-    (cpfEl as any).value = '';
+    cpfEl.value = '';
     state.registro.cpf = '';
   }
 }
@@ -582,9 +550,7 @@ function yearFromDate(value: string) {
 }
 
 function tipoDigit() {
-  let registro = String(
-    (state.certidao && (state.certidao as any).tipo_registro) || '',
-  ).toLowerCase();
+  let registro = String((state.certidao && state.certidao.tipo_registro) || '').toLowerCase();
   if (!registro) {
     try {
       registro = String(
@@ -595,7 +561,7 @@ function tipoDigit() {
         )?.value || '',
       ).toLowerCase();
     } catch (e) {
-      void e;
+      logger.warn('ui: tipoDigit DOM fallback read failed', e);
     }
   }
   if (!registro) registro = 'nascimento';
@@ -603,7 +569,7 @@ function tipoDigit() {
   if (registro === 'casamento') {
     // casamento: default to civil (2) when not explicitly selected
     let selected = digitsOnly(
-      state.ui && (state.ui as any).casamento_tipo ? String((state.ui as any).casamento_tipo) : '',
+      state.ui && state.ui.casamento_tipo ? String(state.ui.casamento_tipo) : '',
     ).slice(0, 1);
     if (!selected) {
       try {
@@ -613,7 +579,7 @@ function tipoDigit() {
           )?.value || '',
         ).slice(0, 1);
       } catch (e) {
-        void e;
+        logger.warn('ui: tipoDigit select[name="tipoCasamento"] read failed', e);
       }
     }
     return selected || '2';
@@ -624,11 +590,7 @@ function tipoDigit() {
 
 function buildMatricula() {
   // prefer state values, but fallback to DOM inputs when state is not yet populated
-  let cns = digitsOnly(
-    state.certidao && (state.certidao as any).cartorio_cns
-      ? String((state.certidao as any).cartorio_cns)
-      : '',
-  );
+  let cns = digitsOnly(state.certidao && state.certidao.cartorio_cns ? String(state.certidao.cartorio_cns) : '');
   if (!cns) {
     try {
       cns = digitsOnly(
@@ -639,14 +601,10 @@ function buildMatricula() {
         )?.value || '',
       );
     } catch (e) {
-      void e;
+      logger.warn('ui: buildMatricula cartorio_cns DOM fallback read failed', e);
     }
   }
-  let ano = yearFromDate(
-    state.registro && (state.registro as any).data_registro
-      ? String((state.registro as any).data_registro)
-      : '',
-  );
+  let ano = yearFromDate(state.registro && state.registro.data_registro ? String(state.registro.data_registro) : '');
   if (!ano) {
     try {
       ano = yearFromDate(
@@ -657,12 +615,12 @@ function buildMatricula() {
         )?.value || '',
       );
     } catch (e) {
-      void e;
+      logger.warn('buildMatricula: failed to read registro.data_registro from DOM', e);
     }
   }
   const tipo = tipoDigit();
   let livro = padDigits(
-    state.ui && (state.ui as any).matricula_livro ? String((state.ui as any).matricula_livro) : '',
+    state.ui && state.ui.matricula_livro ? String(state.ui.matricula_livro) : '',
     5,
   );
   if (!livro || livro === '') {
@@ -672,11 +630,11 @@ function buildMatricula() {
         5,
       );
     } catch (e) {
-      void e;
+      logger.warn('buildMatricula: failed to read #matricula-livro from DOM', e);
     }
   }
   let folha = padDigits(
-    state.ui && (state.ui as any).matricula_folha ? String((state.ui as any).matricula_folha) : '',
+    state.ui && state.ui.matricula_folha ? String(state.ui.matricula_folha) : '',
     3,
   );
   if (!folha || folha === '') {
@@ -686,11 +644,11 @@ function buildMatricula() {
         3,
       );
     } catch (e) {
-      void e;
+      logger.warn('buildMatricula: failed to read #matricula-folha from DOM', e);
     }
   }
   let termo = padDigits(
-    state.ui && (state.ui as any).matricula_termo ? String((state.ui as any).matricula_termo) : '',
+    state.ui && state.ui.matricula_termo ? String(state.ui.matricula_termo) : '',
     7,
   );
   if (!termo || termo === '') {
@@ -700,7 +658,7 @@ function buildMatricula() {
         7,
       );
     } catch (e) {
-      void e;
+      logger.warn('buildMatricula: failed to read #matricula-termo from DOM', e);
     }
   }
 
@@ -720,9 +678,9 @@ function setMatriculaValue(value: string) {
     'matricula',
   ) as HTMLElement | null as HTMLInputElement | null;
   if (matEl) {
-    (matEl as any).value = final;
+    matEl.value = final;
     // ensure readonly UI (generated field)
-    (matEl as any).readOnly = true;
+    matEl.readOnly = true;
   }
 }
 
@@ -802,12 +760,12 @@ function markMissingForMatricula() {
         matEl,
         'Preencha Cartório / Livro / Folha / Termo / Data para gerar matrÃ­cula',
       );
-      (matEl as any).setAttribute('aria-invalid', 'true');
-      (matEl as any).setAttribute('title', 'Campos faltantes â€” passe o cursor para ver quais');
+      matEl.setAttribute('aria-invalid', 'true');
+      matEl.setAttribute('title', 'Campos faltantes â€” passe o cursor para ver quais');
     } else {
       clearHoverHintForMatricula(matEl);
-      (matEl as any).removeAttribute('aria-invalid');
-      (matEl as any).removeAttribute('title');
+      matEl.removeAttribute('aria-invalid');
+      matEl.removeAttribute('title');
     }
   }
 }
@@ -836,14 +794,14 @@ function applyCartorioChange() {
   if (cns) {
     state.certidao.cartorio_cns = cns;
     if (cnsInput) {
-      (cnsInput as any).value = cns;
+      cnsInput.value = cns;
       // trigger any input/change handlers bound to this field so state sync happens immediately
       cnsInput.dispatchEvent(new Event('input', { bubbles: true }));
       cnsInput.dispatchEvent(new Event('change', { bubbles: true }));
     }
   } else if (cnsInput) {
     // clear if unknown
-    (cnsInput as any).value = '';
+    cnsInput.value = '';
     cnsInput.dispatchEvent(new Event('input', { bubbles: true }));
     cnsInput.dispatchEvent(new Event('change', { bubbles: true }));
   }
@@ -855,7 +813,7 @@ function trimValue(value: unknown) {
   return String(value || '').trim();
 }
 
-function parseLines(raw: string, mapper: (line: string) => any) {
+function parseLines<T>(raw: string, mapper: (line: string) => T): T[] {
   if (!raw) return [];
   return raw
     .split(/\r?\n/)
@@ -864,36 +822,8 @@ function parseLines(raw: string, mapper: (line: string) => any) {
     .map(mapper);
 }
 
-function parseIrmaos(raw: string) {
-  return parseLines(raw, (line) => {
-    // aceita "nome|matricula" ou "nome - matricula" (usa o último traço como separador)
-    if (line.includes('|')) {
-      const parts = line.split('|');
-      return {
-        nome: trimValue(parts[0]),
-        matricula: trimValue(parts[1] || ''),
-      };
-    }
+import { parseIrmaos } from './shared/parse-irmaos.js'; // parseIrmaos moved to shared helper to allow unit testing without loading browser UI
 
-    const dashPos = Math.max(line.lastIndexOf('-'), line.lastIndexOf('—'));
-    if (dashPos > 0) {
-      const right = line.slice(dashPos + 1).trim();
-      // se lado direito contém dígitos, assume que é matrícula
-      if (/\d/.test(right)) {
-        return {
-          nome: trimValue(line.slice(0, dashPos)),
-          matricula: trimValue(right),
-        };
-      }
-    }
-
-    // fallback: trata tudo como nome
-    return {
-      nome: trimValue(line),
-      matricula: '',
-    };
-  });
-}
 
 function parseAnotacoes(raw: string) {
   return parseLines(raw, (line) => {
@@ -955,7 +885,7 @@ function normalizeData() {
     cota_emolumentos_isento: !!cert.cota_emolumentos_isento,
   };
 
-  const filiacao: any[] = [];
+  const filiacao: Array<{ nome: string; municipio_nascimento?: string; uf_nascimento?: string; avos?: string } > = [];
   const mae = buildFiliacaoItem(
     state.ui.mae_nome,
     state.ui.mae_cidade,
@@ -977,7 +907,7 @@ function normalizeData() {
   const matriculaDv = matriculaFull.length >= 2 ? matriculaFull.slice(-2) : '';
   const matriculaBase = matriculaFull.length > 2 ? matriculaFull.slice(0, -2) : '';
 
-  const registro: any = {
+  const registro: State["registro"] = {
     nome_completo: trimValue(reg.nome_completo),
     cpf_sem_inscricao: cpfSem,
     cpf: cpfExists ? cpfDigits : '',
@@ -1062,7 +992,7 @@ function isValidTime(value: string) {
   return /^([01]\d|2[0-3]):([0-5]\d)$/.test(normalized);
 }
 
-function validateData(data: any) {
+function validateData(data: ReturnType<typeof normalizeData>) {
   clearInvalid();
   let ok = true;
   if (!data.registro.nome_completo) {
@@ -1124,7 +1054,7 @@ function validateData(data: any) {
 function ensureHint(input: HTMLInputElement | HTMLSelectElement) {
   const field = input.closest('.field') as HTMLElement | null;
   if (!field) return null;
-  let hint = (field as any).querySelector('.hint') as HTMLElement | null;
+  let hint = field.querySelector('.hint') as HTMLElement | null;
   if (!hint) {
     hint = document.createElement('div');
     hint.className = 'hint';
@@ -1254,7 +1184,7 @@ function makeTimestamp() {
   )}${pad(d.getSeconds())}`;
 }
 
-function buildFileName(data: any, ext: string) {
+function buildFileName(data: ReturnType<typeof normalizeData>, ext: string) {
   const tipo = normalizeFilePart(data.certidao.tipo_registro || 'nascimento', 'NASCIMENTO');
   const nome = normalizeFilePart(data.registro.nome_completo, 'SEM_NOME');
   const cpfDigits = (data.registro.cpf || '').replace(/\D/g, '');
@@ -1296,7 +1226,7 @@ function downloadFile(name: string, content: string, mime: string) {
     URL.revokeObjectURL(url);
     return true;
   } catch (e) {
-    void e;
+    logger.warn('downloadFile failed', e);
     return false;
   }
 }
@@ -1312,8 +1242,11 @@ async function saveDraft() {
         data,
         sourceFormat: 'manual',
         kind: data.certidao.tipo_registro || 'nascimento',
-      });
-      if (res && res.id) lastSavedId = res.id;
+      }) as unknown;
+      if (res && typeof res === 'object' && 'id' in res) {
+        const r = res as { id?: unknown };
+        if (r.id) lastSavedId = String(r.id);
+      }
     } else {
       localStorage.setItem('draft_certidao', JSON.stringify(data));
     }
@@ -1321,6 +1254,7 @@ async function saveDraft() {
     setDirty(false);
     setStatus('Salvo');
   } catch (err) {
+    logger.error('saveDraft failed', { err });
     setStatus('Falha ao salvar', true);
   }
 }
@@ -1368,105 +1302,36 @@ function updateBadge() {
 async function refreshConfig() {
   if (!window.api || !window.api.getConfig) return;
   try {
-    const cfg = await window.api.getConfig();
-    currentDirs = { jsonDir: cfg.jsonDir || '', xmlDir: cfg.xmlDir || '' };
+    const cfg = await window.api.getConfig() as unknown;
+    if (cfg && typeof cfg === 'object') {
+      const c = cfg as { jsonDir?: unknown; xmlDir?: unknown };
+      currentDirs = { jsonDir: String(c.jsonDir || ''), xmlDir: String(c.xmlDir || '') };
+    }
     updateBadge();
-    const jsonEl = document.getElementById(
-      'json-dir',
-    ) as HTMLElement | null as HTMLInputElement | null;
-    const xmlEl = document.getElementById(
-      'xml-dir',
-    ) as HTMLElement | null as HTMLInputElement | null;
-    if (jsonEl) (jsonEl as any).value = currentDirs.jsonDir;
-    if (xmlEl) (xmlEl as any).value = currentDirs.xmlDir;
+    const jsonEl = document.getElementById('json-dir') as HTMLInputElement | null;
+    const xmlEl = document.getElementById('xml-dir') as HTMLInputElement | null;
+    if (jsonEl) jsonEl.value = currentDirs.jsonDir;
+    if (xmlEl) xmlEl.value = currentDirs.xmlDir;
   } catch (err) {
+    logger.error('refreshConfig failed', { err });
     setStatus('Falha ao ler config', true);
   }
 }
 
 function setupConfigModal() {
-  const modal = document.getElementById('config-modal') as HTMLElement | null;
-  const open = async () => {
-    await refreshConfig();
-    if (modal) modal.classList.remove('hidden');
-  };
-  const close = () => {
-    if (modal) modal.classList.add('hidden');
-  };
-
-  (document.getElementById('btn-config') as HTMLElement | null)?.addEventListener('click', open);
-  (document.getElementById('config-close') as HTMLElement | null)?.addEventListener('click', close);
-  (document.getElementById('config-save') as HTMLElement | null)?.addEventListener('click', () => {
-    updateBadge();
-    close();
-  });
-  if (modal) {
-    modal.addEventListener('click', (e) => {
-      if (e.target === modal) close();
-    });
-  }
-
-  const tabs = Array.from(document.querySelectorAll('.tab-btn')) as HTMLElement[];
-  const panes = Array.from(document.querySelectorAll('.tab-pane')) as HTMLElement[];
-  const activateTab = (id: string) => {
-    tabs.forEach((btn) => btn.classList.toggle('active', btn.dataset.tab === id));
-    panes.forEach((pane) => pane.classList.toggle('active', pane.id === id));
-  };
-  tabs.forEach((btn) =>
-    btn.addEventListener('click', () => activateTab(btn.dataset.tab || 'tab-pastas')),
-  );
-
-  (document.getElementById('pick-json') as HTMLElement | null)?.addEventListener(
-    'click',
-    async () => {
-      if (!window.api || !window.api.pickJsonDir) return;
-      const dir = await window.api.pickJsonDir();
-      const jsonEl = document.getElementById(
-        'json-dir',
-      ) as HTMLElement | null as HTMLInputElement | null;
-      if (jsonEl) (jsonEl as any).value = dir;
-      currentDirs.jsonDir = dir;
-      updateBadge();
-    },
-  );
-  (document.getElementById('pick-xml') as HTMLElement | null)?.addEventListener(
-    'click',
-    async () => {
-      if (!window.api || !window.api.pickXmlDir) return;
-      const dir = await window.api.pickXmlDir();
-      const xmlEl = document.getElementById(
-        'xml-dir',
-      ) as HTMLElement | null as HTMLInputElement | null;
-      if (xmlEl) (xmlEl as any).value = dir;
-      currentDirs.xmlDir = dir;
-      updateBadge();
-    },
-  );
+  initConfigModal({ refreshConfig, updateBadge, getDocument: () => document });
 }
+
 
 function setupActions() {
-  (document.getElementById('btn-save') as HTMLElement | null)?.addEventListener('click', saveDraft);
-  (document.getElementById('btn-json') as HTMLElement | null)?.addEventListener('click', () =>
-    generateFile('json'),
-  );
-  const globalBtnXml = document.getElementById('btn-xml') as HTMLElement | null;
-  if (globalBtnXml) {
-    globalBtnXml.addEventListener('click', (e) => {
-      // If a per-act exclusive handler was attached, skip the global XML generator
-      if ((globalBtnXml as HTMLElement & { dataset?: any }).dataset?.exclusive === 'true') return;
-      generateFile('xml');
-    });
-  }
-  document
-    .getElementById('btn-nascimento')
-    ?.addEventListener('click', () => setTipoRegistro('nascimento'));
-  document
-    .getElementById('btn-casamento')
-    ?.addEventListener('click', () => setTipoRegistro('casamento'));
-  (document.getElementById('btn-obito') as HTMLElement | null)?.addEventListener('click', () =>
-    setTipoRegistro('obito'),
-  );
+  initActions({
+    saveDraft,
+    generateFile,
+    setTipoRegistro,
+    getDocument: () => document,
+  });
 }
+
 
 type PlaceCacheEntry = {
   key: string;
@@ -1492,7 +1357,7 @@ function getSafeStorage() {
     window.localStorage.removeItem(key);
     return window.localStorage;
   } catch (e) {
-    void e;
+    logger.warn('getSafeStorage: localStorage unavailable', e);
     return null;
   }
 }
@@ -1541,8 +1406,7 @@ class PlaceAutoFillCache {
     const key = this.normalize(this.stripCityUfSuffix(input || ''));
     if (!key) return [];
     const data = this.readData();
-    return (Object as any)
-      .values(data.entries)
+    return Object.values(data.entries)
       .map((entry) => {
         const entryKey = entry.key || '';
         const similarity = scoreTextSimilarity(key, entryKey);
@@ -1659,7 +1523,7 @@ class PlaceAutoFillCache {
       if (!parsed || parsed.v !== 1 || !parsed.entries) return { v: 1, entries: {} };
       return parsed;
     } catch (e) {
-      void e;
+      logger.warn('PlaceAutoFillCache.readData failed', e);
       return { v: 1, entries: {} };
     }
   }
@@ -1670,7 +1534,7 @@ class PlaceAutoFillCache {
         this.storage.setItem(this.storageKey, JSON.stringify(data));
         return;
       } catch (e) {
-        void e;
+        logger.warn('PlaceAutoFillCache.writeData failed to write to storage', e);
         this.memoryData = data;
         return;
       }
@@ -1853,7 +1717,7 @@ function setupLocalAutofill() {
         cityInput.dispatchEvent(new CustomEvent('city-autocomplete:select', { detail: { city: pendingSuggestion.city, uf: pendingSuggestion.uf }, bubbles: true }));
       }
     } catch (e) {
-      /* ignore */
+      logger.warn('ui: dispatch city-autocomplete:select failed (applyPendingSuggestion)', e);
     }
     clearSuggestion();
     updateDirty();
@@ -1863,7 +1727,7 @@ function setupLocalAutofill() {
       const target = document.querySelector('input[data-bind="ui.mae_nome"]') as HTMLInputElement | null;
       if (target) setTimeout(() => target.focus(), 0);
     } catch (e) {
-      /* ignore */
+      logger.warn('ui: focus move failed (applyPendingSuggestion)', e);
     }
   }
 
@@ -1908,8 +1772,8 @@ function setupLocalAutofill() {
     localEl.setAttribute('aria-activedescendant', el.id);
     try {
       el.scrollIntoView({ block: 'nearest' });
-    } catch {
-      /* ignore */
+    } catch (e) {
+      logger.debug('ui: scrollIntoView failed', e);
     }
   };
 
@@ -1924,13 +1788,13 @@ function setupLocalAutofill() {
       if (cityInput) {
         cityInput.dispatchEvent(new CustomEvent('city-autocomplete:select', { detail: { city: entry.cityBirth, uf: entry.ufBirth }, bubbles: true }));
       }
-    } catch (e) {}
+    } catch (e) { logger.warn('ui: dispatch city-autocomplete:select failed (selectSuggestion)', e); }
     clearSuggestion();
     hideSuggestionList();
     try {
       const target = document.querySelector('input[data-bind="ui.mae_nome"]') as HTMLInputElement | null;
       if (target) setTimeout(() => target.focus(), 0);
-    } catch (e) {}
+    } catch (e) { logger.debug('ui: focus failed for mae_nome', e); }
   };
 
   const renderSuggestions = (list: PlaceCacheEntry[]) => {
@@ -1968,22 +1832,22 @@ function setupLocalAutofill() {
   };
 
   function applySelectedSuggestion() {
-    const entry = suggestionMap.get((localEl as any).value.trim().toLowerCase());
+    const entry = suggestionMap.get(localEl!.value.trim().toLowerCase());
     if (!entry) return;
     applyPlaceEntry(entry, { force: true, allowNatural: true });
-    recordPlaceMappingFromState(entry.normalizedPlaceText || (localEl as any).value);
+    recordPlaceMappingFromState(entry.normalizedPlaceText || localEl!.value);
     try {
       const cityInput = document.querySelector('[data-bind="registro.municipio_nascimento"]') as HTMLInputElement | null;
       if (cityInput) {
         cityInput.dispatchEvent(new CustomEvent('city-autocomplete:select', { detail: { city: entry.cityBirth, uf: entry.ufBirth }, bubbles: true }));
       }
-    } catch (e) {}
+    } catch (e) { logger.warn('ui: dispatch city-autocomplete:select failed (applySelectedSuggestion)', e); }
     clearSuggestion();
     hideSuggestionList();
     try {
       const target = document.querySelector('input[data-bind="ui.mae_nome"]') as HTMLInputElement | null;
       if (target) setTimeout(() => target.focus(), 0);
-    } catch (e) {}
+    } catch (e) { logger.debug('ui: focus failed for mae_nome', e); }
   }
 
   function handleExtracted(city: string, uf: string) {
@@ -2016,7 +1880,7 @@ function setupLocalAutofill() {
   }
 
   function runSuggest(fromBlur: boolean) {
-    const text = (localEl as any).value.trim();
+    const text = localEl!.value.trim();
     if (!text) {
       clearSuggestion();
       renderSuggestions([]);
@@ -2090,7 +1954,7 @@ function setupNaturalidadeToggle() {
   ) as HTMLElement | null as HTMLInputElement | null;
   if (!toggle) return;
   const handler = () => {
-    state.ui.naturalidade_diferente = !!(toggle as any).checked;
+    state.ui.naturalidade_diferente = !!(toggle as HTMLInputElement).checked;
     updateNaturalidadeVisibility(true);
     updateDirty();
   };
@@ -2098,13 +1962,9 @@ function setupNaturalidadeToggle() {
 }
 
 function setupShortcuts() {
-  window.addEventListener('keydown', (e) => {
-    if (e.ctrlKey && e.key.toLowerCase() === 'b') {
-      e.preventDefault();
-      saveDraft();
-    }
-  });
+  initShortcuts({ saveDraft, getWindow: () => window });
 }
+
 
 function setupCartorioTyping() {
   const select = document.getElementById(
@@ -2131,9 +1991,9 @@ function setupCartorioTyping() {
         buffer = '';
       }, 700);
 
-      const match = Array.from(select.options).find((opt) => (opt as any).value === buffer);
+      const match = Array.from(select.options).find((opt) => (opt as HTMLOptionElement).value === buffer);
       if (match) {
-        (select as any).value = buffer;
+        (select as HTMLSelectElement).value = buffer;
         select.dispatchEvent(new Event('input', { bubbles: true }));
         select.dispatchEvent(new Event('change', { bubbles: true }));
         clearBuffer();
@@ -2148,20 +2008,11 @@ function setupCartorioTyping() {
   });
 }
 
-// --- MÃ¡scaras simples de data e hora (sÃ³ nÃºmeros) ---
-function digitsOnly__dup_2(v: string) {
-  return (v || '').replace(/\D/g, '');
-}
 
 function setupBeforeUnload() {
-  window.addEventListener('beforeunload', (e) => {
-    if (!isDirty) return;
-    // Keep default browser unload prevention disabled to avoid blocking navigation UI.
-    // Instead rely on app-local navigation via 'app:navigate' to show a smoother loading state.
-    e.preventDefault();
-    (e as any).returnValue = '';
-  });
+  initBeforeUnload({ getIsDirty: () => isDirty, getWindow: () => window });
 }
+
 
 // Smooth in-app navigation handler: show a subtle loading indicator and navigate without native alert
 window.addEventListener('app:navigate', (ev: Event) => {
@@ -2202,107 +2053,49 @@ function showLoadingOverlay() {
   }
 }
 
-function hideLoadingOverlay() {
-  const ol = document.getElementById('app-loading-overlay') as HTMLElement | null;
-  if (ol) ol.style.display = 'none';
-}
 
 function setupMatriculaAutoListeners() {
-  // Recalculate matrÃ­cula in real-time when these fields change
-  // Inputs with explicit ids (used in nascimento)
-  const fields = ['matricula-livro', 'matricula-folha', 'matricula-termo'];
-  fields.forEach((id) => {
-    const el = document.getElementById(id) as HTMLInputElement | null;
-    if (!el) return;
-    el.addEventListener('input', () => {
-      // sanitize numeric input
-      const sanitized = (el.value || '').replace(/\D/g, '');
-      if (sanitized !== el.value) el.value = sanitized;
+  try {
+    // Delegate to centralized listener initializer to keep logic testable and isolated
+    initMatriculaAutoListeners({
+      updateMatricula,
+      applyCartorioChange,
+      getDocument: () => document,
+      logger,
+    });
+  } catch (e) {
+    logger.warn('ui: setupMatriculaAutoListeners delegation failed', e as Error);
+    // Fallback: attempt to run previous inline behavior to avoid breaking pages
+    try {
+      // Inline fallback: minimal behavior to keep existing behavior
+      const fields = ['matricula-livro', 'matricula-folha', 'matricula-termo'];
+      fields.forEach((id) => {
+        const el = document.getElementById(id) as HTMLInputElement | null;
+        if (!el) return;
+        el.addEventListener('input', () => {
+          const sanitized = (el.value || '').replace(/\D/g, '');
+          if (sanitized !== el.value) el.value = sanitized;
+          updateMatricula();
+        });
+      });
+      const dateEls = Array.from(
+        document.querySelectorAll(
+          'input[name="dataRegistro"], input[name="dataTermo"], input[data-bind="registro.data_registro"]',
+        ),
+      ) as HTMLInputElement[];
+      dateEls.forEach((d) => d.addEventListener('input', () => updateMatricula()));
       updateMatricula();
-    });
-  });
-
-  // Inputs by name (used in casamento and some pages)
-  const namedInputs = Array.from(
-    document.querySelectorAll('input[name="livro"], input[name="folha"], input[name="termo"]'),
-  ) as HTMLInputElement[];
-  namedInputs.forEach((ni) => {
-    ni.addEventListener('input', () => {
-      const sanitized = (ni.value || '').replace(/\D/g, '');
-      if (sanitized !== ni.value) ni.value = sanitized;
-      updateMatricula();
-    });
-  });
-
-  const cartSelect = document.getElementById('cartorio-oficio') as HTMLSelectElement | null;
-  if (cartSelect) {
-    cartSelect.addEventListener('change', () => applyCartorioChange());
-
-    // Quick numeric entry: type digits while focused in the select to choose oficio quickly (supports multi-digit such as '12')
-    let buffer = '' as string;
-    let timer: number | null = null;
-    cartSelect.addEventListener('keydown', (e: KeyboardEvent) => {
-      const key = e.key;
-      if (key >= '0' && key <= '9') {
-        e.preventDefault();
-        buffer += key;
-        if (timer) window.clearTimeout(timer);
-        timer = window.setTimeout(() => {
-          buffer = '';
-        }, 700);
-        const match = Array.from(cartSelect.options).find((opt) => (opt as any).value === buffer);
-        if (match) {
-          (cartSelect as any).value = buffer;
-          cartSelect.dispatchEvent(new Event('input', { bubbles: true }));
-          cartSelect.dispatchEvent(new Event('change', { bubbles: true }));
-          buffer = '';
-          if (timer) {
-            window.clearTimeout(timer);
-            timer = null;
-          }
-        }
-        return;
-      }
-      if (key === 'Backspace') {
-        e.preventDefault();
-        buffer = buffer.slice(0, -1);
-        return;
-      }
-    });
+    } catch (ex) {
+      logger.warn('ui: setupMatriculaAutoListeners fallback also failed', ex as Error);
+    }
   }
-
-  const dateEls = Array.from(
-    document.querySelectorAll(
-      'input[name="dataRegistro"], input[name="dataTermo"], input[data-bind="registro.data_registro"]',
-    ),
-  ) as HTMLInputElement[];
-  dateEls.forEach((d) => d.addEventListener('input', () => updateMatricula()));
-
-  // re-calc when the document type changes (nascimento/casamento/obito)
-  const tipoInput = document.querySelector(
-    'input[data-bind="certidao.tipo_registro"]',
-  ) as HTMLInputElement | null;
-  if (tipoInput)
-    tipoInput.addEventListener('change', () => {
-      try {
-        if (tipoInput.value) {
-          (state.certidao as any).tipo_registro = tipoInput.value;
-        }
-      } catch (e) {
-        /* ignore */
-      }
-      updateMatricula();
-    });
-
-  // compute once at setup
-  updateMatricula();
 }
 
 // Setup automatic listeners when running in browser
 try {
   if (typeof window !== 'undefined') setupMatriculaAutoListeners();
 } catch (e) {
-  /* ignore */
+  logger.warn('ui: setupMatriculaAutoListeners failed', e);
 }
 
 async function bootstrap() {
@@ -2315,7 +2108,7 @@ async function bootstrap() {
     const fromDom = String(tipoEl?.value || '').trim();
     if (!current && fromDom) state.certidao.tipo_registro = fromDom;
   } catch (e) {
-    /* ignore */
+    logger.debug('ui: unable to read tipo_registro from DOM during bootstrap', e);
   }
   syncInputsFromState();
   bindInputs();
@@ -2329,9 +2122,9 @@ async function bootstrap() {
   setupShortcuts();
   setupCartorioTyping();
   try {
-    (window as any).updateMatricula = updateMatricula;
+    window.updateMatricula = updateMatricula as unknown as (s: string) => void;
   } catch (e) {
-    /* ignore */
+    logger.warn('ui: set window.updateMatricula failed', e);
   }
   setupBeforeUnload();
   await refreshConfig();
