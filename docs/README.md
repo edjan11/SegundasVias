@@ -1,26 +1,22 @@
-# Documentação do projeto
+# Segundas Vias (painel local)
 
-Esta pasta reúne cópias e um índice dos arquivos de documentação espalhados pelo repositório.
+App Electron separado para gerar e exportar 2ª vias em JSON/XML, com atalho na bandeja do sistema.
 
-Estrutura inicial:
-
-- `docs/index.md` — índice gerado automaticamente com links para `docs/raw/...` contendo todos os `*.md` copiados.
-- `docs/raw/` — cópias automáticas de todos os arquivos `.md` encontrados (preserva estrutura relativa).
-- `docs/project/` — relatórios gerais do projeto (MIGRATION-REPORT, QUALITY-REPORT etc.).
-- `docs/developer/` — guias para desenvolvedores e instruções úteis.
-- `docs/ai/` — rascunhos e resultados do pipeline AI (PDF→MD etc.).
-- `docs/tests/` — manuais e documentos relacionados aos testes.
-- `docs/agents/` — prompts e agentes (.github/prompts, .github/agents).
-
-Como regenerar (atualizar as cópias):
+## Rodar
 
 ```bash
-# Na raiz do projeto
-npm run collect-docs
+npm install
+npm start         # compila TS e abre o Electron
 ```
 
-O script `tools/collect-docs.js` copia todos os `*.md` (exceto `node_modules`, `.git`, `docs/`, `dist`, `build`) para `docs/raw/` e reescreve `docs/index.md`.
+## O que vem pronto
 
----
+- Bandeja com opções de abrir painel, sempre no topo e sair.
+- Painel flutuante com campos para colar dados brutos, pré-visualizar JSON/XML e salvar arquivos na pasta local (configurável).
+- Persistência simples da pasta de saída (em `userData`).
 
-Se quiser que eu mova certos documentos do `docs/raw` para subpastas específicas (`project`, `developer`, `ai`, etc.), diga quais categorias prefere e eu faço a organização final (sem deletar os originais).
+## Próximos passos sugeridos
+
+- Ajustar o parser de entrada conforme o formato gerado pelos scripts Tampermonkey.
+- Personalizar o layout/cores/ícones.
+- Adicionar atalhos globais se quiser abrir/ocultar via teclado.
