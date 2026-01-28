@@ -36,12 +36,13 @@ function buildUrlForAct(act: string): string {
   return `/2via/${act}`;
 }
 
-async function importActBundle(act: string): Promise<void> {
+async function importActBundle(act: string): Promise<any> {
   const path = `/ui/js/${act}.bundle.js`;
   try {
-    await import(path);
+    return await import(path);
   } catch (err) {
     console.warn(`Falha ao importar bundle ${path}`, err);
+    return null;
   }
 }
 
@@ -53,15 +54,22 @@ async function navigate(act: string, opts: { push?: boolean } = {}): Promise<voi
   container.classList.add('loading');
 
   if (currentRoute?.unmount) {
-    try { currentRoute.unmount(); } catch (e) { console.warn('unmount falhou', e); }
+    try { await currentRoute.unmount(); } catch (e) { console.warn('unmount falhou', e); }
   }
 
   const mod = await route.loader();
   await mod.mount(container);
 
-  await importActBundle(route.id);
+  const actMod = await importActBundle(route.id);
 
-  currentRoute = { id: route.id, unmount: mod.unmount };
+  // Compose DOM unmount (route.unmount) with act bundle unmount (if provided)
+  currentRoute = {
+    id: route.id,
+    unmount: async () => {
+      try { if (mod.unmount) await mod.unmount(); } catch (e) { console.warn('route.unmount falhou', e); }
+      try { if (actMod && typeof actMod.unmount === 'function') await actMod.unmount(); } catch (e) { console.warn('act.unmount falhou', e); }
+    }
+  };
 
   if (opts.push !== false) {
     const url = buildUrlForAct(route.id);

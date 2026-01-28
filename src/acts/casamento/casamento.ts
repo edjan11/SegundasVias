@@ -1074,6 +1074,32 @@ setup();
 
 // Expose setup for potential manual calls
 export { setup };
+
+// Expose unmount for SPA shell
+export function unmount(): void {
+  try {
+    if ((window as any).__casamento_destroyed) return;
+    (window as any).__casamento_destroyed = true;
+
+    // remove transient UI elements
+    const toast = document.getElementById('toast-container'); if (toast) toast.remove();
+    const aria = document.getElementById('aria-live-errors'); if (aria) aria.remove();
+    const summary = document.getElementById('form-error-summary'); if (summary) summary.remove();
+
+    // replace some interactive elements to remove attached listeners
+    ['btn-print', 'btn-json', 'btn-xml', 'pick-json', 'pick-xml'].forEach((id) => {
+      const el = document.getElementById(id);
+      if (el && el.parentNode) {
+        const cloned = el.cloneNode(true);
+        el.parentNode.replaceChild(cloned, el);
+      }
+    });
+
+  } catch (e) {
+    console.warn('casamento unmount erro', e);
+  }
+}
+
 export {};
 
 // ...restante do código do arquivo original...

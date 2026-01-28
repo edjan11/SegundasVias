@@ -1077,4 +1077,52 @@ function setupApp(): void {
 
 setupApp();
 
+// Exposed unmount for SPA shell to clean up listeners and timers when switching acts
+export function unmount(): void {
+  try {
+    // Prevent double unmount
+    if ((window as any).__nascimento_destroyed) return;
+    (window as any).__nascimento_destroyed = true;
+
+    // clear timers
+    if (xmlUpdateTimer) {
+      window.clearTimeout(xmlUpdateTimer);
+      xmlUpdateTimer = null;
+    }
+
+    // remove transient UI elements added by this module
+    const toast = document.getElementById('toast-container');
+    if (toast) toast.remove();
+    const aria = document.getElementById('aria-live-errors');
+    if (aria) aria.remove();
+    const summary = document.getElementById('form-error-summary');
+    if (summary) summary.remove();
+
+    // remove outputs (to avoid duplicates)
+    const jsonOut = document.getElementById('json-output'); if (jsonOut) jsonOut.remove();
+    const xmlOut = document.getElementById('xml-output'); if (xmlOut) xmlOut.remove();
+
+    // replace some interactive elements to remove attached listeners
+    ['btn-print', 'btn-json', 'btn-xml', 'pick-json', 'pick-xml'].forEach((id) => {
+      const el = document.getElementById(id);
+      if (el && el.parentNode) {
+        const cloned = el.cloneNode(true);
+        el.parentNode.replaceChild(cloned, el);
+      }
+    });
+
+    // remove per-act markers
+    document.querySelectorAll('[data-name-marked]').forEach((el) => el.removeAttribute('data-name-marked'));
+
+    // hint cleanup
+    document.querySelectorAll('.hint').forEach((el) => el.remove());
+
+    // attempt to clear draft-autosave hooks if provided
+    try { if ((window as any).clearDraftAutosave) (window as any).clearDraftAutosave(); } catch (e) {}
+
+  } catch (e) {
+    console.warn('unmount erro', e);
+  }
+}
+
 
