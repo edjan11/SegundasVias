@@ -224,6 +224,18 @@ export function mapperHtmlToJsonNascimento(doc?: DocLike) {
   const pai_avo_paterna = upper(v(d, 'input[data-bind="ui.pai_avo_paterna"]'));
   const pai_avo_paterno = upper(v(d, 'input[data-bind="ui.pai_avo_paterno"]'));
 
+  const genitor3_nome = upper(v(d, 'input[data-bind="ui.genitor3_nome"]'));
+  const genitor3_cidade = upper(v(d, 'input[data-bind="ui.genitor3_cidade"]'));
+  const genitor3_uf = upper(v(d, 'select[data-bind="ui.genitor3_uf"]'));
+  const genitor3_avo1 = upper(v(d, 'input[data-bind="ui.genitor3_avo1"]'));
+  const genitor3_avo2 = upper(v(d, 'input[data-bind="ui.genitor3_avo2"]'));
+
+  const genitor4_nome = upper(v(d, 'input[data-bind="ui.genitor4_nome"]'));
+  const genitor4_cidade = upper(v(d, 'input[data-bind="ui.genitor4_cidade"]'));
+  const genitor4_uf = upper(v(d, 'select[data-bind="ui.genitor4_uf"]'));
+  const genitor4_avo1 = upper(v(d, 'input[data-bind="ui.genitor4_avo1"]'));
+  const genitor4_avo2 = upper(v(d, 'input[data-bind="ui.genitor4_avo2"]'));
+
   const filiacao: Array<{
     nome: string;
     municipio_nascimento: string;
@@ -282,6 +294,31 @@ export function mapperHtmlToJsonNascimento(doc?: DocLike) {
     };
   });
 
+  const outros_genitores: Array<{
+    nome: string;
+    municipio_nascimento: string;
+    uf_nascimento: string;
+    avos: string;
+  }> = [];
+
+  if (genitor3_nome || genitor3_cidade || genitor3_uf || genitor3_avo1 || genitor3_avo2) {
+    outros_genitores.push({
+      nome: genitor3_nome,
+      municipio_nascimento: naoConstaIfEmpty(genitor3_cidade),
+      uf_nascimento: ufOrNC(genitor3_uf),
+      avos: [genitor3_avo1, genitor3_avo2].filter(Boolean).join('; '),
+    });
+  }
+
+  if (genitor4_nome || genitor4_cidade || genitor4_uf || genitor4_avo1 || genitor4_avo2) {
+    outros_genitores.push({
+      nome: genitor4_nome,
+      municipio_nascimento: naoConstaIfEmpty(genitor4_cidade),
+      uf_nascimento: ufOrNC(genitor4_uf),
+      avos: [genitor4_avo1, genitor4_avo2].filter(Boolean).join('; '),
+    });
+  }
+
   // ===== payload final (igual exemplos) =====
   const payload: any = {
     certidao: {
@@ -319,6 +356,7 @@ export function mapperHtmlToJsonNascimento(doc?: DocLike) {
       },
       filiacao,
       participantes: participantes.length ? participantes : undefined,
+      outros_genitores: outros_genitores.length ? outros_genitores : undefined,
       livro: livro || undefined,
       folha: folha || undefined,
       termo: termo || undefined,

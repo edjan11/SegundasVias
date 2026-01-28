@@ -1,0 +1,74 @@
+[
+  {
+    "path": "MIGRATION-REPORT.md",
+    "lastCommit": "2026-01-20T13:51:48.000Z",
+    "dest": "docs/MIGRATION-REPORT.md",
+    "obsolete": false
+  },
+  {
+    "path": "QUALITY-REPORT.md",
+    "lastCommit": "2026-01-20T04:20:57.000Z",
+    "dest": "docs/QUALITY-REPORT.md",
+    "obsolete": false
+  },
+  {
+    "path": "README-DEV.md",
+    "lastCommit": "2026-01-20T13:32:29.000Z",
+    "dest": "docs/README-DEV.md",
+    "obsolete": false
+  },
+  {
+    "path": "README-REFACTOR.md",
+    "lastCommit": "2026-01-20T04:20:57.000Z",
+    "dest": "docs/README-REFACTOR.md",
+    "obsolete": false
+  },
+  {
+    "path": "README.md",
+    "lastCommit": "2026-01-20T04:20:57.000Z",
+    "dest": "docs/README.md",
+    "obsolete": false
+  },
+  {
+    "path": "ai/README.md",
+    "lastCommit": "2026-01-22T15:50:56.000Z",
+    "dest": "docs/ai/README.md",
+    "obsolete": false
+  },
+  {
+    "path": "apps/certidoes-panel/README.md",
+    "lastCommit": "2026-01-22T04:49:15.000Z",
+    "dest": "docs/apps/certidoes-panel/README.md",
+    "obsolete": false
+  },
+  {
+    "path": "apps/certidoes-panel/docs/mapping/casamento.json-to-xml.mapping.md",
+    "lastCommit": "2026-01-22T04:49:15.000Z",
+    "dest": "docs/apps/certidoes-panel/docs/mapping/casamento.json-to-xml.mapping.md",
+    "obsolete": false
+  },
+  {
+    "path": "apps/certidoes-panel/docs/mapping/nascimento.json-to-xml.mapping.md",
+    "lastCommit": "2026-01-22T04:49:15.000Z",
+    "dest": "docs/apps/certidoes-panel/docs/mapping/nascimento.json-to-xml.mapping.md",
+    "obsolete": false
+  },
+  {
+    "path": "tests/AUTOFILL-MANUAL.md",
+    "lastCommit": "2026-01-20T20:47:41.000Z",
+    "dest": "docs/tests/AUTOFILL-MANUAL.md",
+    "obsolete": false
+  },
+  {
+    "path": "tests/MANUAL-TESTS.md",
+    "lastCommit": "2026-01-20T04:20:57.000Z",
+    "dest": "docs/tests/MANUAL-TESTS.md",
+    "obsolete": false
+  },
+  {
+    "path": "tools/README.md",
+    "lastCommit": "2026-01-22T15:50:56.000Z",
+    "dest": "docs/tools/README.md",
+    "obsolete": false
+  }
+]

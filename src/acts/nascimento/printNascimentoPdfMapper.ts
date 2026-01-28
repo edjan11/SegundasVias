@@ -116,6 +116,20 @@ export function buildNascimentoPdfDataFromForm(doc?: DocLike) {
   const paiAvoPaterno = upper(valueOf(d, 'input[data-bind="ui.pai_avo_paterno"]'));
   const paiAvos = [paiAvoPaterna, paiAvoPaterno].filter(Boolean).join('; ');
 
+  const genitor3Nome = upper(valueOf(d, 'input[data-bind="ui.genitor3_nome"]'));
+  const genitor3Cidade = upper(valueOf(d, 'input[data-bind="ui.genitor3_cidade"]'));
+  const genitor3Uf = upper(valueOf(d, 'select[data-bind="ui.genitor3_uf"]'));
+  const genitor3Avo1 = upper(valueOf(d, 'input[data-bind="ui.genitor3_avo1"]'));
+  const genitor3Avo2 = upper(valueOf(d, 'input[data-bind="ui.genitor3_avo2"]'));
+  const genitor3Avos = [genitor3Avo1, genitor3Avo2].filter(Boolean).join('; ');
+
+  const genitor4Nome = upper(valueOf(d, 'input[data-bind="ui.genitor4_nome"]'));
+  const genitor4Cidade = upper(valueOf(d, 'input[data-bind="ui.genitor4_cidade"]'));
+  const genitor4Uf = upper(valueOf(d, 'select[data-bind="ui.genitor4_uf"]'));
+  const genitor4Avo1 = upper(valueOf(d, 'input[data-bind="ui.genitor4_avo1"]'));
+  const genitor4Avo2 = upper(valueOf(d, 'input[data-bind="ui.genitor4_avo2"]'));
+  const genitor4Avos = [genitor4Avo1, genitor4Avo2].filter(Boolean).join('; ');
+
   const gemeosQtd = normalizeSpace(valueOf(d, 'input[data-bind="registro.gemeos.quantidade"]'));
   const gemeo = Number(gemeosQtd || 0) > 0 ? 'SIM' : 'NAO';
 
@@ -159,6 +173,14 @@ export function buildNascimentoPdfDataFromForm(doc?: DocLike) {
       pai_municipio: paiCidade,
       pai_uf: paiUf,
       pai_avos: paiAvos,
+      genitor3_nome: genitor3Nome,
+      genitor3_municipio: genitor3Cidade,
+      genitor3_uf: genitor3Uf,
+      genitor3_avos: genitor3Avos,
+      genitor4_nome: genitor4Nome,
+      genitor4_municipio: genitor4Cidade,
+      genitor4_uf: genitor4Uf,
+      genitor4_avos: genitor4Avos,
       data_registro: dataRegistro,
       gemeo,
       averbacao_anotacao: averbacao,

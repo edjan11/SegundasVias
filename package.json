@@ -12,8 +12,8 @@
     "build:ui": "npm run ui:bundle",
     "tailwind:build": "node scripts/build-tailwind.js",
     "tailwind:watch": "node scripts/build-tailwind.js --watch",
-    "ui:bundle": "npm run tailwind:build && npm run ui:copy-data && esbuild src/acts/nascimento/nascimento.ts src/acts/casamento/casamento.ts src/acts/obito/obito.ts --bundle --format=esm --target=es2019 --outdir=ui/js --entry-names=[name].bundle --sourcemap=external",
-    "ui:bundle:watch": "npm run tailwind:build && npm run ui:copy-data && esbuild src/acts/nascimento/nascimento.ts src/acts/casamento/casamento.ts src/acts/obito/obito.ts --bundle --format=esm --target=es2019 --outdir=ui/js --entry-names=[name].bundle --sourcemap=external --watch",
+    "ui:bundle": "npm run tailwind:build && npm run ui:copy-data && esbuild src/acts/nascimento/nascimento.ts src/acts/casamento/casamento.ts src/acts/obito/obito.ts src/ui/layout-router.ts --bundle --format=esm --target=es2019 --outdir=ui/js --entry-names=[name].bundle --sourcemap=external",
+    "ui:bundle:watch": "npm run tailwind:build && npm run ui:copy-data && esbuild src/acts/nascimento/nascimento.ts src/acts/casamento/casamento.ts src/acts/obito/obito.ts src/ui/layout-router.ts --bundle --format=esm --target=es2019 --outdir=ui/js --entry-names=[name].bundle --sourcemap=external --watch",
     "ui:copy-data": "node tools/copy_public_data.js",
     "serve": "node scripts/simple-static-server.js",
     "serve:live": "live-server ui --port=4180 --no-browser --watch=ui,ui/js",
@@ -46,7 +46,6 @@
     "prepare": "husky install",
     "collect-docs": "node tools/collect-docs.js"
   },
-
   "tools": {
     "import_names": "node tools/import_names.js",
     "ensure_names_gz": "node tools/ensure_names_gz.js"
@@ -76,6 +75,7 @@
     "eslint": "^8.57.1",
     "eslint-plugin-unused-imports": "^3.1.0",
     "espree": "^11.0.0",
+    "husky": "^8.0.0",
     "jsdom": "^22.1.0",
     "live-server": "^1.2.2",
     "nodemon": "^3.1.11",
@@ -83,8 +83,7 @@
     "postcss": "^8.5.6",
     "prettier": "^2.8.8",
     "source-map-explorer": "^2.5.2",
-    "tailwindcss": "^4.1.18",
-    "husky": "^8.0.0",
+    "tailwindcss": "^3.4.7",
     "ts-node": "^10.9.2",
     "ts-prune": "^0.6.0",
     "typescript": "^5.3.3"

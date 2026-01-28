@@ -1,5 +1,5 @@
-import { applyCertificatePayloadToSecondCopy, assertIsCertificatePayload } from '../payload/apply-payload';
-import { parseCasamentoXmlToPayload, parseNascimentoXmlToPayload } from '../payload/xml-to-payload';
+import { applyCertificatePayloadToSecondCopy } from '../payload/apply-payload';
+import { readImportFile } from '../importer';
 
 type SearchPayload = {
   q?: string;
@@ -11,22 +11,6 @@ type SearchPayload = {
   limit?: number;
   offset?: number;
 };
-
-function stripAccents(value: string): string {
-  return (value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-}
-
-function normalizeText(value: string): string {
-  return stripAccents(String(value || ''))
-    .toUpperCase()
-    .replace(/[^A-Z0-9]+/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim();
-}
-
-function onlyDigits(value: string): string {
-  return String(value || '').replace(/\D+/g, '');
-}
 
 function byId<T extends HTMLElement>(id: string): T | null {
   return document.getElementById(id) as T | null;
@@ -124,6 +108,10 @@ function renderResults(items: any[], total: number): void {
   box.appendChild(table);
 }
 
+function isRecordLike(obj: unknown): obj is { data?: any; payload?: any } {
+  return !!obj && typeof obj === 'object';
+}
+
 async function openRecordById(id: string, action: 'open' | 'print' | 'export'): Promise<void> {
   if (!window.api || !window.api.dbGet) {
     setStatus('API indisponivel para abrir', true);
@@ -131,7 +119,7 @@ async function openRecordById(id: string, action: 'open' | 'print' | 'export'): 
   }
   try {
     const record = await window.api.dbGet(id);
-    const payload = record?.data || record?.payload || null;
+    const payload = isRecordLike(record) ? (record.data ?? record.payload ?? null) : null;
     if (!payload) {
       setStatus('Registro sem payload', true);
       return;
@@ -165,7 +153,9 @@ async function runSearch(): Promise<void> {
   }
   try {
     const res = await window.api.dbSearch(payload);
-    renderResults(res?.items || [], res?.total || 0);
+    const items = (!!res && typeof res === 'object' && 'items' in (res as any)) ? (res as any).items || [] : [];
+    const total = (!!res && typeof res === 'object' && 'total' in (res as any)) ? (res as any).total || 0 : 0;
+    renderResults(items, total);
     setStatus('');
   } catch (e) {
     renderResults([], 0);
@@ -180,62 +170,20 @@ async function importFile(): Promise<void> {
     return;
   }
   const file = input.files[0];
-  const text = await file.text();
-  const trimmed = text.trim();
-  const isXml = trimmed.startsWith('<');
-  const isJson = !isXml;
-
   try {
-    if (isJson) {
-      const parsed = JSON.parse(text);
-      const payload = parsed?.payload ? parsed.payload : parsed;
-      const check = assertIsCertificatePayload(payload);
-      if (!check.ok) {
-        setStatus(`JSON invalido: ${check.errors.join(', ')}`, true);
-        return;
-      }
-      const kind = String(payload?.certidao?.tipo_registro || 'nascimento').toLowerCase();
-      const applyRes = applyCertificatePayloadToSecondCopy(payload);
-      if (!applyRes.ok) {
-        setStatus('Falha ao aplicar JSON', true);
-        return;
-      }
-      if (applyRes.warnings.length) {
-        setStatus(`JSON aplicado com ${applyRes.warnings.length} aviso(s)`);
-      }
-      if (window.api && window.api.dbIngest) {
-        const ingestRes = await window.api.dbIngest({
-          kind,
-          sourceFormat: 'json',
-          sourceRaw: text,
-          data: payload,
-          status: 'importado',
-        });
-        if (ingestRes && ingestRes.id) {
-          setStatus(`JSON importado (id: ${ingestRes.id})`);
-        } else {
-          setStatus('JSON importado');
-        }
-      } else {
-        setStatus('JSON importado');
-      }
+    const result = await readImportFile(file);
+    if (!result.ok) {
+      const msg = result.errors && result.errors.length ? result.errors.join(', ') : 'Falha ao importar';
+      setStatus(msg, true);
       return;
     }
 
-    let kind = 'nascimento';
-    const xmlUpper = normalizeText(trimmed);
-    if (xmlUpper.includes('LISTAREGISTROSCASAMENTO')) kind = 'casamento';
-    if (xmlUpper.includes('LISTAREGISTROSOBITO')) kind = 'obito';
-
-    let payload: any = null;
-    if (kind === 'nascimento') payload = parseNascimentoXmlToPayload(text);
-    if (kind === 'casamento') payload = parseCasamentoXmlToPayload(text);
-    if (!payload) {
+    if (!result.payload) {
       if (window.api && window.api.dbIngest) {
         await window.api.dbIngest({
-          kind,
-          sourceFormat: 'xml',
-          sourceRaw: text,
+          kind: result.kind,
+          sourceFormat: result.sourceFormat,
+          sourceRaw: result.raw,
           data: {},
           status: 'importado',
         });
@@ -243,29 +191,31 @@ async function importFile(): Promise<void> {
       setStatus('XML importado (sem mapeamento)');
       return;
     }
-    const applyRes = applyCertificatePayloadToSecondCopy(payload);
+
+    const applyRes = applyCertificatePayloadToSecondCopy(result.payload);
     if (!applyRes.ok) {
-      setStatus('Falha ao aplicar XML', true);
+      setStatus('Falha ao aplicar arquivo', true);
       return;
     }
     if (applyRes.warnings.length) {
-      setStatus(`XML aplicado com ${applyRes.warnings.length} aviso(s)`);
+      setStatus(`Arquivo aplicado com ${applyRes.warnings.length} aviso(s)`);
     }
+
     if (window.api && window.api.dbIngest) {
       const ingestRes = await window.api.dbIngest({
-        kind,
-        sourceFormat: 'xml',
-        sourceRaw: text,
-        data: payload,
+        kind: result.kind,
+        sourceFormat: result.sourceFormat,
+        sourceRaw: result.raw,
+        data: result.payload,
         status: 'importado',
       });
-      if (ingestRes && ingestRes.id) {
-        setStatus(`XML importado (id: ${ingestRes.id})`);
+      if (ingestRes && typeof (ingestRes as any).id !== 'undefined') {
+        setStatus(`Arquivo importado (id: ${(ingestRes as any).id})`);
       } else {
-        setStatus('XML importado');
+        setStatus('Arquivo importado');
       }
     } else {
-      setStatus('XML importado');
+      setStatus('Arquivo importado');
     }
   } catch (e) {
     setStatus('Falha ao importar arquivo', true);

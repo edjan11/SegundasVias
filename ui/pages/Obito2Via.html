@@ -9,6 +9,16 @@
   <link rel="stylesheet" href="../styles/components.css" />
 </head>
 <body>
+  <script>
+    // Redirect to Base2ViaLayout to ensure single, consistent initialization
+    (function() {
+      if (!location.pathname.endsWith('Base2ViaLayout.html')) {
+        const url = new URL('/ui/pages/Base2ViaLayout.html', location.origin);
+        url.searchParams.set('act', 'obito');
+        location.replace(url);
+      }
+    })();
+  </script>
   <div class="app-shell">
     <div class="main-pane">
       <div class="container">
@@ -135,7 +145,13 @@
 
         <div class="campo span-3">
           <label class="label">CPF</label>
-          <input data-bind="registro.cpf" name="CPFPessoa" maxlength="14" inputmode="numeric" data-cpf />
+          <div class="field-line">
+            <input data-bind="registro.cpf" name="CPFPessoa" maxlength="14" inputmode="numeric" data-cpf />
+            <label class="inline-check inline-check--stack" for="cpf-falecido-ign">
+              <span>Ignorar</span>
+              <input type="checkbox" id="cpf-falecido-ign" />
+            </label>
+          </div>
         </div>
 
         <div class="campo span-9">
@@ -538,19 +554,34 @@
           <div id="search-results" class="search-results"></div>
         </div>
 
-        <div id="op-import" class="ops-panel">
+        <div id="op-actions" class="ops-panel">
           <div class="card">
-            <div class="cardTitle">Importar</div>
-            <div class="grid">
-              <div class="field span-12">
-                <label>Arquivo (JSON ou XML)</label>
-                <input id="import-file" type="file" accept=".json,.xml,application/json,text/xml,application/xml" />
+            <div class="cardTitle">Acoes</div>
+            <div class="action-status">
+              <div class="action-row">
+                <span class="label">JSON em memoria</span>
+                <span id="status-json" class="badge">—</span>
+              </div>
+              <div class="action-row">
+                <span class="label">XML gerado</span>
+                <span id="status-xml" class="badge">—</span>
+              </div>
+              <div class="action-row">
+                <span class="label">PostgreSQL</span>
+                <span id="status-db" class="badge">NAO</span>
               </div>
             </div>
             <div class="toolbar-left" style="margin-top: 10px;">
-              <button id="btn-import" class="btn secondary" type="button">Importar</button>
+              <button id="actions-save" class="btn save" type="button">Salvar</button>
+              <button id="actions-export-json" class="btn secondary" type="button">Exportar JSON</button>
+              <button id="actions-export-xml" class="btn secondary" type="button">Baixar XML</button>
+              <button id="actions-export-pdf" class="btn secondary" type="button">PDF</button>
             </div>
-            <div id="import-status" class="import-status"></div>
+            <div class="action-hints">
+              <span class="badge">Ctrl+Espaco: JSON</span>
+              <span class="badge">Ctrl+Alt+P: PDF</span>
+            </div>
+            <div id="actions-status" class="import-status"></div>
           </div>
         </div>
       </div>
@@ -558,7 +589,7 @@
 
     <div class="ops-rail" aria-hidden="true">
       <button class="btn secondary ops-btn" data-target="op-search" type="button">BUSCA</button>
-      <button class="btn secondary ops-btn" data-target="op-import" type="button">IMPORTAR</button>
+      <button class="btn secondary ops-btn" data-target="op-actions" type="button">ACOES</button>
     </div>
   </div>
 
@@ -578,39 +609,13 @@
         <div id="tab-config" class="tab-pane active">
           <div class="card">
             <div class="cardTitle">Settings</div>
-            <div class="grid">
+            <div class="grid settings-grid">
               <div class="field span-12">
                 <label>Exibir painel inline</label>
                 <div class="field-line">
                   <label class="inline-check"><input type="checkbox" id="settings-panel-inline" /> Exibir inline (se desmarcado, painel flutuante sera usado)</label>
                 </div>
               </div>
-
-        <div class="card">
-          <div class="cardTitle">Pastas</div>
-          <div class="grid">
-            <div class="field span-9">
-              <label>Pasta JSON</label>
-              <input id="json-dir" readonly />
-            </div>
-            <div class="field span-3">
-              <label>&nbsp;</label>
-              <button id="pick-json" class="btn secondary" type="button">Selecionar...</button>
-            </div>
-            <div class="field span-9">
-              <label>Pasta XML</label>
-              <input id="xml-dir" readonly />
-            </div>
-            <div class="field span-3">
-              <label>&nbsp;</label>
-              <button id="pick-xml" class="btn secondary" type="button">Selecionar...</button>
-            </div>
-            <div class="field span-12">
-              <span id="outputDirBadge" class="badge">JSON: ... | XML: ...</span>
-            </div>
-          </div>
-        </div>
-
               <div class="field span-6">
                 <label>Posicionamento do painel (nao usado em modo inline)</label>
                 <select id="settings-drawer-position" class="campo">
@@ -621,11 +626,11 @@
               </div>
               <div class="field span-6">
                 <label>Preferencias</label>
-                <div class="field-line">
+                <div class="check-grid">
                   <label class="inline-check"><input type="checkbox" id="settings-enable-cpf" /> Validar CPF</label>
                   <label class="inline-check"><input type="checkbox" id="settings-enable-name" /> Validar Nomes</label>
                 </div>
-                <div class="field-line" style="margin-top:4px;">
+                <div class="check-grid" style="margin-top:4px;">
                   <label class="inline-check"><input type="checkbox" id="settings-auto-json" /> Auto gerar JSON</label>
                   <label class="inline-check"><input type="checkbox" id="settings-auto-xml" /> Auto gerar XML</label>
                 </div>
@@ -641,11 +646,81 @@
                   <span id="settings-zoom-value">100%</span>
                 </div>
               </div>
+              <div class="field span-6">
+                <label>Fonte</label>
+                <select id="settings-font-family" class="campo">
+                  <option value="&quot;Times New Roman&quot;, &quot;Times&quot;, &quot;Georgia&quot;, serif">Times New Roman</option>
+                  <option value="Arial, Helvetica, sans-serif">Arial</option>
+                  <option value="Calibri, Arial, sans-serif">Calibri</option>
+                  <option value="Georgia, &quot;Times New Roman&quot;, serif">Georgia</option>
+                  <option value="Garamond, &quot;Times New Roman&quot;, serif">Garamond</option>
+                  <option value="&quot;Trebuchet MS&quot;, Arial, sans-serif">Trebuchet MS</option>
+                  <option value="Verdana, Arial, sans-serif">Verdana</option>
+                  <option value="Tahoma, Arial, sans-serif">Tahoma</option>
+                  <option value="&quot;Courier New&quot;, Courier, monospace">Courier New</option>
+                  <option value="Cambria, Georgia, serif">Cambria</option>
+                  <option value="&quot;Palatino Linotype&quot;, Palatino, serif">Palatino Linotype</option>
+                  <option value="&quot;Book Antiqua&quot;, Palatino, serif">Book Antiqua</option>
+                  <option value="&quot;Arial Narrow&quot;, Arial, sans-serif">Arial Narrow</option>
+                  <option value="&quot;Century Gothic&quot;, Arial, sans-serif">Century Gothic</option>
+                  <option value="&quot;Lucida Sans&quot;, &quot;Lucida Sans Unicode&quot;, sans-serif">Lucida Sans</option>
+                  <option value="&quot;Segoe UI&quot;, Arial, sans-serif">Segoe UI</option>
+                  <option value="Roboto, &quot;Segoe UI&quot;, Arial, sans-serif">Roboto</option>
+                  <option value="&quot;Noto Sans&quot;, &quot;Segoe UI&quot;, Arial, sans-serif">Noto Sans</option>
+                  <option value="&quot;Noto Serif&quot;, Georgia, serif">Noto Serif</option>
+                  <option value="&quot;Open Sans&quot;, &quot;Segoe UI&quot;, Arial, sans-serif">Open Sans</option>
+                </select>
+              </div>
+              <div class="field span-6">
+                <label>Tema</label>
+                <div class="field-line">
+                  <label class="inline-check"><input type="checkbox" id="settings-theme-dark" /> Modo escuro</label>
+                </div>
+              </div>
             </div>
-            <div style="margin-top:10px;" class="toolbar-left">
+            <div style="margin-top:10px;" class="toolbar-left settings-actions">
               <button id="settings-save" class="btn" type="button">Salvar</button>
               <button id="settings-apply" class="btn secondary" type="button">Aplicar sem salvar</button>
             </div>
+          </div>
+
+          <div class="card">
+            <div class="cardTitle">Pastas</div>
+            <div class="grid">
+              <div class="field span-9">
+                <label>Pasta JSON</label>
+                <input id="json-dir" readonly />
+              </div>
+              <div class="field span-3">
+                <label>&nbsp;</label>
+                <button id="pick-json" class="btn secondary" type="button">Selecionar...</button>
+              </div>
+              <div class="field span-9">
+                <label>Pasta XML</label>
+                <input id="xml-dir" readonly />
+              </div>
+              <div class="field span-3">
+                <label>&nbsp;</label>
+                <button id="pick-xml" class="btn secondary" type="button">Selecionar...</button>
+              </div>
+              <div class="field span-12">
+                <span id="outputDirBadge" class="badge">JSON: ... | XML: ...</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="cardTitle">Importacao</div>
+            <div class="grid settings-grid">
+              <div class="field span-12">
+                <label>Arquivo (JSON ou XML)</label>
+                <input id="import-file" type="file" accept=".json,.xml,application/json,text/xml,application/xml" />
+              </div>
+            </div>
+            <div class="toolbar-left" style="margin-top: 10px;">
+              <button id="btn-import" class="btn secondary" type="button">Importar</button>
+            </div>
+            <div id="import-status" class="import-status"></div>
           </div>
 
           <div class="card">
@@ -699,7 +774,7 @@
             <div class="grid">
               <div class="field span-12">
                 <label>Corretor de nome</label>
-                <div class="field-line">
+                <div class="check-grid">
                   <label class="inline-check">
                     <input type="radio" name="name-validation-mode" value="blur" />
                     Somente ao sair do input

@@ -736,13 +736,19 @@ function markMissingForMatricula() {
     'input[name="dataRegistro"], input[name="dataTermo"], input[data-bind="registro.data_registro"]',
   ) as HTMLInputElement | null;
 
+  const cnsValue = digitsOnly(
+    (state.certidao && state.certidao.cartorio_cns ? String(state.certidao.cartorio_cns) : '') ||
+      (cnsInput && cnsInput.value ? String(cnsInput.value) : ''),
+  );
+  const oficioValue = String(
+    (state.ui && state.ui.cartorio_oficio ? state.ui.cartorio_oficio : '') ||
+      (cartorioSelect && cartorioSelect.value ? cartorioSelect.value : ''),
+  ).trim();
+
   const missing = !(
-    cartorioSelect &&
-    cartorioSelect.value &&
-    cartorioSelect.value !== '' &&
-    cnsInput &&
-    cnsInput.value &&
-    cnsInput.value.length === 6 &&
+    oficioValue &&
+    cnsValue &&
+    cnsValue.length === 6 &&
     livroEl &&
     String(livroEl.value || '').trim() &&
     folhaEl &&

@@ -1,0 +1,82 @@
+/* ABNT2 baseline for cartorial UI */
+:root {
+  --ui-font-family: "Times New Roman", "Times", "Georgia", serif;
+  font-family: var(--ui-font-family);
+  font-size: 12pt;
+  line-height: 1.5;
+  letter-spacing: normal;
+}
+
+body {
+  font-family: var(--ui-font-family);
+  font-size: 12pt;
+  line-height: 1.5;
+}
+
+input,
+textarea,
+select,
+option {
+  font-family: inherit;
+  text-transform: uppercase;
+}
+
+.field input,
+.field select,
+.field textarea,
+.campo input,
+.campo select,
+.campo textarea,
+.field select option,
+.campo select option {
+  text-transform: uppercase !important;
+}
+
+textarea {
+  white-space: pre-wrap;
+}
+
+/* Ensure consistent spacing for form controls */
+input,
+textarea,
+select {
+  font-size: 12pt;
+  line-height: 1.5;
+}
+
+/* Keep numeric inputs aligned */
+input[type="number"],
+input[type="tel"],
+input[type="date"],
+input[type="time"] {
+  font-variant-numeric: tabular-nums;
+}
+
+body.theme-dark {
+  background: #0f172a;
+  color: #e2e8f0;
+}
+
+body.theme-dark .card,
+body.theme-dark .subcard,
+body.theme-dark #drawer {
+  background: #111827;
+  border-color: #1f2937;
+}
+
+body.theme-dark .cardTitle,
+body.theme-dark .subTitle,
+body.theme-dark label,
+body.theme-dark .label,
+body.theme-dark .field label,
+body.theme-dark .inline-check {
+  color: #e2e8f0;
+}
+
+body.theme-dark input,
+body.theme-dark textarea,
+body.theme-dark select {
+  background: #0b1220;
+  color: #e2e8f0;
+  border-color: #334155;
+}

@@ -799,9 +799,9 @@ export function setupNameValidation(
         });
       }
     }
-    const sanitize = () => {
+    const sanitize = (trimEdges = true) => {
       const v = getValue(input);
-      const s = sanitizeNameForDisplay(v);
+      const s = sanitizeNameForDisplay(v, { trimEdges });
       if (s !== v) setValue(input, s);
     };
 
@@ -843,12 +843,12 @@ export function setupNameValidation(
     };
 
     input.addEventListener('input', () => {
-      sanitize();
+      sanitize(false);
       const mode = localStorage.getItem('ui.nameValidationMode') || 'blur';
       if (mode === 'input') runCheck();
     });
     input.addEventListener('blur', () => {
-      sanitize();
+      sanitize(true);
       const mode = localStorage.getItem('ui.nameValidationMode') || 'blur';
       if (mode === 'blur' || mode === 'input') runCheck();
     });

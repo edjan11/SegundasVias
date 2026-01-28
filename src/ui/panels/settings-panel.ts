@@ -3,6 +3,12 @@ type SettingsPanelOptions = {
   enableCpfKey: string;
   enableNameKey: string;
   panelInlineKey: string;
+  fontFamilyKey?: string;
+  themeKey?: string;
+  defaultFontFamily?: string;
+  defaultTheme?: 'light' | 'dark';
+  applyFontFamily?: (fontFamily: string) => void;
+  applyTheme?: (mode: 'light' | 'dark') => void;
   autoJsonKey?: string;
   autoXmlKey?: string;
   fixedLayoutKey?: string;
@@ -27,6 +33,8 @@ export function setupSettingsPanelBase(options: SettingsPanelOptions): void {
   const zoomRange = document.getElementById('settings-zoom') as HTMLInputElement | null;
   const zoomValue = document.getElementById('settings-zoom-value') as HTMLElement | null;
   const cbInline = document.getElementById('settings-panel-inline') as HTMLInputElement | null;
+  const fontSelect = document.getElementById('settings-font-family') as HTMLSelectElement | null;
+  const themeToggle = document.getElementById('settings-theme-dark') as HTMLInputElement | null;
   const saveBtn = document.getElementById('settings-save') as HTMLElement | null;
   const applyBtn = document.getElementById('settings-apply') as HTMLElement | null;
 
@@ -41,6 +49,14 @@ export function setupSettingsPanelBase(options: SettingsPanelOptions): void {
     panelInlineStored === null
       ? !!options.defaultPanelInline
       : panelInlineStored === 'true';
+  const fontStored = options.fontFamilyKey
+    ? localStorage.getItem(options.fontFamilyKey) || options.defaultFontFamily || ''
+    : '';
+  const themeStored = options.themeKey
+    ? (localStorage.getItem(options.themeKey) as 'light' | 'dark' | null) ||
+      options.defaultTheme ||
+      'light'
+    : 'light';
   const fixedLayout = options.fixedLayoutKey
     ? localStorage.getItem(options.fixedLayoutKey) === 'true'
     : false;
@@ -64,6 +80,10 @@ export function setupSettingsPanelBase(options: SettingsPanelOptions): void {
   if (options.applyFixedLayout) options.applyFixedLayout(fixedLayout);
   if (options.applyInternalZoom) options.applyInternalZoom(zoomStored);
   if (cbInline) cbInline.checked = !!panelInline;
+  if (fontSelect && fontStored) fontSelect.value = fontStored;
+  if (options.applyFontFamily && fontStored) options.applyFontFamily(fontStored);
+  if (themeToggle) themeToggle.checked = themeStored === 'dark';
+  if (options.applyTheme) options.applyTheme(themeStored === 'dark' ? 'dark' : 'light');
 
   cbFixed?.addEventListener('change', () => {
     const enabled = !!cbFixed.checked;
@@ -82,6 +102,18 @@ export function setupSettingsPanelBase(options: SettingsPanelOptions): void {
     }
   });
 
+  fontSelect?.addEventListener('change', () => {
+    const value = fontSelect.value || '';
+    if (options.applyFontFamily) options.applyFontFamily(value);
+    if (options.fontFamilyKey) localStorage.setItem(options.fontFamilyKey, value);
+  });
+
+  themeToggle?.addEventListener('change', () => {
+    const mode = themeToggle.checked ? 'dark' : 'light';
+    if (options.applyTheme) options.applyTheme(mode);
+    if (options.themeKey) localStorage.setItem(options.themeKey, mode);
+  });
+
   applyBtn?.addEventListener('click', () => {
     const newPos = select?.value || pos;
     if (options.applyDrawerPosition) options.applyDrawerPosition(newPos);
@@ -94,6 +126,12 @@ export function setupSettingsPanelBase(options: SettingsPanelOptions): void {
     localStorage.setItem(options.enableCpfKey, cbCpf?.checked ? 'true' : 'false');
     localStorage.setItem(options.enableNameKey, cbName?.checked ? 'true' : 'false');
     if (cbInline) localStorage.setItem(options.panelInlineKey, cbInline.checked ? 'true' : 'false');
+    if (fontSelect && options.fontFamilyKey) {
+      localStorage.setItem(options.fontFamilyKey, fontSelect.value || '');
+    }
+    if (themeToggle && options.themeKey) {
+      localStorage.setItem(options.themeKey, themeToggle.checked ? 'dark' : 'light');
+    }
     if (cbAutoJson && options.autoJsonKey) {
       localStorage.setItem(options.autoJsonKey, cbAutoJson.checked ? 'true' : 'false');
     }

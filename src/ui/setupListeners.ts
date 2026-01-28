@@ -258,13 +258,15 @@ export function initBindings(opts: {
         opts.setState(path, digits);
         (input as HTMLInputElement).value = formatCpf(digits);
       } else if (path === 'registro.data_registro' || path === 'registro.data_nascimento') {
-        const formatted = normalizeDate((input as HTMLInputElement).value);
-        opts.setState(path, formatted);
-        (input as HTMLInputElement).value = formatted;
+        const raw = (input as HTMLInputElement).value;
+        const formatted = normalizeDate(raw);
+        opts.setState(path, formatted || raw);
+        if (formatted) (input as HTMLInputElement).value = formatted;
       } else if (path === 'registro.hora_nascimento') {
-        const formatted = normalizeTime((input as HTMLInputElement).value);
-        opts.setState(path, formatted);
-        (input as HTMLInputElement).value = formatted;
+        const raw = (input as HTMLInputElement).value;
+        const formatted = normalizeTime(raw);
+        opts.setState(path, formatted || raw);
+        if (formatted) (input as HTMLInputElement).value = formatted;
       } else {
         opts.setState(path, (input as HTMLInputElement).value);
       }

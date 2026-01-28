@@ -36,6 +36,19 @@ function replaceAll(raw: string, token: string, value: string): string {
   return raw.split(token).join(value);
 }
 
+function stripSection(raw: string, key: string, keep: boolean): string {
+  const start = `<!--${key}_START-->`;
+  const end = `<!--${key}_END-->`;
+  const startIdx = raw.indexOf(start);
+  if (startIdx < 0) return raw;
+  const endIdx = raw.indexOf(end, startIdx + start.length);
+  if (endIdx < 0) return raw;
+  if (keep) {
+    return raw.replace(start, '').replace(end, '');
+  }
+  return raw.slice(0, startIdx) + raw.slice(endIdx + end.length);
+}
+
 export async function buildNascimentoPdfHtmlFromTemplate(
   data: AnyJson,
   opts?: { templateHref?: string; cssHref?: string },
@@ -51,6 +64,31 @@ export async function buildNascimentoPdfHtmlFromTemplate(
 
   const reg = data?.registro ?? {};
   const cert = data?.certidao ?? {};
+
+  const hasGenitor1 = !!(
+    normalizeSpace(reg.mae_nome ?? '') ||
+    normalizeSpace(reg.mae_municipio ?? '') ||
+    normalizeSpace(reg.mae_uf ?? '') ||
+    normalizeSpace(reg.mae_avos ?? '')
+  );
+  const hasGenitor2 = !!(
+    normalizeSpace(reg.pai_nome ?? '') ||
+    normalizeSpace(reg.pai_municipio ?? '') ||
+    normalizeSpace(reg.pai_uf ?? '') ||
+    normalizeSpace(reg.pai_avos ?? '')
+  );
+  const hasGenitor3 = !!(
+    normalizeSpace(reg.genitor3_nome ?? '') ||
+    normalizeSpace(reg.genitor3_municipio ?? '') ||
+    normalizeSpace(reg.genitor3_uf ?? '') ||
+    normalizeSpace(reg.genitor3_avos ?? '')
+  );
+  const hasGenitor4 = !!(
+    normalizeSpace(reg.genitor4_nome ?? '') ||
+    normalizeSpace(reg.genitor4_municipio ?? '') ||
+    normalizeSpace(reg.genitor4_uf ?? '') ||
+    normalizeSpace(reg.genitor4_avos ?? '')
+  );
 
   const values: Record<string, string> = {
     '{{CSS_HREF}}': cssHref,
@@ -76,6 +114,14 @@ export async function buildNascimentoPdfHtmlFromTemplate(
     '{{PAI_MUNICIPIO}}': fallback(reg.pai_municipio ?? '', 'NAO CONSTA'),
     '{{PAI_UF}}': fallback(reg.pai_uf ?? '', 'N/C'),
     '{{PAI_AVOS}}': fallback(reg.pai_avos ?? '', 'NAO CONSTA'),
+    '{{GENITOR3_NOME}}': fallback(reg.genitor3_nome ?? '', 'NAO CONSTA'),
+    '{{GENITOR3_MUNICIPIO}}': fallback(reg.genitor3_municipio ?? '', 'NAO CONSTA'),
+    '{{GENITOR3_UF}}': fallback(reg.genitor3_uf ?? '', 'N/C'),
+    '{{GENITOR3_AVOS}}': fallback(reg.genitor3_avos ?? '', 'NAO CONSTA'),
+    '{{GENITOR4_NOME}}': fallback(reg.genitor4_nome ?? '', 'NAO CONSTA'),
+    '{{GENITOR4_MUNICIPIO}}': fallback(reg.genitor4_municipio ?? '', 'NAO CONSTA'),
+    '{{GENITOR4_UF}}': fallback(reg.genitor4_uf ?? '', 'N/C'),
+    '{{GENITOR4_AVOS}}': fallback(reg.genitor4_avos ?? '', 'NAO CONSTA'),
     '{{GEMEO}}': fallback(reg.gemeo ?? '', 'NAO CONSTA'),
     '{{DATA_REGISTRO_EXTENSO}}': fallback(reg.data_registro_extenso ?? '', 'NAO CONSTA'),
     '{{DNV}}': fallback(reg.numero_dnv ?? '', 'NAO CONSTA'),
@@ -88,6 +134,10 @@ export async function buildNascimentoPdfHtmlFromTemplate(
   };
 
   let html = template;
+  html = stripSection(html, 'GENITOR1', hasGenitor1);
+  html = stripSection(html, 'GENITOR2', hasGenitor2);
+  html = stripSection(html, 'GENITOR3', hasGenitor3);
+  html = stripSection(html, 'GENITOR4', hasGenitor4);
   for (const [token, value] of Object.entries(values)) {
     html = replaceAll(html, token, escapeHtml(value));
   }

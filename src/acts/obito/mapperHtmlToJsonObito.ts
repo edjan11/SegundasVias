@@ -22,6 +22,11 @@ function selectedText(root: Root, sel: string): string {
   return (opt?.textContent || '').trim();
 }
 
+function checked(root: Root, sel: string): boolean {
+  const el = q(root, sel) as any;
+  return !!el?.checked;
+}
+
 function radio(root: Root, name: string): string {
   const el = (root as any).querySelector(`input[name="${name}"]:checked`) as any;
   return el?.value != null ? String(el.value) : '';
@@ -250,7 +255,10 @@ export function mapperHtmlToCrcJsonObito(root: Root = document) {
 
   const nome = val(root, 'input[name="nomeFalecido"]');
 
-  const cpfField = normalizeCpfFields(val(root, 'input[name="cpfFalecido"]'));
+  const cpfIgn = checked(root, '#cpf-falecido-ign');
+  const cpfField = cpfIgn
+    ? { cpf: '', cpf_sem_inscricao: true }
+    : normalizeCpfFields(val(root, 'input[name="cpfFalecido"]') || val(root, 'input[name="CPFPessoa"]'));
 
   const matricula = buildMatriculaObito(root);
 

@@ -1,0 +1,6 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Project custom styles are imported after Tailwind layers */
+@import './ui.css';

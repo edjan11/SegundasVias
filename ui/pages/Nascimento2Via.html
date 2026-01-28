@@ -9,6 +9,16 @@
   <link rel="stylesheet" href="../styles/components.css" />
 </head>
 <body class="page-nascimento">
+  <script>
+    // Redirect to Base2ViaLayout to ensure single, consistent initialization
+    (function() {
+      if (!location.pathname.endsWith('Base2ViaLayout.html')) {
+        const url = new URL('/ui/pages/Base2ViaLayout.html', location.origin);
+        url.searchParams.set('act', 'nascimento');
+        location.replace(url);
+      }
+    })();
+  </script>
   <div class="app-shell">
     <div class="main-pane">
       <div class="container">
@@ -58,20 +68,20 @@
           <div class="field">
             <label>Data de nascimento</label>
             <div class="field-line">
-            <input
-              id="dn"
-              data-bind="registro.data_nascimento"
-              type="text"
-              placeholder="00/00/0000"
-              inputmode="tel"
-              maxlength="10"
-              autocomplete="off"
-              pattern="\\d{2}/\\d{2}/\\d{4}"
-              class="w-date"
-            />
-              <label class="inline-check" for="dn-ign">
+              <input
+                id="dn"
+                data-bind="registro.data_nascimento"
+                type="text"
+                placeholder="00/00/0000"
+                inputmode="tel"
+                maxlength="10"
+                autocomplete="off"
+                pattern="\\d{2}/\\d{2}/\\d{4}"
+                class="w-date"
+              />
+              <label class="inline-check inline-check--compact ignore-toggle" for="dn-ign">
                 <input type="checkbox" data-bind="registro.data_nascimento_ignorada" id="dn-ign" />
-                Ignorar
+                <span>Ignorar</span>
               </label>
             </div>
           </div>
@@ -79,20 +89,20 @@
           <div class="field">
             <label>Hora do nascimento</label>
             <div class="field-line">
-            <input
-              id="hn"
-              data-bind="registro.hora_nascimento"
-              type="text"
-              placeholder="00:00"
-              inputmode="tel"
-              maxlength="5"
-              autocomplete="off"
-              pattern="([01]\\d|2[0-3]):[0-5]\\d"
-              class="w-time"
-            />
-              <label class="inline-check" for="hn-ign">
+              <input
+                id="hn"
+                data-bind="registro.hora_nascimento"
+                type="text"
+                placeholder="00:00"
+                inputmode="tel"
+                maxlength="5"
+                autocomplete="off"
+                pattern="([01]\\d|2[0-3]):[0-5]\\d"
+                class="w-time"
+              />
+              <label class="inline-check inline-check--compact ignore-toggle" for="hn-ign">
                 <input type="checkbox" data-bind="registro.hora_nascimento_ignorada" id="hn-ign" />
-                Ignorar
+                <span>Ignorar</span>
               </label>
             </div>
           </div>
@@ -285,6 +295,75 @@
 
       <div class="section-divider"></div>
 
+      <details class="collapse">
+        <summary>Outros genitores</summary>
+        <div class="subcard">
+          <div class="subTitle">3º Genitor</div>
+          <div class="filiacao-grid">
+            <div class="field">
+              <label>Nome</label>
+              <input data-bind="ui.genitor3_nome" data-name-validate />
+            </div>
+            <div class="field">
+              <label>Cidade de nascimento</label>
+              <input data-bind="ui.genitor3_cidade" />
+            </div>
+            <div class="field">
+              <label>UF</label>
+              <select data-bind="ui.genitor3_uf" class="w-uf">
+                <option></option>
+                <option>IG</option>
+                <option>AC</option><option>AL</option><option>AP</option><option>AM</option><option>BA</option><option>CE</option><option>DF</option><option>ES</option><option>GO</option><option>MA</option><option>MT</option><option>MS</option><option>MG</option><option>PA</option><option>PB</option><option>PR</option><option>PE</option><option>PI</option><option>RJ</option><option>RN</option><option>RS</option><option>RO</option><option>RR</option><option>SC</option><option>SP</option><option>SE</option><option>TO</option>
+              </select>
+            </div>
+          </div>
+          <div class="filiacao-avos">
+            <div class="field">
+              <label>Nome da mãe</label>
+              <input data-bind="ui.genitor3_avo1" data-name-validate />
+            </div>
+            <div class="field">
+              <label>Nome do pai</label>
+              <input data-bind="ui.genitor3_avo2" data-name-validate />
+            </div>
+          </div>
+
+          <div class="filiacao-split"></div>
+
+          <div class="subTitle">4º Genitor</div>
+          <div class="filiacao-grid">
+            <div class="field">
+              <label>Nome</label>
+              <input data-bind="ui.genitor4_nome" data-name-validate />
+            </div>
+            <div class="field">
+              <label>Cidade de nascimento</label>
+              <input data-bind="ui.genitor4_cidade" />
+            </div>
+            <div class="field">
+              <label>UF</label>
+              <select data-bind="ui.genitor4_uf" class="w-uf">
+                <option></option>
+                <option>IG</option>
+                <option>AC</option><option>AL</option><option>AP</option><option>AM</option><option>BA</option><option>CE</option><option>DF</option><option>ES</option><option>GO</option><option>MA</option><option>MT</option><option>MS</option><option>MG</option><option>PA</option><option>PB</option><option>PR</option><option>PE</option><option>PI</option><option>RJ</option><option>RN</option><option>RS</option><option>RO</option><option>RR</option><option>SC</option><option>SP</option><option>SE</option><option>TO</option>
+              </select>
+            </div>
+          </div>
+          <div class="filiacao-avos">
+            <div class="field">
+              <label>Nome da mãe</label>
+              <input data-bind="ui.genitor4_avo1" data-name-validate />
+            </div>
+            <div class="field">
+              <label>Nome do pai</label>
+              <input data-bind="ui.genitor4_avo2" data-name-validate />
+            </div>
+          </div>
+        </div>
+      </details>
+
+      <div class="section-divider"></div>
+
       <div class="section">
         <div class="row row--registro">
           <div class="field">
@@ -338,14 +417,14 @@
 
         <div class="row row--cpf" style="opacity:0.9;">
           <div class="field">
-            <label class="label-row">
-              <span>CPF</span>
-              <span class="inline-check">
+            <label>CPF</label>
+            <div class="field-line">
+              <input data-bind="registro.cpf" id="cpf" placeholder="000.000.000-00" class="w-cpf" inputmode="numeric" maxlength="14" />
+              <label class="inline-check inline-check--compact cpf-toggle" for="cpf-sem">
                 <input type="checkbox" data-bind="registro.cpf_sem_inscricao" id="cpf-sem" />
-                Não inscrito
-              </span>
-            </label>
-            <input data-bind="registro.cpf" id="cpf" placeholder="000.000.000-00" class="w-cpf" inputmode="numeric" maxlength="14" />
+                <span>Não inscrito</span>
+              </label>
+            </div>
           </div>
         </div>
       </div>
@@ -440,19 +519,34 @@
           <div id="search-results" class="search-results"></div>
         </div>
 
-        <div id="op-import" class="ops-panel">
+        <div id="op-actions" class="ops-panel">
           <div class="card">
-            <div class="cardTitle">Importar</div>
-            <div class="grid">
-              <div class="field span-12">
-                <label>Arquivo (JSON ou XML)</label>
-                <input id="import-file" type="file" accept=".json,.xml,application/json,text/xml,application/xml" />
+            <div class="cardTitle">Acoes</div>
+            <div class="action-status">
+              <div class="action-row">
+                <span class="label">JSON em memoria</span>
+                <span id="status-json" class="badge">—</span>
+              </div>
+              <div class="action-row">
+                <span class="label">XML gerado</span>
+                <span id="status-xml" class="badge">—</span>
+              </div>
+              <div class="action-row">
+                <span class="label">PostgreSQL</span>
+                <span id="status-db" class="badge">NAO</span>
               </div>
             </div>
             <div class="toolbar-left" style="margin-top: 10px;">
-              <button id="btn-import" class="btn secondary" type="button">Importar</button>
+              <button id="actions-save" class="btn save" type="button">Salvar</button>
+              <button id="actions-export-json" class="btn secondary" type="button">Exportar JSON</button>
+              <button id="actions-export-xml" class="btn secondary" type="button">Baixar XML</button>
+              <button id="actions-export-pdf" class="btn secondary" type="button">PDF</button>
             </div>
-            <div id="import-status" class="import-status"></div>
+            <div class="action-hints">
+              <span class="badge">Ctrl+Espaco: JSON</span>
+              <span class="badge">Ctrl+Alt+P: PDF</span>
+            </div>
+            <div id="actions-status" class="import-status"></div>
           </div>
         </div>
       </div>
@@ -460,7 +554,7 @@
 
     <div class="ops-rail" aria-hidden="true">
       <button class="btn secondary ops-btn" data-target="op-search" type="button">BUSCA</button>
-      <button class="btn secondary ops-btn" data-target="op-import" type="button">IMPORTAR</button>
+      <button class="btn secondary ops-btn" data-target="op-actions" type="button">ACOES</button>
     </div>
   </div>
 
@@ -477,44 +571,6 @@
         </div>
 
         <div id="tab-config" class="tab-pane active">
-          <div class="card">
-            <div class="cardTitle">Certidao</div>
-            <div class="grid">
-              <div class="field span-3">
-                <label>plataformaId</label>
-                <input data-bind="certidao.plataformaId" readonly />
-              </div>
-              <div class="field span-3">
-                <label>tipo_registro</label>
-                <input data-bind="certidao.tipo_registro" readonly />
-              </div>
-              <div class="field span-3">
-                <label>tipo_certidao</label>
-                <select data-bind="certidao.tipo_certidao">
-                  <option></option><option>Breve relato</option><option>Inteiro teor</option>
-                </select>
-              </div>
-              <div class="field span-3">
-                <label>modalidade</label>
-                <select data-bind="certidao.modalidade">
-                  <option></option><option>eletronica</option><option>fisica</option>
-                </select>
-              </div>
-              <div class="field span-3">
-                <label>cartorio_cns</label>
-                <input data-bind="certidao.cartorio_cns" readonly />
-              </div>
-              <div class="field span-3">
-                <label>cota_emolumentos</label>
-                <input data-bind="certidao.cota_emolumentos" />
-              </div>
-              <div class="field checkboxField span-2">
-                <input type="checkbox" data-bind="certidao.transcricao" />
-                <label>transcricao</label>
-              </div>
-            </div>
-          </div>
-
           <div class="card">
             <div class="cardTitle">Pastas</div>
             <div class="grid">
@@ -541,11 +597,25 @@
           </div>
 
           <div class="card">
+            <div class="cardTitle">Importacao</div>
+            <div class="grid settings-grid">
+              <div class="field span-12">
+                <label>Arquivo (JSON ou XML)</label>
+                <input id="import-file" type="file" accept=".json,.xml,application/json,text/xml,application/xml" />
+              </div>
+            </div>
+            <div class="toolbar-left" style="margin-top: 10px;">
+              <button id="btn-import" class="btn secondary" type="button">Importar</button>
+            </div>
+            <div id="import-status" class="import-status"></div>
+          </div>
+
+          <div class="card">
             <div class="cardTitle">Automacoes</div>
             <div class="grid">
               <div class="field span-12">
                 <label>Corretor de nome</label>
-                <div class="field-line">
+                <div class="check-grid">
                   <label class="inline-check">
                     <input type="radio" name="name-validation-mode" value="blur" />
                     Somente ao sair do input
@@ -575,11 +645,11 @@
               </div>
               <div class="field span-6">
                 <label>Preferencias</label>
-                <div class="field-line">
+                <div class="check-grid">
                   <label class="inline-check"><input type="checkbox" id="settings-enable-cpf" /> Validar CPF</label>
                   <label class="inline-check"><input type="checkbox" id="settings-enable-name" /> Validar Nomes</label>
                 </div>
-                <div class="field-line" style="margin-top:4px;">
+                <div class="check-grid" style="margin-top:4px;">
                   <label class="inline-check"><input type="checkbox" id="settings-auto-json" /> Auto gerar JSON</label>
                   <label class="inline-check"><input type="checkbox" id="settings-auto-xml" /> Auto gerar XML</label>
                 </div>
@@ -595,8 +665,39 @@
                   <span id="settings-zoom-value">100%</span>
                 </div>
               </div>
+              <div class="field span-6">
+                <label>Fonte</label>
+                <select id="settings-font-family" class="campo">
+                  <option value="&quot;Times New Roman&quot;, &quot;Times&quot;, &quot;Georgia&quot;, serif">Times New Roman</option>
+                  <option value="Arial, Helvetica, sans-serif">Arial</option>
+                  <option value="Calibri, Arial, sans-serif">Calibri</option>
+                  <option value="Georgia, &quot;Times New Roman&quot;, serif">Georgia</option>
+                  <option value="Garamond, &quot;Times New Roman&quot;, serif">Garamond</option>
+                  <option value="&quot;Trebuchet MS&quot;, Arial, sans-serif">Trebuchet MS</option>
+                  <option value="Verdana, Arial, sans-serif">Verdana</option>
+                  <option value="Tahoma, Arial, sans-serif">Tahoma</option>
+                  <option value="&quot;Courier New&quot;, Courier, monospace">Courier New</option>
+                  <option value="Cambria, Georgia, serif">Cambria</option>
+                  <option value="&quot;Palatino Linotype&quot;, Palatino, serif">Palatino Linotype</option>
+                  <option value="&quot;Book Antiqua&quot;, Palatino, serif">Book Antiqua</option>
+                  <option value="&quot;Arial Narrow&quot;, Arial, sans-serif">Arial Narrow</option>
+                  <option value="&quot;Century Gothic&quot;, Arial, sans-serif">Century Gothic</option>
+                  <option value="&quot;Lucida Sans&quot;, &quot;Lucida Sans Unicode&quot;, sans-serif">Lucida Sans</option>
+                  <option value="&quot;Segoe UI&quot;, Arial, sans-serif">Segoe UI</option>
+                  <option value="Roboto, &quot;Segoe UI&quot;, Arial, sans-serif">Roboto</option>
+                  <option value="&quot;Noto Sans&quot;, &quot;Segoe UI&quot;, Arial, sans-serif">Noto Sans</option>
+                  <option value="&quot;Noto Serif&quot;, Georgia, serif">Noto Serif</option>
+                  <option value="&quot;Open Sans&quot;, &quot;Segoe UI&quot;, Arial, sans-serif">Open Sans</option>
+                </select>
+              </div>
+              <div class="field span-6">
+                <label>Tema</label>
+                <div class="field-line">
+                  <label class="inline-check"><input type="checkbox" id="settings-theme-dark" /> Modo escuro</label>
+                </div>
+              </div>
             </div>
-            <div style="margin-top:10px;" class="toolbar-left">
+            <div style="margin-top:10px;" class="toolbar-left settings-actions">
               <button id="settings-save" class="btn" type="button">Salvar</button>
               <button id="settings-apply" class="btn secondary" type="button">Aplicar sem salvar</button>
             </div>

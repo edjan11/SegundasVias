@@ -25,6 +25,8 @@ import { setupSearchPanel } from '../../ui/panels/search-panel';
 import { validateMatriculaType } from '../../shared/matricula/type';
 import { setupSettingsPanelBase } from '../../ui/panels/settings-panel';
 import { applyCertificatePayloadToSecondCopy, consumePendingPayload } from '../../ui/payload/apply-payload';
+import { applyFontFamily, applyTheme } from '../../shared/ui/theme';
+import { setupActionsPanel } from '../../ui/panels/actions-panel';
 
 const NAME_MODE_KEY = 'ui.nameValidationMode';
 let nameValidationMode = localStorage.getItem(NAME_MODE_KEY) || 'blur';
@@ -37,6 +39,8 @@ const OUTPUT_DIR_KEY_XML = 'outputDir.obito.xml';
 const FIXED_CARTORIO_CNS = '110742';
 const FIXED_LAYOUT_KEY = 'ui.fixedLayout';
 const INTERNAL_ZOOM_KEY = 'ui.internalZoom';
+const FONT_FAMILY_KEY = 'ui.fontFamily';
+const THEME_KEY = 'ui.theme';
 const AUTO_JSON_KEY = 'ui.autoGenerateJson';
 const AUTO_XML_KEY = 'ui.autoGenerateXml';
 
@@ -235,10 +239,24 @@ function withFixedCartorioCns(data) {
   return { ...data, certidao: { ...certidao, cartorio_cns: FIXED_CARTORIO_CNS } };
 }
 
+function buildJsonData(): any {
+  const data = mapperHtmlToJson(document);
+  return withFixedCartorioCns(data);
+}
+
+function buildJsonString(data: any): string {
+  return JSON.stringify(data || {}, null, 2);
+}
+
+function buildXmlString(data?: any): string {
+  const payload = data || buildJsonData();
+  return toXml(payload, 'certidao_obito', 0);
+}
+
 async function generateJson() {
   if (!canProceed()) return;
-  const data = mapperHtmlToJson(document);
-  const json = JSON.stringify(withFixedCartorioCns(data), null, 2);
+  const data = buildJsonData();
+  const json = buildJsonString(data);
   const out = document.getElementById('json-output') as HTMLElement | null;
   if (out) (out as any).value = json;
   const name = buildFileName(data, 'json');
@@ -257,8 +275,8 @@ async function generateJson() {
 
 async function generateXml() {
   if (!canProceed()) return;
-  const data = mapperHtmlToJson(document);
-  const xml = toXml(data, 'certidao_obito', 0);
+  const data = buildJsonData();
+  const xml = buildXmlString(data);
   const out = document.getElementById('xml-output') as HTMLElement | null;
   if (out) (out as any).value = xml;
   const name = buildFileName(data, 'xml');
@@ -358,13 +376,14 @@ async function pickOutputDir(kind: 'json' | 'xml') {
   const dir = kind === 'json'
     ? await window.api.pickJsonDir()
     : await window.api.pickXmlDir();
-  if (!dir) return;
+  if (!dir || typeof dir !== 'string') return;
+  const dirStr = String(dir);
   if (kind === 'json') {
-    outputDirs.json = dir;
-    localStorage.setItem(OUTPUT_DIR_KEY_JSON, dir);
+    outputDirs.json = dirStr;
+    localStorage.setItem(OUTPUT_DIR_KEY_JSON, dirStr);
   } else {
-    outputDirs.xml = dir;
-    localStorage.setItem(OUTPUT_DIR_KEY_XML, dir);
+    outputDirs.xml = dirStr;
+    localStorage.setItem(OUTPUT_DIR_KEY_XML, dirStr);
   }
   updateOutputDirUi();
 }
@@ -383,12 +402,39 @@ function setupOutputDirs() {
   });
 }
 
+function setupCpfIgnoreToggle(): void {
+  const input = document.querySelector<HTMLInputElement>('input[name="CPFPessoa"], input[name="cpfFalecido"]');
+  const checkbox = document.getElementById('cpf-falecido-ign') as HTMLInputElement | null;
+  if (!input || !checkbox) return;
+  const field = (input as HTMLElement).closest('.campo') as HTMLElement | null;
+
+  const apply = () => {
+    const ignored = !!checkbox.checked;
+    input.disabled = ignored;
+    if (ignored) {
+      input.value = '';
+      input.classList.remove('invalid');
+      clearFieldHint(field);
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+  };
+
+  checkbox.addEventListener('change', apply);
+  apply();
+}
+
 function setupSettingsPanel() {
   setupSettingsPanelBase({
     drawerPositionKey: DRAWER_POS_KEY,
     enableCpfKey: ENABLE_CPF_KEY,
     enableNameKey: ENABLE_NAME_KEY,
     panelInlineKey: PANEL_INLINE_KEY,
+    fontFamilyKey: FONT_FAMILY_KEY,
+    themeKey: THEME_KEY,
+    defaultFontFamily: '"Times New Roman", "Times", "Georgia", serif',
+    defaultTheme: 'light',
+    applyFontFamily,
+    applyTheme,
     autoJsonKey: AUTO_JSON_KEY,
     autoXmlKey: AUTO_XML_KEY,
     fixedLayoutKey: FIXED_LAYOUT_KEY,
@@ -1157,6 +1203,7 @@ function setup() {
     openPrintPreview();
   });
   setupValidation();
+  setupCpfIgnoreToggle();
   setupMatriculaTypeValidation();
   // popular selects dependentes (órgãos, UF título)
   populateOrgaoAndUf();
@@ -1176,6 +1223,17 @@ function setup() {
   setupSettingsPanel();
   setupDrawerTabs();
   setupOpsPanel();
+  setupActionsPanel({
+    getJson: buildJsonData,
+    buildXml: buildXmlString,
+    buildFileName: (ext, json) => buildFileName(json || buildJsonData(), ext),
+    validate: canProceed,
+    onStatus: setStatus,
+    onPdf: () => {
+      const btn = document.getElementById('btn-print') as HTMLElement | null;
+      if (btn) btn.click();
+    },
+  });
   // arrange panel according to saved preference (inline vs floating)
   arrangePanel();
   setupActSelect('obito');

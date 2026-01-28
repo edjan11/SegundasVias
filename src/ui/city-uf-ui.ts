@@ -108,9 +108,18 @@ export function attachCityUfAutofill(
     const res = resolveAndValidate();
     if (!res) return;
 
-    if (res.status === 'inferred') {
+    const inferredFromDivergent = () => {
+      const matches = (res as any).matches as { uf: string }[] | undefined;
+      if (!matches || matches.length === 0) return null;
+      const unique = Array.from(new Set(matches.map((m) => m.uf))).filter(Boolean);
+      return unique.length === 1 ? unique[0] : null;
+    };
+
+    const ufInferred = res.status === 'inferred' ? (res as any).uf : inferredFromDivergent();
+
+    if (ufInferred) {
       // Autofill UF and set temporary readonly-ish state
-      const ufValue = (res as any).uf || '';
+      const ufValue = ufInferred || '';
       if ((ufInput as HTMLInputElement).tagName === 'SELECT') {
         (ufInput as HTMLSelectElement).value = ufValue;
         ufEl.setAttribute('data-auto-filled', 'true');

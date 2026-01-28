@@ -33,6 +33,8 @@ import { validateCasamentoTipo } from '../../shared/validators/casamento';
 import { setupSearchPanel } from '../../ui/panels/search-panel';
 import { setupSettingsPanelBase } from '../../ui/panels/settings-panel';
 import { applyCertificatePayloadToSecondCopy, consumePendingPayload } from '../../ui/payload/apply-payload';
+import { setupActionsPanel } from '../../ui/panels/actions-panel';
+import { applyFontFamily, applyTheme } from '../../shared/ui/theme';
 
 const NAME_MODE_KEY = 'ui.nameValidationMode';
 let nameValidationMode = localStorage.getItem(NAME_MODE_KEY) || 'blur';
@@ -42,6 +44,8 @@ const OUTPUT_DIR_KEY_XML = 'outputDir.casamento.xml';
 const FIXED_CARTORIO_CNS = '163659';
 const FIXED_LAYOUT_KEY = 'ui.fixedLayout';
 const INTERNAL_ZOOM_KEY = 'ui.internalZoom';
+const FONT_FAMILY_KEY = 'ui.fontFamily';
+const THEME_KEY = 'ui.theme';
 const AUTO_JSON_KEY = 'ui.autoGenerateJson';
 const AUTO_XML_KEY = 'ui.autoGenerateXml';
 
@@ -55,6 +59,12 @@ function setupSettingsPanelCasamento(): void {
     enableCpfKey: 'ui.enableCpfValidation',
     enableNameKey: 'ui.enableNameValidation',
     panelInlineKey: PANEL_INLINE_KEY,
+    fontFamilyKey: FONT_FAMILY_KEY,
+    themeKey: THEME_KEY,
+    defaultFontFamily: '"Times New Roman", "Times", "Georgia", serif',
+    defaultTheme: 'light',
+    applyFontFamily,
+    applyTheme,
     autoJsonKey: AUTO_JSON_KEY,
     autoXmlKey: AUTO_XML_KEY,
     fixedLayoutKey: FIXED_LAYOUT_KEY,
@@ -154,8 +164,20 @@ function toXml(obj: any, nodeName: string, indent = 0): string {
   return `${pad}<${nodeName}>\n${children}\n${pad}</${nodeName}>`;
 }
 
-function sanitizeNameLikeValue(value: string): string {
-  return String(value || '').replace(/[^\p{L}'\- ]/gu, '');
+function sanitizeNameLikeValue(
+  value: string,
+  opts: { trimEdges?: boolean; collapseSpaces?: boolean } = {},
+): string {
+  const { trimEdges = true, collapseSpaces = true } = opts;
+  let out = String(value || '');
+  try {
+    out = out.replace(/[^\p{L}'\- ]/gu, '');
+  } catch (e) {
+    out = out.replace(/[^A-Za-zÀ-ÖØ-öø-ÿ' \-]/g, '');
+  }
+  if (collapseSpaces) out = out.replace(/\s+/g, ' ');
+  if (trimEdges) out = out.trim();
+  return out;
 }
 
 function downloadFile(name: string, content: string, mime: string): boolean {
@@ -252,6 +274,26 @@ function isValidCasamentoXml(xml: string): boolean {
   return trimmed.startsWith('<') && trimmed.includes('<ListaRegistrosCasamento');
 }
 
+function buildJsonData(): any {
+  const data = mapperHtmlToJson(document as any);
+  return withFixedCartorioCns(data);
+}
+
+function buildJsonString(data: any): string {
+  return JSON.stringify(data || {}, null, 2);
+}
+
+async function buildXmlString(data?: any): Promise<string> {
+  const payload = data || buildJsonData();
+  const cns = onlyDigits(payload?.certidao?.cartorio_cns) || onlyDigits(payload?.registro?.matricula).slice(0, 6);
+  const template = await fetchCasamentoTemplate(cns);
+  if (!template) throw new Error('Template XML nao encontrado');
+  const result = buildCasamentoXmlFromJson(template, payload);
+  if (!isValidCasamentoXml(result.xml)) throw new Error('XML invalido');
+  if (result.warnings.length) console.warn('[XML casamento warnings]', result.warnings);
+  return result.xml;
+}
+
 async function generateJson(): Promise<void> {
   try {
     console.debug('casamento: generateJson invoked');
@@ -261,8 +303,8 @@ async function generateJson(): Promise<void> {
     showToast('Existem campos inválidos. Corrija antes de gerar.');
     return;
   }
-  const data = mapperHtmlToJson(document as any);
-  const json = JSON.stringify(withFixedCartorioCns(data), null, 2);
+  const data = buildJsonData();
+  const json = buildJsonString(data);
   const out = document.getElementById('json-output') as any;
   if (out) out.value = json;
   const name = buildFileName('json', data);
@@ -289,20 +331,15 @@ async function generateXml(): Promise<void> {
     showToast('Existem campos inválidos. Corrija antes de gerar.');
     return;
   }
-  const data = mapperHtmlToJson(document as any);
-  const cns = onlyDigits(data?.certidao?.cartorio_cns) || onlyDigits(data?.registro?.matricula).slice(0, 6);
-  const template = await fetchCasamentoTemplate(cns);
-  if (!template) {
+  const data = buildJsonData();
+  let xml = '';
+  try {
+    xml = await buildXmlString(data);
+  } catch (e) {
+    console.error('generateXml error', e);
     setStatus('Falha ao carregar template XML de casamento', true);
     return;
   }
-  const result = buildCasamentoXmlFromJson(template, data);
-  const xml = result.xml;
-  if (!isValidCasamentoXml(xml)) {
-    setStatus('XML invalido. Verifique o template.', true);
-    return;
-  }
-  if (result.warnings.length) console.warn('[XML casamento warnings]', result.warnings);
   const name = buildFileName('xml', data);
   try {
     if (window.api && window.api.saveXml) {
@@ -381,13 +418,14 @@ async function pickOutputDir(kind: 'json' | 'xml'): Promise<void> {
   const dir = kind === 'json'
     ? await window.api.pickJsonDir()
     : await window.api.pickXmlDir();
-  if (!dir) return;
+  if (!dir || typeof dir !== 'string') return;
+  const dirStr = String(dir);
   if (kind === 'json') {
-    outputDirs.json = dir;
-    localStorage.setItem(OUTPUT_DIR_KEY_JSON, dir);
+    outputDirs.json = dirStr;
+    localStorage.setItem(OUTPUT_DIR_KEY_JSON, dirStr);
   } else {
-    outputDirs.xml = dir;
-    localStorage.setItem(OUTPUT_DIR_KEY_XML, dir);
+    outputDirs.xml = dirStr;
+    localStorage.setItem(OUTPUT_DIR_KEY_XML, dirStr);
   }
   updateOutputDirUi();
 }
@@ -580,13 +618,13 @@ function setupNameValidation(): void {
       timers.delete(input as any);
     });
 
-    const sanitize = () => {
+    const sanitize = (trimEdges = true, collapseSpaces = true) => {
       const v = (input as HTMLInputElement).value || '';
-      const s = sanitizeNameLikeValue(v);
+      const s = sanitizeNameLikeValue(v, { trimEdges, collapseSpaces });
       if (s !== v) (input as HTMLInputElement).value = s;
     };
-    const runCheck = () => {
-      sanitize();
+    const runCheck = (trimEdges = true, collapseSpaces = true) => {
+      sanitize(trimEdges, collapseSpaces);
       const value = (input as HTMLInputElement).value || '';
       const nameRes = validateName(value, { minWords: 2 });
       const result = validator.check(value);
@@ -622,12 +660,12 @@ function setupNameValidation(): void {
       }
     };
     input.addEventListener('input', () => {
-      sanitize();
-      if (nameValidationMode === 'input') runCheck();
+      sanitize(false, false);
+      if (nameValidationMode === 'input') runCheck(false, false);
     });
     input.addEventListener('blur', () => {
-      sanitize();
-      if (nameValidationMode === 'blur' || nameValidationMode === 'input') runCheck();
+      sanitize(true, true);
+      if (nameValidationMode === 'blur' || nameValidationMode === 'input') runCheck(true, true);
     });
   });
   validator.ready.then(() => {
@@ -769,6 +807,34 @@ function setupActionButtonsListeners(): void {
   form?.addEventListener('change', updateActionButtons);
 }
 
+function setupCpfIgnoreToggles(): void {
+  const pairs = [
+    { inputSel: 'input[name="CPFNoivo"]', checkboxId: 'cpf-noivo-ign' },
+    { inputSel: 'input[name="CPFNoiva"]', checkboxId: 'cpf-noiva-ign' },
+  ];
+
+  pairs.forEach(({ inputSel, checkboxId }) => {
+    const input = document.querySelector<HTMLInputElement>(inputSel);
+    const checkbox = document.getElementById(checkboxId) as HTMLInputElement | null;
+    if (!input || !checkbox) return;
+    const field = input.closest('.campo') as HTMLElement | null;
+
+    const apply = () => {
+      const ignored = !!checkbox.checked;
+      input.disabled = ignored;
+      if (ignored) {
+        input.value = '';
+        input.classList.remove('invalid');
+        clearFieldHint(field);
+        input.dispatchEvent(new Event('input', { bubbles: true }));
+      }
+    };
+
+    checkbox.addEventListener('change', apply);
+    apply();
+  });
+}
+
 function setupAutofillDefaults(): void {
   setupCasamentoNameAutofill();
   setupCasamentoNationalityDefaults();
@@ -805,6 +871,7 @@ function setup(): void {
   setupMatriculaFieldTriggers(triggerMatricula);
   setupOutputButtons();
   setupValidation();
+  setupCpfIgnoreToggles();
   setupNameValidation();
   setupConfigPanel();
   setupOutputDirs();
@@ -829,6 +896,17 @@ function setup(): void {
   setupCityIntegration();
   setupDisableAutofill();
   setupPrintButton();
+  setupActionsPanel({
+    getJson: buildJsonData,
+    buildXml: buildXmlString,
+    buildFileName: buildFileName,
+    validate: canProceed,
+    onStatus: setStatus,
+    onPdf: () => {
+      const btn = document.getElementById('btn-print') as HTMLElement | null;
+      if (btn) btn.click();
+    },
+  });
   setupActionButtonsListeners();
 
   const pending = consumePendingPayload();
@@ -968,10 +1046,16 @@ function setupValidation(): void {
     .forEach((inp) => {
       try {
         const el = inp as HTMLInputElement;
-        el.addEventListener('input', () => {
-          const s = sanitizeNameLikeValue(el.value || '');
+        const onInput = () => {
+          const s = sanitizeNameLikeValue(el.value || '', { trimEdges: false, collapseSpaces: false });
           if (s !== el.value) el.value = s;
-        });
+        };
+        const onBlur = () => {
+          const s = sanitizeNameLikeValue(el.value || '', { trimEdges: true, collapseSpaces: true });
+          if (s !== el.value) el.value = s;
+        };
+        el.addEventListener('input', onInput);
+        el.addEventListener('blur', onBlur);
       } catch (e) {
         /* ignore */
       }

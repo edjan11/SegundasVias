@@ -163,7 +163,10 @@ export function mapperHtmlToCrcJson(root: Root = document) {
     '';
 
   // Conjuge 1 (Noivo)
-  const cpf1 = normalizeCpfFields(val(root, 'input[name="CPFNoivo"]') || val(root, 'input[name="cpfNoivo"]'));
+  const cpfNoivoIgn = checked(root, '#cpf-noivo-ign');
+  const cpf1 = cpfNoivoIgn
+    ? { cpf: '', cpf_sem_inscricao: true }
+    : normalizeCpfFields(val(root, 'input[name="CPFNoivo"]') || val(root, 'input[name="cpfNoivo"]'));
   const rg1 = buildDocItemRG(root, 'Noivo');
 
   const conjuge1 = {
@@ -181,7 +184,10 @@ export function mapperHtmlToCrcJson(root: Root = document) {
   };
 
   // Conjuge 2 (Noiva)
-  const cpf2 = normalizeCpfFields(val(root, 'input[name="CPFNoiva"]') || val(root, 'input[name="cpfNoiva"]'));
+  const cpfNoivaIgn = checked(root, '#cpf-noiva-ign');
+  const cpf2 = cpfNoivaIgn
+    ? { cpf: '', cpf_sem_inscricao: true }
+    : normalizeCpfFields(val(root, 'input[name="CPFNoiva"]') || val(root, 'input[name="cpfNoiva"]'));
   const rg2 = buildDocItemRG(root, 'Noiva');
 
   const conjuge2 = {

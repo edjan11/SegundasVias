@@ -19,6 +19,7 @@ import { setupNameCopy, setupAutoNationality } from '../../shared/productivity/i
 import { setupAdminPanel } from '../../shared/ui/admin';
 import { buildCertidaoFileName, readOficioValue } from '../../shared/ui/file-name';
 import { setupDraftAutosave } from '../../shared/ui/draft-autosave';
+import { applyFontFamily, applyTheme } from '../../shared/ui/theme';
 
 import { setupActSelect, setupDrawerTabs, setupOpsPanel } from '../../ui/setup-ui';
 import { attachAutocomplete } from '../../ui/city-autocomplete';
@@ -30,6 +31,7 @@ import { openHtmlAndSavePdf } from '../../prints/shared/openAndSavePdf';
 import { setupSearchPanel } from '../../ui/panels/search-panel';
 import { setupSettingsPanelBase } from '../../ui/panels/settings-panel';
 import { applyCertificatePayloadToSecondCopy, consumePendingPayload } from '../../ui/payload/apply-payload';
+import { setupActionsPanel } from '../../ui/panels/actions-panel';
 
 // (mantido aqui só se você realmente usa em algum lugar desse arquivo)
 // import { escapeHtml, sanitizeHref, sanitizeCss } from '../../prints/shared/print-utils.js';
@@ -41,6 +43,8 @@ const ENABLE_NAME_KEY = 'ui.enableNameValidation';
 const PANEL_INLINE_KEY = 'ui.panelInline';
 const FIXED_LAYOUT_KEY = 'ui.fixedLayout';
 const INTERNAL_ZOOM_KEY = 'ui.internalZoom';
+const FONT_FAMILY_KEY = 'ui.fontFamily';
+const THEME_KEY = 'ui.theme';
 const OUTPUT_DIR_KEY_JSON = 'outputDir.nascimento.json';
 const OUTPUT_DIR_KEY_XML = 'outputDir.nascimento.xml';
 const AUTO_JSON_KEY = 'ui.autoGenerateJson';
@@ -406,19 +410,33 @@ function downloadText(filename: string, content: string, mime: string): void {
   URL.revokeObjectURL(url);
 }
 
+function buildJsonData(): any {
+  const data = mapperHtmlToJson(document);
+  return withFixedCartorioCns(data);
+}
+
+function buildJsonString(data: any): string {
+  return JSON.stringify(data || {}, null, 2);
+}
+
+function buildFileNameForData(ext: 'json' | 'xml' | 'pdf', data?: any): string {
+  const payload = data || buildJsonData();
+  return buildCertidaoFileName({
+    nome: resolveRegisteredName(payload),
+    oficio: resolveOficioLabel(),
+    ext,
+    fallback: 'NASCIMENTO',
+  });
+}
+
 async function generateJson(): Promise<void> {
   if (!canProceed()) return;
-  const data = mapperHtmlToJson(document);
-  const json = JSON.stringify(withFixedCartorioCns(data), null, 2);
+  const data = buildJsonData();
+  const json = buildJsonString(data);
   const jsonEl = document.getElementById('json-output') as any;
   if (jsonEl) jsonEl.value = json;
 
-  const name = buildCertidaoFileName({
-    nome: resolveRegisteredName(data),
-    oficio: resolveOficioLabel(),
-    ext: 'json',
-    fallback: 'NASCIMENTO',
-  });
+  const name = buildFileNameForData('json', data);
   try {
     if (window.api && window.api.saveJson) {
       const path = await window.api.saveJson({ name, content: json });
@@ -470,24 +488,24 @@ async function fetchPnasTemplate(codigoCnj?: string): Promise<string> {
   return `<?xml version="1.0" encoding="UTF-8"?><ListaRegistrosNascimento><PNAS><CodigoCNJ></CodigoCNJ><DataRegistro></DataRegistro><Nome></Nome><CPF></CPF><Sexo></Sexo><DataNascimento></DataNascimento><HoraNascimento></HoraNascimento><DescricaoLocalNascimento></DescricaoLocalNascimento><CodigoLocalDoNascimento></CodigoLocalDoNascimento><NomeLivro></NomeLivro><NumeroLivro></NumeroLivro><NumeroPagina></NumeroPagina><NumeroRegistro></NumeroRegistro><CartorioCNS></CartorioCNS><Transcricao></Transcricao><Participantes></Participantes><ObservacaoCertidao></ObservacaoCertidao></PNAS></ListaRegistrosNascimento>`;
 }
 
+async function buildXmlString(data?: any): Promise<string> {
+  const payload = data || buildJsonData();
+  const matricula = onlyDigits(payload?.registro?.matricula || '');
+  const codigoCnj = matricula.slice(0, 6) || onlyDigits(payload?.certidao?.cartorio_cns || '');
+  const templateXml = await fetchPnasTemplate(codigoCnj);
+  return buildNascimentoXmlFromJson(templateXml, payload);
+}
+
 async function generatePnasXml(): Promise<void> {
   if (!canProceed()) return;
-  const data = mapperHtmlToJson(document);
-  const matricula = onlyDigits(data?.registro?.matricula || '');
-  const codigoCnj = matricula.slice(0, 6) || onlyDigits(data?.certidao?.cartorio_cns || '');
+  const data = buildJsonData();
 
   try {
-    const templateXml = await fetchPnasTemplate(codigoCnj);
-    const pnas = buildNascimentoXmlFromJson(templateXml, data);
+    const pnas = await buildXmlString(data);
     const xmlEl = document.getElementById('xml-output') as any;
     if (xmlEl) xmlEl.value = pnas;
 
-    const name = buildCertidaoFileName({
-      nome: resolveRegisteredName(data),
-      oficio: resolveOficioLabel(),
-      ext: 'xml',
-      fallback: 'NASCIMENTO',
-    });
+    const name = buildFileNameForData('xml', data);
 
     if (window.api && window.api.saveXml) {
       const path = await window.api.saveXml({ name, content: pnas });
@@ -651,7 +669,7 @@ function setupNameValidationLocal(): void {
       suggest = label;
     }
 
-    const sanitize = () => {
+    const sanitize = (trimEdges = true, collapseSpaces = true) => {
       const v = input.value || '';
       let s = v;
       try {
@@ -659,11 +677,13 @@ function setupNameValidationLocal(): void {
       } catch (e) {
         s = v.replace(/[^A-Za-zÀ-ÖØ-öø-ÿ' \-]/g, '');
       }
+      if (collapseSpaces) s = s.replace(/\s+/g, ' ');
+      if (trimEdges) s = s.trim();
       if (s !== v) input.value = s;
     };
 
-    const runCheck = () => {
-      sanitize();
+    const runCheck = (trimEdges = true, collapseSpaces = true) => {
+      sanitize(trimEdges, collapseSpaces);
       const value = input.value || '';
       const nameRes = validateName(value, { minWords: 2 });
       const result = validator.check(value);
@@ -713,15 +733,15 @@ function setupNameValidationLocal(): void {
     });
 
     input.addEventListener('input', () => {
-      sanitize();
+      sanitize(false, false);
       const mode = localStorage.getItem(NAME_MODE_KEY) || 'blur';
-      if (mode === 'input') runCheck();
+      if (mode === 'input') runCheck(false, false);
     });
 
     input.addEventListener('blur', () => {
-      sanitize();
+      sanitize(true, true);
       const mode = localStorage.getItem(NAME_MODE_KEY) || 'blur';
-      if (mode === 'blur' || mode === 'input') runCheck();
+      if (mode === 'blur' || mode === 'input') runCheck(true, true);
     });
   });
 
@@ -854,6 +874,12 @@ function setupSettingsPanel(): void {
     enableCpfKey: ENABLE_CPF_KEY,
     enableNameKey: ENABLE_NAME_KEY,
     panelInlineKey: PANEL_INLINE_KEY,
+    fontFamilyKey: FONT_FAMILY_KEY,
+    themeKey: THEME_KEY,
+    defaultFontFamily: '"Times New Roman", "Times", "Georgia", serif',
+    defaultTheme: 'light',
+    applyFontFamily,
+    applyTheme,
     autoJsonKey: AUTO_JSON_KEY,
     autoXmlKey: AUTO_XML_KEY,
     fixedLayoutKey: FIXED_LAYOUT_KEY,
@@ -898,13 +924,14 @@ async function pickOutputDir(kind: 'json' | 'xml'): Promise<void> {
   const dir = kind === 'json'
     ? await window.api.pickJsonDir()
     : await window.api.pickXmlDir();
-  if (!dir) return;
+  if (!dir || typeof dir !== 'string') return;
+  const dirStr = String(dir);
   if (kind === 'json') {
-    outputDirs.json = dir;
-    localStorage.setItem(OUTPUT_DIR_KEY_JSON, dir);
+    outputDirs.json = dirStr;
+    localStorage.setItem(OUTPUT_DIR_KEY_JSON, dirStr);
   } else {
-    outputDirs.xml = dir;
-    localStorage.setItem(OUTPUT_DIR_KEY_XML, dir);
+    outputDirs.xml = dirStr;
+    localStorage.setItem(OUTPUT_DIR_KEY_XML, dirStr);
   }
   updateOutputDirUi();
 }
@@ -1018,6 +1045,17 @@ function setupApp(): void {
   setupOpsPanel();
   setupOutputDirs();
   setupPrintButton();
+  setupActionsPanel({
+    getJson: buildJsonData,
+    buildXml: buildXmlString,
+    buildFileName: buildFileNameForData,
+    validate: canProceed,
+    onStatus: setStatus,
+    onPdf: () => {
+      const btn = document.getElementById('btn-print') as HTMLElement | null;
+      if (btn) btn.click();
+    },
+  });
   setupActions();
 
   if (localStorage.getItem('ui.enableParentNameCopy') === 'true') {
@@ -1038,4 +1076,5 @@ function setupApp(): void {
 }
 
 setupApp();
+
 
