@@ -174,3 +174,85 @@ body.ui-fixed-layout .row {
     min-width: 0;
   }
 }
+
+
+/* ===== SETTINGS (card específico) ===== */
+.drawer .card-settings .grid {
+  /* no drawer: 1 coluna por padrão */
+  grid-template-columns: 1fr;
+  gap: 10px;
+}
+
+/* todos os fields ocupam a linha toda no drawer */
+.drawer .card-settings .field {
+  grid-column: 1 / -1 !important;
+  min-width: 0;
+}
+
+/* quando houver espaço, vira 2 colunas */
+@media (min-width: 420px) {
+
+
+  /* campos normais podem ficar metade */
+  .drawer .card-settings .field.span-6 {
+    grid-column: span 1 !important;
+  }
+
+  /* se quiser algum campo sempre full, marca com span-12 no HTML */
+  .drawer .card-settings .field.span-12 {
+    grid-column: 1 / -1 !important;
+  }
+}
+
+/* selects e inputs sempre ocupam a largura do field */
+.drawer .card-settings select,
+.drawer .card-settings input[type="text"],
+.drawer .card-settings input[type="range"] {
+  width: 100%;
+}
+
+/* checkboxes: 1 coluna no mobile, 2 quando der */
+.drawer .card-settings .check-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 6px 10px;
+}
+
+@media (min-width: 420px) {
+  .drawer .card-settings .check-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+/* field-line: evita quebrar feio o range + valor */
+.drawer .card-settings .field-line {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap; /* permite quebrar sem destruir */
+}
+
+/* valor do zoom alinhado e sem “pular” */
+.drawer .card-settings #settings-zoom-value {
+  min-width: 52px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ações: botões alinhados e sem ficar perdidos */
+.drawer .card-settings .settings-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+}
+
+.drawer .card-settings .settings-actions .btn {
+  flex: 1 1 auto;
+}
+
+@media (min-width: 420px) {
+  .drawer .card-settings .settings-actions .btn {
+    flex: 0 0 auto;
+  }
+}

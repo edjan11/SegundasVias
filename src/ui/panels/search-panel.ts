@@ -1,16 +1,13 @@
 import { applyCertificatePayloadToSecondCopy } from '../payload/apply-payload';
+import { importBatchFiles } from '../../shared/import-export/batch';
 import { readImportFile } from '../importer';
-
-type SearchPayload = {
-  q?: string;
-  nome?: string;
-  mae?: string;
-  cpf?: string;
-  termo?: string;
-  kind?: string;
-  limit?: number;
-  offset?: number;
-};
+import { exportLocalDb, clearLocalDb } from '../../shared/import-export/local-json-db';
+import {
+  createApiSearchStore,
+  createLocalSearchStore,
+  type SearchPayload,
+  type SearchStore,
+} from '../../shared/search/search-module';
 
 function byId<T extends HTMLElement>(id: string): T | null {
   return document.getElementById(id) as T | null;
@@ -19,9 +16,35 @@ function byId<T extends HTMLElement>(id: string): T | null {
 function setStatus(msg: string, isError = false): void {
   const el = byId<HTMLElement>('import-status');
   if (!el) return;
-  el.textContent = msg;
+  const existingList = el.querySelector('ul');
+  if (existingList) {
+    let summary = el.querySelector('.import-summary') as HTMLElement | null;
+    if (!summary) {
+      summary = document.createElement('div');
+      summary.className = 'import-summary';
+      el.insertBefore(summary, existingList);
+    }
+    summary.textContent = msg;
+  } else {
+    el.textContent = msg;
+  }
   el.classList.toggle('error', !!isError);
   el.classList.toggle('visible', !!msg);
+}
+
+function renderImportLogs(logs: { status: string; message: string; sourceName: string }[]): void {
+  const el = byId<HTMLElement>('import-status');
+  if (!el) return;
+  el.textContent = '';
+  const list = document.createElement('ul');
+  list.className = 'import-log';
+  logs.forEach((log) => {
+    const item = document.createElement('li');
+    item.textContent = `[${log.status}] ${log.sourceName} - ${log.message}`;
+    list.appendChild(item);
+  });
+  el.appendChild(list);
+  el.classList.add('visible');
 }
 
 function readPayload(): SearchPayload {
@@ -30,7 +53,7 @@ function readPayload(): SearchPayload {
     nome: (byId<HTMLInputElement>('search-nome')?.value || '').trim(),
     mae: (byId<HTMLInputElement>('search-mae')?.value || '').trim(),
     cpf: (byId<HTMLInputElement>('search-cpf')?.value || '').trim(),
-      termo: (byId<HTMLInputElement>('search-termo')?.value || '').trim(),
+    termo: (byId<HTMLInputElement>('search-termo')?.value || '').trim(),
     kind: (byId<HTMLInputElement>('search-kind')?.value || '').trim(),
     limit: 50,
     offset: 0,
@@ -108,18 +131,31 @@ function renderResults(items: any[], total: number): void {
   box.appendChild(table);
 }
 
-function isRecordLike(obj: unknown): obj is { data?: any; payload?: any } {
-  return !!obj && typeof obj === 'object';
+let searchStore: SearchStore | null = null;
+
+function resolveSearchStore(): SearchStore | null {
+  if (searchStore) return searchStore;
+  if (window.api && window.api.dbSearch && window.api.dbGet) {
+    searchStore = createApiSearchStore({
+      dbSearch: (payload) => window.api.dbSearch(payload),
+      dbGet: (id) => window.api.dbGet(id),
+    });
+    return searchStore;
+  }
+  // Fallback para base local (mock de testes)
+  searchStore = createLocalSearchStore();
+  return searchStore;
 }
 
 async function openRecordById(id: string, action: 'open' | 'print' | 'export'): Promise<void> {
-  if (!window.api || !window.api.dbGet) {
-    setStatus('API indisponivel para abrir', true);
+  const store = resolveSearchStore();
+  if (!store) {
+    setStatus('Modulo de busca indisponivel', true);
     return;
   }
   try {
-    const record = await window.api.dbGet(id);
-    const payload = isRecordLike(record) ? (record.data ?? record.payload ?? null) : null;
+    const record = await store.get(id);
+    const payload = record && record.payload ? record.payload : null;
     if (!payload) {
       setStatus('Registro sem payload', true);
       return;
@@ -146,16 +182,15 @@ async function openRecordById(id: string, action: 'open' | 'print' | 'export'): 
 
 async function runSearch(): Promise<void> {
   const payload = readPayload();
-  if (!window.api || !window.api.dbSearch) {
+  const store = resolveSearchStore();
+  if (!store) {
     renderResults([], 0);
-    setStatus('API indisponivel para busca', true);
+    setStatus('Modulo de busca indisponivel', true);
     return;
   }
   try {
-    const res = await window.api.dbSearch(payload);
-    const items = (!!res && typeof res === 'object' && 'items' in (res as any)) ? (res as any).items || [] : [];
-    const total = (!!res && typeof res === 'object' && 'total' in (res as any)) ? (res as any).total || 0 : 0;
-    renderResults(items, total);
+    const res = await store.search(payload);
+    renderResults(res.items || [], res.total || 0);
     setStatus('');
   } catch (e) {
     renderResults([], 0);
@@ -165,71 +200,87 @@ async function runSearch(): Promise<void> {
 
 async function importFile(): Promise<void> {
   const input = byId<HTMLInputElement>('import-file');
-  if (!input || !input.files || !input.files[0]) {
+  if (!input || !input.files || input.files.length === 0) {
     setStatus('Selecione um arquivo JSON ou XML', true);
     return;
   }
-  const file = input.files[0];
   try {
-    const result = await readImportFile(file);
-    if (!result.ok) {
-      const msg = result.errors && result.errors.length ? result.errors.join(', ') : 'Falha ao importar';
-      setStatus(msg, true);
-      return;
-    }
+    const mode = (localStorage.getItem('import.mode') as 'strict' | 'safe') || 'safe';
+    const result = await importBatchFiles(input.files, mode);
+    renderImportLogs(result.logs);
+    const summary = `Importados: ${result.imported}/${result.total} | Falhas: ${result.failed} | Duplicados: ${result.skipped} | Modo: ${result.mode}`;
+    setStatus(summary, result.failed > 0);
+    if (!result.ok && mode === 'strict') return;
 
-    if (!result.payload) {
-      if (window.api && window.api.dbIngest) {
-        await window.api.dbIngest({
-          kind: result.kind,
-          sourceFormat: result.sourceFormat,
-          sourceRaw: result.raw,
-          data: {},
-          status: 'importado',
-        });
+    const payloadWrap = result.firstPayload;
+    if (payloadWrap && payloadWrap.payload) {
+      const applied = applyCertificatePayloadToSecondCopy(payloadWrap.payload);
+      if (!applied.ok) {
+        setStatus('Importado, mas falha ao aplicar na tela', true);
+        return;
       }
-      setStatus('XML importado (sem mapeamento)');
-      return;
-    }
-
-    const applyRes = applyCertificatePayloadToSecondCopy(result.payload);
-    if (!applyRes.ok) {
-      setStatus('Falha ao aplicar arquivo', true);
-      return;
-    }
-    if (applyRes.warnings.length) {
-      setStatus(`Arquivo aplicado com ${applyRes.warnings.length} aviso(s)`);
-    }
-
-    if (window.api && window.api.dbIngest) {
-      const ingestRes = await window.api.dbIngest({
-        kind: result.kind,
-        sourceFormat: result.sourceFormat,
-        sourceRaw: result.raw,
-        data: result.payload,
-        status: 'importado',
-      });
-      if (ingestRes && typeof (ingestRes as any).id !== 'undefined') {
-        setStatus(`Arquivo importado (id: ${(ingestRes as any).id})`);
+      if (applied.warnings.length) {
+        setStatus(`Aplicado com ${applied.warnings.length} aviso(s)`);
       } else {
-        setStatus('Arquivo importado');
+        setStatus('Importado e aplicado na tela');
       }
+      if (applied.navigated) return;
     } else {
-      setStatus('Arquivo importado');
+      // Fallback: tenta aplicar diretamente o primeiro arquivo (sem depender do schema)
+      const first = input.files[0];
+      const fallback = await readImportFile(first);
+      if (fallback.ok && fallback.payload) {
+        const applied = applyCertificatePayloadToSecondCopy(fallback.payload);
+        if (!applied.ok) {
+          setStatus('Importado, mas falha ao aplicar na tela', true);
+          return;
+        }
+        if (applied.warnings.length) {
+          setStatus(`Aplicado com ${applied.warnings.length} aviso(s)`);
+        } else {
+          setStatus('Importado e aplicado na tela');
+        }
+        if (applied.navigated) return;
+      }
     }
   } catch (e) {
     setStatus('Falha ao importar arquivo', true);
   }
 }
 
+function exportLocalDbToJson(): void {
+  const content = exportLocalDb();
+  const blob = new Blob([content], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'certidoes-importadas.json';
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function resetLocalDb(): void {
+  if (!confirm('Limpar banco de testes? Esta acao nao pode ser desfeita.')) return;
+  clearLocalDb();
+  setStatus('Banco de testes limpo');
+}
+
 export function setupSearchPanel(): void {
+  // Import controls live in the drawer (tab-config). Bind them even if search panel isn't present.
+  const importInput = byId<HTMLInputElement>('import-file');
+  if (importInput && importInput.getAttribute('data-bound') !== '1') {
+    importInput.setAttribute('data-bound', '1');
+    byId<HTMLElement>('btn-import')?.addEventListener('click', () => void importFile());
+    byId<HTMLElement>('btn-export-local')?.addEventListener('click', () => exportLocalDbToJson());
+    byId<HTMLElement>('btn-reset-local')?.addEventListener('click', () => resetLocalDb());
+  }
+
   const root = byId<HTMLElement>('op-search') || byId<HTMLElement>('tab-search');
   if (!root) return;
   if (root.getAttribute('data-bound') === '1') return;
   root.setAttribute('data-bound', '1');
 
   byId<HTMLElement>('btn-search')?.addEventListener('click', () => void runSearch());
-  byId<HTMLElement>('btn-import')?.addEventListener('click', () => void importFile());
 
   root.querySelectorAll<HTMLElement>('[data-kind-toggle]').forEach((btn) => {
     btn.addEventListener('click', (e) => {

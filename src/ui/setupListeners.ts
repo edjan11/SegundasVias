@@ -173,8 +173,20 @@ export function initConfigModal(opts: { refreshConfig: () => Promise<void>; upda
 
   (doc.getElementById('pick-json') as HTMLElement | null)?.addEventListener('click', async () => {
     const w = window as Window & { api?: { pickJsonDir?: () => Promise<string> }; currentDirs?: { jsonDir?: string; xmlDir?: string } };
-    if (!w.api || !w.api.pickJsonDir) return;
-    const dir = String(await w.api.pickJsonDir());
+    let dir = '';
+    if (w.api && w.api.pickJsonDir) {
+      dir = String(await w.api.pickJsonDir());
+    } else {
+      const wAny = window as any;
+      if (typeof wAny.showDirectoryPicker === 'function') {
+        const handle = await wAny.showDirectoryPicker();
+        dir = handle?.name ? String(handle.name) : '';
+        (w as any).currentDirs = { ...(w as any).currentDirs, jsonHandle: handle };
+      } else {
+        window.alert('No navegador nao e possivel selecionar pasta. Use o download automatico.');
+        return;
+      }
+    }
     const jsonEl = doc.getElementById('json-dir') as HTMLInputElement | null;
     if (jsonEl) jsonEl.value = dir;
     w.currentDirs = { ...(w.currentDirs || {}), jsonDir: dir };
@@ -183,8 +195,20 @@ export function initConfigModal(opts: { refreshConfig: () => Promise<void>; upda
 
   (doc.getElementById('pick-xml') as HTMLElement | null)?.addEventListener('click', async () => {
     const w = window as Window & { api?: { pickXmlDir?: () => Promise<string> }; currentDirs?: { jsonDir?: string; xmlDir?: string } };
-    if (!w.api || !w.api.pickXmlDir) return;
-    const dir = String(await w.api.pickXmlDir());
+    let dir = '';
+    if (w.api && w.api.pickXmlDir) {
+      dir = String(await w.api.pickXmlDir());
+    } else {
+      const wAny = window as any;
+      if (typeof wAny.showDirectoryPicker === 'function') {
+        const handle = await wAny.showDirectoryPicker();
+        dir = handle?.name ? String(handle.name) : '';
+        (w as any).currentDirs = { ...(w as any).currentDirs, xmlHandle: handle };
+      } else {
+        window.alert('No navegador nao e possivel selecionar pasta. Use o download automatico.');
+        return;
+      }
+    }
     const xmlEl = doc.getElementById('xml-dir') as HTMLInputElement | null;
     if (xmlEl) xmlEl.value = dir;
     w.currentDirs = { ...(w.currentDirs || {}), xmlDir: dir };
@@ -231,6 +255,13 @@ export function initBindings(opts: {
 }) {
   const { getDocument } = opts;
   const doc = getDocument();
+  const setFilled = (el: HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement) => {
+    const tag = (el as HTMLElement).tagName || '';
+    const type = (el as HTMLInputElement).type || '';
+    if (type === 'checkbox' || type === 'radio') return;
+    const hasValue = !!String((el as any).value || '').trim();
+    (el as HTMLElement).classList.toggle('is-filled', hasValue);
+  };
   doc.querySelectorAll('[data-bind]').forEach((el) => {
     const path = (el as Element).getAttribute('data-bind') || '';
     const handler = () => {
@@ -270,6 +301,7 @@ export function initBindings(opts: {
       } else {
         opts.setState(path, (input as HTMLInputElement).value);
       }
+      setFilled(input);
       if (path === 'registro.sexo') opts.updateSexoOutros();
       if (
         path === 'registro.data_nascimento_ignorada' ||
@@ -301,5 +333,6 @@ export function initBindings(opts: {
     };
     el.addEventListener('input', handler);
     el.addEventListener('change', handler);
+    setFilled(el as HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement);
   });
 }

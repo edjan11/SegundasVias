@@ -29,6 +29,7 @@ import { buildIndexFromData } from '../../shared/city-uf-resolver';
 import { buildNascimentoPdfHtmlFromTemplate } from '../../prints/nascimento/printNascimentoTjTemplate';
 import { openHtmlAndSavePdf } from '../../prints/shared/openAndSavePdf';
 import { setupSearchPanel } from '../../ui/panels/search-panel';
+import { ensureDrawerLoaded } from '../../ui/panels/drawer-loader';
 import { setupSettingsPanelBase } from '../../ui/panels/settings-panel';
 import { applyCertificatePayloadToSecondCopy, consumePendingPayload } from '../../ui/payload/apply-payload';
 import { setupActionsPanel } from '../../ui/panels/actions-panel';
@@ -1034,7 +1035,8 @@ function setupActions(): void {
 
 }
 
-function setupApp(): void {
+async function setupApp(): Promise<void> {
+  await ensureDrawerLoaded();
   ensureDefaultCartorioCns();
 
   setupValidation();
@@ -1075,7 +1077,7 @@ function setupApp(): void {
   if (pending) applyCertificatePayloadToSecondCopy(pending);
 }
 
-setupApp();
+void setupApp();
 
 // Exposed unmount for SPA shell to clean up listeners and timers when switching acts
 export function unmount(): void {

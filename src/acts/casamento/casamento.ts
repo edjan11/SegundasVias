@@ -23,7 +23,7 @@ import { buildCertidaoFileName, readOficioValue } from '../../shared/ui/file-nam
 import { setupDraftAutosave } from '../../shared/ui/draft-autosave';
 import { attachCityIntegrationToAll } from '../../ui/city-uf-ui';
 import { createNameValidator } from '../../shared/nameValidator';
-import { updateActionButtons } from '../../ui';
+import { updateActionButtons, state } from '../../ui';
 import { resolveCasamentoTipo } from '../../shared/productivity/casamento-rules';
 import { validateMatriculaType } from '../../shared/matricula/type';
 import { buildCasamentoXmlFromJson } from './printCasamentoXml';
@@ -31,6 +31,7 @@ import { buildCasamentoPdfHtmlFromTemplate } from '../../prints/casamento/printC
 import { openHtmlAndSavePdf } from '../../prints/shared/openAndSavePdf';
 import { validateCasamentoTipo } from '../../shared/validators/casamento';
 import { setupSearchPanel } from '../../ui/panels/search-panel';
+import { ensureDrawerLoaded } from '../../ui/panels/drawer-loader';
 import { setupSettingsPanelBase } from '../../ui/panels/settings-panel';
 import { applyCertificatePayloadToSecondCopy, consumePendingPayload } from '../../ui/payload/apply-payload';
 import { setupActionsPanel } from '../../ui/panels/actions-panel';
@@ -860,7 +861,15 @@ function setupDisableAutofill(): void {
   }
 }
 
-function setup(): void {
+async function setup(): Promise<void> {
+  await ensureDrawerLoaded();
+  try {
+    // ensure matricula type digit uses casamento rules (civil=2, religioso=3)
+    state.certidao.tipo_registro = 'casamento';
+    if (typeof (window as any).updateMatricula === 'function') (window as any).updateMatricula();
+  } catch (e) {
+    /* ignore */
+  }
   function triggerMatricula() {
     try {
       if (typeof (window as any).updateMatricula === 'function') (window as any).updateMatricula();

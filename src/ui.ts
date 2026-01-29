@@ -1400,7 +1400,15 @@ class PlaceAutoFillCache {
     for (const re of patterns) {
       const match = trimmed.match(re);
       if (match) {
-        const city = match[1].replace(/\s+/g, ' ').trim();
+        let city = match[1].replace(/\s+/g, ' ').trim();
+        if (/\s[-–—]\s/.test(city)) {
+          const parts = city.split(/\s[-–—]\s/).map((part) => part.trim()).filter(Boolean);
+          if (parts.length) city = parts[parts.length - 1];
+        }
+        if (city.includes(',')) {
+          const parts = city.split(',').map((part) => part.trim()).filter(Boolean);
+          if (parts.length) city = parts[parts.length - 1];
+        }
         const uf = match[2].toUpperCase();
         return { city, uf };
       }

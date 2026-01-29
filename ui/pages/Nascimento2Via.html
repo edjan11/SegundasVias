@@ -153,6 +153,8 @@
         </div>
       </div>
 
+      <div class="section-divider"></div>
+
       <div class="section">
         <div class="row row-place">
           <div class="field grow" style="min-width: 400px;">
@@ -170,7 +172,7 @@
             </div>
           </div>
           <div class="field" style="width: 120px;">
-            <label>Local de nascimento</label>
+            <label>Local</label>
             <select name="localNascimento" data-bind="ui.local_nascimento_tipo" id="localNascimento">
               <option value="O" selected>OUTROS</option>
               <option value="H">HOSPITAL</option>
@@ -365,6 +367,17 @@
       <div class="section-divider"></div>
 
       <div class="section">
+        <div class="row">
+          <div class="field grow">
+            <label>Averbação / Anotação</label>
+            <textarea data-bind="registro.averbacao_anotacao"></textarea>
+          </div>
+        </div>
+      </div>
+
+      <div class="section-divider"></div>
+
+      <div class="section">
         <div class="row row--registro">
           <div class="field">
             <label>Cartório (ofício)</label>
@@ -394,6 +407,11 @@
             <input data-bind="ui.matricula_termo" id="matricula-termo" class="w-termo" placeholder="0000000" inputmode="numeric" maxlength="7" />
           </div>
 
+          <div class="field">
+            <label>Matricula (gerada)</label>
+            <input data-bind="registro.matricula" id="matricula" class="w-matricula" readonly />
+          </div>
+
           <div class="field" id="casamento-tipo-wrap" style="display:none;">
             <label>Casamento</label>
             <select data-bind="ui.casamento_tipo" id="casamento-tipo" class="w-cartorio">
@@ -401,17 +419,6 @@
               <option value="2">Civil</option>
               <option value="3">Religioso</option>
             </select>
-          </div>
-        </div>
-
-        <div class="row row--matricula">
-          <div class="field">
-            <label>Matricula (gerada)</label>
-            <input data-bind="registro.matricula" id="matricula" readonly />
-          </div>
-          <div class="field">
-            <label>Assinante</label>
-            <select name="idAssinante" data-signer-select></select>
           </div>
         </div>
 
@@ -426,16 +433,9 @@
               </label>
             </div>
           </div>
-        </div>
-      </div>
-
-      <div class="section-divider"></div>
-
-      <div class="section">
-        <div class="row">
-          <div class="field grow">
-            <label>Averbação / Anotação</label>
-            <textarea data-bind="registro.averbacao_anotacao"></textarea>
+          <div class="field">
+            <label>Assinante</label>
+            <select name="idAssinante" data-signer-select></select>
           </div>
         </div>
       </div>
@@ -558,202 +558,7 @@
     </div>
   </div>
 
-  <div id="drawer" class="drawer">
-      <div class="drawer-header">
-        <div class="drawer-title">Painel</div>
-        <button id="drawer-close" class="btn tiny secondary" type="button">Fechar</button>
-      </div>
-      <div class="drawer-body">
-        <div class="tabbar">
-          <button class="tab-btn active" data-tab="tab-config">Configuracoes</button>
-          <button class="tab-btn" data-tab="tab-admin">Administracao</button>
-          <button class="tab-btn" data-tab="tab-debug">Debug</button>
-        </div>
-
-        <div id="tab-config" class="tab-pane active">
-          <div class="card">
-            <div class="cardTitle">Pastas</div>
-            <div class="grid">
-              <div class="field span-9">
-                <label>Pasta JSON</label>
-                <input id="json-dir" readonly />
-              </div>
-              <div class="field span-3">
-                <label>&nbsp;</label>
-                <button id="pick-json" class="btn secondary" type="button">Selecionar...</button>
-              </div>
-              <div class="field span-9">
-                <label>Pasta XML</label>
-                <input id="xml-dir" readonly />
-              </div>
-              <div class="field span-3">
-                <label>&nbsp;</label>
-                <button id="pick-xml" class="btn secondary" type="button">Selecionar...</button>
-              </div>
-              <div class="field span-12">
-                <span id="outputDirBadge" class="badge">JSON: ... | XML: ...</span>
-              </div>
-            </div>
-          </div>
-
-          <div class="card">
-            <div class="cardTitle">Importacao</div>
-            <div class="grid settings-grid">
-              <div class="field span-12">
-                <label>Arquivo (JSON ou XML)</label>
-                <input id="import-file" type="file" accept=".json,.xml,application/json,text/xml,application/xml" />
-              </div>
-            </div>
-            <div class="toolbar-left" style="margin-top: 10px;">
-              <button id="btn-import" class="btn secondary" type="button">Importar</button>
-            </div>
-            <div id="import-status" class="import-status"></div>
-          </div>
-
-          <div class="card">
-            <div class="cardTitle">Automacoes</div>
-            <div class="grid">
-              <div class="field span-12">
-                <label>Corretor de nome</label>
-                <div class="check-grid">
-                  <label class="inline-check">
-                    <input type="radio" name="name-validation-mode" value="blur" />
-                    Somente ao sair do input
-                  </label>
-                  <label class="inline-check">
-                    <input type="radio" name="name-validation-mode" value="input" />
-                    Durante a digitacao
-                  </label>
-                </div>
-              </div>
-            </div>
-            <div class="toolbar-left" style="margin-top: 10px;">
-              <button id="config-save" class="btn" type="button">Salvar configuracao</button>
-            </div>
-          </div>
-
-          <div class="card">
-            <div class="cardTitle">Settings</div>
-            <div class="grid">
-              <div class="field span-6">
-                <label>Posicionamento do painel (não usado em modo inline)</label>
-                <select id="settings-drawer-position" class="campo">
-                  <option value="bottom-right">Inferior direito</option>
-                  <option value="top">Topo central</option>
-                  <option value="side">Lateral</option>
-                </select>
-              </div>
-              <div class="field span-6">
-                <label>Preferencias</label>
-                <div class="check-grid">
-                  <label class="inline-check"><input type="checkbox" id="settings-enable-cpf" /> Validar CPF</label>
-                  <label class="inline-check"><input type="checkbox" id="settings-enable-name" /> Validar Nomes</label>
-                </div>
-                <div class="check-grid" style="margin-top:4px;">
-                  <label class="inline-check"><input type="checkbox" id="settings-auto-json" /> Auto gerar JSON</label>
-                  <label class="inline-check"><input type="checkbox" id="settings-auto-xml" /> Auto gerar XML</label>
-                </div>
-              </div>
-              <div class="field span-6">
-                <label>Layout</label>
-                <div class="field-line">
-                  <label class="inline-check"><input type="checkbox" id="settings-fixed-layout" /> Layout fixo (nao quebrar no zoom)</label>
-                </div>
-                <div class="field-line" style="margin-top:4px;">
-                  <label class="inline-check">Zoom interno</label>
-                  <input type="range" id="settings-zoom" min="80" max="110" step="1" />
-                  <span id="settings-zoom-value">100%</span>
-                </div>
-              </div>
-              <div class="field span-6">
-                <label>Fonte</label>
-                <select id="settings-font-family" class="campo">
-                  <option value="&quot;Times New Roman&quot;, &quot;Times&quot;, &quot;Georgia&quot;, serif">Times New Roman</option>
-                  <option value="Arial, Helvetica, sans-serif">Arial</option>
-                  <option value="Calibri, Arial, sans-serif">Calibri</option>
-                  <option value="Georgia, &quot;Times New Roman&quot;, serif">Georgia</option>
-                  <option value="Garamond, &quot;Times New Roman&quot;, serif">Garamond</option>
-                  <option value="&quot;Trebuchet MS&quot;, Arial, sans-serif">Trebuchet MS</option>
-                  <option value="Verdana, Arial, sans-serif">Verdana</option>
-                  <option value="Tahoma, Arial, sans-serif">Tahoma</option>
-                  <option value="&quot;Courier New&quot;, Courier, monospace">Courier New</option>
-                  <option value="Cambria, Georgia, serif">Cambria</option>
-                  <option value="&quot;Palatino Linotype&quot;, Palatino, serif">Palatino Linotype</option>
-                  <option value="&quot;Book Antiqua&quot;, Palatino, serif">Book Antiqua</option>
-                  <option value="&quot;Arial Narrow&quot;, Arial, sans-serif">Arial Narrow</option>
-                  <option value="&quot;Century Gothic&quot;, Arial, sans-serif">Century Gothic</option>
-                  <option value="&quot;Lucida Sans&quot;, &quot;Lucida Sans Unicode&quot;, sans-serif">Lucida Sans</option>
-                  <option value="&quot;Segoe UI&quot;, Arial, sans-serif">Segoe UI</option>
-                  <option value="Roboto, &quot;Segoe UI&quot;, Arial, sans-serif">Roboto</option>
-                  <option value="&quot;Noto Sans&quot;, &quot;Segoe UI&quot;, Arial, sans-serif">Noto Sans</option>
-                  <option value="&quot;Noto Serif&quot;, Georgia, serif">Noto Serif</option>
-                  <option value="&quot;Open Sans&quot;, &quot;Segoe UI&quot;, Arial, sans-serif">Open Sans</option>
-                </select>
-              </div>
-              <div class="field span-6">
-                <label>Tema</label>
-                <div class="field-line">
-                  <label class="inline-check"><input type="checkbox" id="settings-theme-dark" /> Modo escuro</label>
-                </div>
-              </div>
-            </div>
-            <div style="margin-top:10px;" class="toolbar-left settings-actions">
-              <button id="settings-save" class="btn" type="button">Salvar</button>
-              <button id="settings-apply" class="btn secondary" type="button">Aplicar sem salvar</button>
-            </div>
-          </div>
-
-          <div class="toolbar-left" style="margin-top: 8px;">
-            <button id="btn-save" class="btn save dirty" type="button">Salvar (Ctrl+B)</button>
-          </div>
-        </div>
-
-        
-      <div id="tab-admin" class="tab-pane">
-        <div class="card">
-          <div class="cardTitle">Administracao</div>
-          <div class="grid">
-            <div class="field span-9">
-              <label>Assinante</label>
-              <input id="admin-signer-name" placeholder="Nome do assinante" />
-            </div>
-            <div class="field span-3">
-              <label>&nbsp;</label>
-              <button id="admin-signer-add" class="btn secondary" type="button">Adicionar</button>
-            </div>
-            <div class="field span-12">
-              <div id="admin-signer-list"></div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div id="tab-debug" class="tab-pane">
-          <div class="grid">
-            <div class="field span-8">
-              <label>Base matricula</label>
-              <input id="debug-matricula-base" readonly />
-            </div>
-            <div class="field span-2">
-              <label>DV</label>
-              <input id="debug-matricula-dv" readonly />
-            </div>
-            <div class="field span-2">
-              <label>Final</label>
-              <input id="debug-matricula-final" readonly />
-            </div>
-            <div class="field span-12">
-              <label>Campos invalidos</label>
-              <textarea id="debug-invalid" rows="3" readonly></textarea>
-            </div>
-            <div class="field span-12">
-              <label>Alertas</label>
-              <textarea id="debug-alerts" rows="3" readonly></textarea>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
+    <div id="drawer-slot"></div>
 
   <script type="module" src="../js/nascimento.bundle.js"></script>
   <script>

@@ -1,5 +1,5 @@
 :root {
-  --gap: 8px;
+  --gap: 4px;
   --radius: 10px;
   --border: #d6dde8;
   --label: #637083;
@@ -10,9 +10,9 @@
   --accent2: #1d4ed8;
   --danger: #dc2626;
   --ok: #16a34a;
-  --h: 30px;
-  --font: 12px;
-  --labelFont: 11px;
+  --h: 28px;
+  --font: 10px;
+  --labelFont: 12px;
 }
 
 * {

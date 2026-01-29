@@ -1,11 +1,11 @@
-export function pad2(value: string | number): string {
+﻿export function pad2(value: string | number): string {
   return String(value).padStart(2, '0');
 }
 
 export function toYear(yearRaw: string | number): number {
   const y = Number(yearRaw);
   if (String(yearRaw).length === 2) {
-    return y <= 29 ? 2000 + y : 1900 + y;
+    return NaN;
   }
   return y;
 }
@@ -39,7 +39,9 @@ export function normalizeDate(raw: string): string {
     }
   }
   if (!day || !month || !year) return '';
+  if (String(year).length === 2) return '';
   const yyyy = toYear(year);
+  if (!Number.isFinite(yyyy)) return '';
   const dd = Number(day);
   const mm = Number(month);
   if (!isValidDateParts(dd, mm, yyyy)) return '';
@@ -75,11 +77,25 @@ export function validateDateDetailed(raw: string): { ok: boolean; code: string; 
   }
   const dd = Number(day);
   const mm = Number(month);
+  if (String(year).length === 2) {
+    return {
+      ok: false,
+      code: 'YEAR',
+      message: 'Ano inválido — use 4 dígitos',
+    };
+  }
   const yyyy = toYear(year);
   if (isNaN(mm) || mm < 1 || mm > 12)
     return { ok: false, code: 'MONTH', message: 'Mês inválido (01–12)' };
   if (isNaN(dd) || dd < 1 || dd > 31)
     return { ok: false, code: 'DAY', message: 'Dia inválido (1–31)' };
+  if (!Number.isFinite(yyyy) || yyyy < 1900 || yyyy > 3000) {
+    return {
+      ok: false,
+      code: 'YEAR_RANGE',
+      message: 'Ano inválido (min 1900, max 3000)',
+    };
+  }
   const d = new Date(yyyy, mm - 1, dd);
   if (!(d.getFullYear() === yyyy && d.getMonth() === mm - 1 && d.getDate() === dd)) {
     return {

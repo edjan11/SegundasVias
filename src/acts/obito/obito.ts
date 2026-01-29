@@ -22,6 +22,7 @@ import { attachCityIntegrationToAll } from '../../ui/city-uf-ui';
 import { createNameValidator } from '../../shared/nameValidator';
 import { buildObitoPrintHtml } from './printTemplate';
 import { setupSearchPanel } from '../../ui/panels/search-panel';
+import { ensureDrawerLoaded } from '../../ui/panels/drawer-loader';
 import { validateMatriculaType } from '../../shared/matricula/type';
 import { setupSettingsPanelBase } from '../../ui/panels/settings-panel';
 import { applyCertificatePayloadToSecondCopy, consumePendingPayload } from '../../ui/payload/apply-payload';
@@ -1189,7 +1190,8 @@ function setupNameValidation() {
   });
 }
 
-function setup() {
+async function setup() {
+  await ensureDrawerLoaded();
   (document.getElementById('btn-json') as HTMLElement | null)?.addEventListener('click', (e) => {
     e.preventDefault();
     void generateJson();

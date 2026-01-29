@@ -378,10 +378,10 @@ a.type-btn {
   padding: 6px 10px;
   font-size: var(--ui-font-size, var(--font));
   line-height: 1.35;
-  min-height: 32px;
+  min-height: 10px;
   outline: none;
   width: 100%;
-  background: #fff;
+  background: #f6f9ff;
   text-transform: none;
   color: var(--text);
 }
@@ -398,6 +398,16 @@ a.type-btn {
 .campo select option {
   text-transform: none;
   color: var(--text);
+}
+.field input.is-filled,
+.campo input.is-filled,
+.field textarea.is-filled,
+.campo textarea.is-filled {
+  background: #fff;
+}
+.field select.is-filled,
+.campo select.is-filled {
+  background: #fff;
 }
 .input-locked {
   background: #f1f5f9 !important;
@@ -447,7 +457,7 @@ body.focus-strong .campo textarea:focus {
 
 /* ensure labels don't overflow layout when font is larger */
 .field label {
-  display: block;
+  display: flex;
   line-height: 1.1;
   max-height: calc(1.1em * 2);
   overflow: hidden;
@@ -597,7 +607,7 @@ body.compact-mode { --ui-gap: 6px; --ui-padding: 6px; }
 .name-field.name-suggest-flush .name-suggest { border-left: 0; border-top-left-radius: 0; border-bottom-left-radius: 0; height: 100%; background: #f7f9fc; }
 
 /* Ensure parent rows (columns) don't allow children to push layout */
-.row { display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-end; }
+.row { display: flex; gap: 4px; flex-wrap: wrap; align-items: flex-end; }
 .row > .field { min-width: 0; }
 .row > .field.grow { flex: 1 1 auto; min-width: 0; }
 
@@ -920,6 +930,19 @@ body.page-nascimento.layout-fixed .row.row-place > .field:not(.grow) {
 }
 .ato-btn:hover { transform: translateY(-1px); background: #f8fafc; }
 .ato-btn.active { background: var(--accent); color: #fff; border-color: var(--accent2); box-shadow: 0 6px 18px rgba(30,64,175,0.12); }
+body.theme-dark .ato-btn {
+  background: #111827;
+  color: #e2e8f0;
+  border-color: var(--border);
+}
+body.theme-dark .ato-btn:hover {
+  background: #111827;
+}
+body.theme-dark .ato-btn.active {
+  background: linear-gradient(180deg,#2563eb,#1e40af);
+  color: #fff;
+  border-color: #1e40af;
+}
 
 /* Hide the legacy dropdown for a cleaner UI */
 .ato-picker { display: none; }
@@ -996,10 +1019,9 @@ body.page-nascimento.layout-fixed .row.row-place > .field:not(.grow) {
   gap: 4px;
 }
 .inline-check--stack {
-  flex-direction: column;
   align-items: center;
   gap: 2px;
-  min-width: 70px;
+  min-width: 20px;
 }
 .inline-check--stack span {
   display: block;
@@ -1022,8 +1044,8 @@ body.page-nascimento.layout-fixed .row.row-place > .field:not(.grow) {
   flex: 0 0 auto;
 }
 .field-line .inline-check--stack {
-  margin-left: 6px;
-  flex: 0 0 auto;
+  margin-left: 3px;
+    flex: 0 0 auto;
 }
 .field-line > input,
 .field-line > select,
@@ -1071,11 +1093,15 @@ body.page-nascimento.layout-fixed .row.row-place > .field:not(.grow) {
   flex-wrap: wrap;
 }
 .drawer .settings-grid {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: 1fr;
 }
 .drawer .settings-grid .field {
-  grid-column: span 1;
+  grid-column: 1 / -1;
   min-width: 0;
+  padding: 8px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg2);
 }
 .drawer .settings-grid .field.span-12 {
   grid-column: 1 / -1;
@@ -1089,6 +1115,9 @@ body.page-nascimento.layout-fixed .row.row-place > .field:not(.grow) {
 }
 .drawer .check-grid {
   gap: 4px 8px;
+}
+.drawer .settings-grid .check-grid {
+  grid-template-columns: 1fr;
 }
 .drawer .inline-check input[type='radio'] {
   width: 14px;
@@ -1113,11 +1142,27 @@ body.page-nascimento .row.row--cpf .field-line {
 .w-cpf {
   max-width: 120px;
 }
+body.page-casamento .w-cpf {
+  min-width: 140px;
+  max-width: 180px;
+}
 .w-date {
   max-width: 90px;
 }
 .w-time {
   max-width: 55px;
+}
+.w-livro {
+  max-width: 90px;
+}
+.w-folha {
+  max-width: 70px;
+}
+.w-termo {
+  max-width: 130px;
+}
+.w-matricula {
+  min-width: 220px;
 }
 .w-uf {
   max-width: 60px;
@@ -1278,8 +1323,14 @@ body.theme-dark {
   --text: #e2e8f0;
   --label: #94a3b8;
 }
+body.theme-dark.page-casamento,
+body.theme-dark.page-obito {
+  --bg: #0f172a;
+  --bg2: #111827;
+  --border: #1f2937;
+}
 body.theme-dark {
-  background: #0b1220;
+  background: #111827;
   color: var(--text);
 }
 body.theme-dark .toolbar,
@@ -1293,7 +1344,7 @@ body.theme-dark .modal {
 body.theme-dark .drawer .card,
 body.theme-dark .subcard,
 body.theme-dark details.collapse {
-  background: #0b1220;
+  background: #111827;
   border-color: var(--border);
 }
 body.theme-dark .cardTitle,
@@ -1304,7 +1355,7 @@ body.theme-dark .app-title {
 }
 body.theme-dark .badge,
 body.theme-dark .status {
-  background: #0b1220;
+  background: #111827;
   color: #cbd5f5;
   border-color: var(--border);
 }
@@ -1312,9 +1363,38 @@ body.theme-dark input,
 body.theme-dark select,
 body.theme-dark textarea,
 body.theme-dark .campo {
-  background: #0b1220;
+  background: #101826;
   color: #e2e8f0;
   border-color: var(--border);
+}
+body.theme-dark .field input.is-filled,
+body.theme-dark .campo input.is-filled,
+body.theme-dark .field textarea.is-filled,
+body.theme-dark .campo textarea.is-filled {
+  background: #0b1220;
+}
+body.theme-dark .field select.is-filled,
+body.theme-dark .campo select.is-filled {
+  background: #111827;
+}
+
+/* input-locked: dark mode overrides */
+body.theme-dark .input-locked {
+  /* show as prefilled: subtle light-blue tint with readable text */
+  background: rgba(59,130,246,0.06) !important; /* light blue tint */
+  border: 1px solid rgba(59,130,246,0.12);
+  color: #cbe4ff !important; /* light bluish text for clarity */
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,0.02);
+  border-radius: 8px;
+  cursor: default;
+}
+body.theme-dark .input-locked.editing {
+  /* when editing, show normal input surface in dark mode to indicate it's editable */
+  background: #0f1724 !important;
+  color: var(--text) !important;
+  cursor: text;
+  border-color: var(--border);
+  box-shadow: none;
 }
 body.theme-dark input[type="file"] {
   color: #e2e8f0;
@@ -1332,6 +1412,29 @@ body.theme-dark .btn.secondary {
 }
 body.theme-dark .btn.secondary:hover {
   background: #0f172a;
+}
+body.theme-dark .field input.city-uf-warning,
+body.theme-dark .field select.city-uf-warning,
+body.theme-dark .campo input.city-uf-warning,
+body.theme-dark .campo select.city-uf-warning {
+  background: rgba(127, 29, 29, 0.25);
+  color: #fecaca;
+  border-color: #b91c1c;
+}
+body.theme-dark .field.city-uf-warning label,
+body.theme-dark .campo.city-uf-warning label {
+  color: #fecaca;
+}
+body.theme-dark.page-casamento #drawer .tabbar,
+body.theme-dark.page-obito #drawer .tabbar {
+  background: #0b1220;
+}
+body.theme-dark .section-divider {
+  border-bottom: 1px solid rgba(148, 163, 184, 0.25);
+  background: rgba(148, 163, 184, 0.18);
+}
+body.theme-dark .filiacao-split {
+  background: rgba(148, 163, 184, 0.18);
 }
 
 .modal {
@@ -1919,6 +2022,25 @@ body.theme-dark .btn.secondary:hover {
 .import-status.error {
   color: #b91c1c;
 }
+.import-status .import-summary {
+  font-weight: 700;
+  margin-bottom: 6px;
+}
+.import-log {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 4px;
+}
+.import-log li {
+  font-size: 11px;
+  color: var(--text);
+  padding: 4px 6px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg2);
+}
 
 .segmented {
   display: inline-flex;
@@ -1946,5 +2068,40 @@ body.theme-dark .btn.secondary:hover {
   display: flex;
   gap: 4px;
   flex-wrap: wrap;
+}
+
+select[name="idAssinante"] {
+  padding-left: 12px;
+  padding-right: 0px; /* seta */
+  width: 160px;
+}
+
+.campo:has(#matricula) {
+  grid-column: span 6;
+}
+body.page-casamento .campo:has(#matricula) {
+  grid-column: span 4;
+}
+body.page-casamento .grid-matricula {
+  gap: 4px;
+  align-items: end;
+}
+body.page-casamento .grid-matricula .campo {
+  min-width: 0;
+}
+body.page-casamento .grid-matricula input.w-livro,
+body.page-casamento .grid-matricula input.w-folha,
+body.page-casamento .grid-matricula input.w-termo {
+  width: 100%;
+  max-width: none;
+}
+body.page-casamento .w-matricula {
+  min-width: 260px;
+}
+
+select[name="nomePessoa"] {
+  padding-left: 12px;
+  padding-right: 0px; /* seta */
+  width: 200px;
 }
 

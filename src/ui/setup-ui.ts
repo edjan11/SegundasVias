@@ -5,6 +5,8 @@ import { createNameValidator } from '../shared/nameValidator';
 import { clearFieldHint } from '../ui';
 import { sanitizeNameForDisplay } from '../shared/stringUtils';
 import { setupSearchPanel } from './panels/search-panel';
+import { setupDrawerTabs } from './panels/drawer-tabs';
+import { setupOpsPanel } from './panels/ops-panel';
 
 // Minimal types for UI helpers
 export type AppState = {
@@ -62,8 +64,7 @@ export function setDirty(flag: boolean): void {
   }
 }
 
-export { setupDrawerTabs } from './panels/drawer-tabs';
-export { setupOpsPanel } from './panels/ops-panel';
+export { setupDrawerTabs, setupOpsPanel };
 
 // ensure drawer toggle works even if per-act setup skipped or button recreated
 try {
@@ -97,9 +98,6 @@ try {
 }
 
 // Re-attach dynamic drawer content handlers when drawer is replaced
-// Declarations for panel setup functions (avoid import cycles in this file)
-declare function setupOpsPanel(): void;
-declare function setupDrawerTabs(): void;
 try {
   if (!(window as any)._drawerLoadedListener) {
     (window as any)._drawerLoadedListener = true;

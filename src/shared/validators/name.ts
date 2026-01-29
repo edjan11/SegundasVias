@@ -16,8 +16,8 @@ export function validateName(
   const normalized = stripAccents(value).toUpperCase();
   if (!NAME_RE.test(normalized)) return { value, invalid: true, warn: false };
   const words = value.split(' ').filter(Boolean);
-  const warn = words.length < minWords;
-  return { value, invalid: false, warn };
+  if (words.length < minWords) return { value, invalid: true, warn: false };
+  return { value, invalid: false, warn: false };
 }
 
 // Validação e normalização de nomes
