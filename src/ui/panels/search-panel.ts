@@ -137,8 +137,8 @@ function resolveSearchStore(): SearchStore | null {
   if (searchStore) return searchStore;
   if (window.api && window.api.dbSearch && window.api.dbGet) {
     searchStore = createApiSearchStore({
-      dbSearch: (payload) => window.api.dbSearch(payload),
-      dbGet: (id) => window.api.dbGet(id),
+      dbSearch: async (payload) => window.api.dbSearch(payload),
+      dbGet: async (id) => window.api.dbGet(id),
     });
     return searchStore;
   }
