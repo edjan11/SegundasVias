@@ -97,6 +97,9 @@ try {
 }
 
 // Re-attach dynamic drawer content handlers when drawer is replaced
+// Declarations for panel setup functions (avoid import cycles in this file)
+declare function setupOpsPanel(): void;
+declare function setupDrawerTabs(): void;
 try {
   if (!(window as any)._drawerLoadedListener) {
     (window as any)._drawerLoadedListener = true;
