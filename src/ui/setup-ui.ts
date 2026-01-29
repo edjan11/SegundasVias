@@ -4,6 +4,7 @@
 import { createNameValidator } from '../shared/nameValidator';
 import { clearFieldHint } from '../ui';
 import { sanitizeNameForDisplay } from '../shared/stringUtils';
+import { setupSearchPanel } from './panels/search-panel';
 
 // Minimal types for UI helpers
 export type AppState = {
@@ -90,6 +91,25 @@ try {
       },
       true,
     );
+  }
+} catch (e) {
+  /* ignore */
+}
+
+// Re-attach dynamic drawer content handlers when drawer is replaced
+try {
+  if (!(window as any)._drawerLoadedListener) {
+    (window as any)._drawerLoadedListener = true;
+    window.addEventListener('drawer:loaded', () => {
+      try {
+        // reinitialize panels that may be inside the drawer
+        try { setupSearchPanel(); } catch (err) { /* ignore */ }
+        try { setupOpsPanel(); } catch (err) { /* ignore */ }
+        try { setupDrawerTabs(); } catch (err) { /* ignore */ }
+      } catch (err) {
+        /* ignore */
+      }
+    });
   }
 } catch (e) {
   /* ignore */
