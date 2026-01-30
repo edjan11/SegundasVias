@@ -7,6 +7,12 @@ import { sanitizeNameForDisplay } from '../shared/stringUtils';
 import { setupSearchPanel } from './panels/search-panel';
 import { setupDrawerTabs } from './panels/drawer-tabs';
 import { setupOpsPanel } from './panels/ops-panel';
+// EXPERIMENTAL: isolated chat search toggle (safe to remove)
+import { setupChatSearchShell } from './modules/chat-search-shell';
+import { setupChatSearchToggle } from './modules/chat-search-toggle';
+
+// Debug helpers (enable via `localStorage.debug.importTrace = '1'`)
+import { enableImportFlowTracer } from './debug/import-flow-tracer';
 
 // Minimal types for UI helpers
 export type AppState = {
@@ -97,6 +103,15 @@ try {
   /* ignore */
 }
 
+// EXPERIMENTAL: chat search UI shell + toolbar toggle
+// This is isolated and does not touch core 2a-via logic.
+try {
+  setupChatSearchShell();
+  setupChatSearchToggle();
+} catch (e) {
+  /* ignore */
+}
+
 // Re-attach dynamic drawer content handlers when drawer is replaced
 try {
   if (!(window as any)._drawerLoadedListener) {
@@ -115,6 +130,88 @@ try {
 } catch (e) {
   /* ignore */
 }
+
+// Enable import flow tracer when requested via localStorage flag
+try {
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => { try { enableImportFlowTracer(); } catch (e) { /* ignore */ } });
+  } else {
+    try { enableImportFlowTracer(); } catch (e) { /* ignore */ }
+  }
+} catch (e) { /* ignore */ }
+
+// Listen for apply failures and surface friendly UI without reloading
+function createApplyErrorBanner() {
+  let banner = document.getElementById('apply-error-banner') as HTMLElement | null;
+  if (!banner) {
+    banner = document.createElement('div');
+    banner.id = 'apply-error-banner';
+    banner.setAttribute('role', 'alert');
+    banner.style.position = 'fixed';
+    banner.style.right = '16px';
+    banner.style.top = '16px';
+    banner.style.zIndex = '2200';
+    banner.style.background = '#fee2e2';
+    banner.style.color = '#4b0606';
+    banner.style.border = '1px solid #fca5a5';
+    banner.style.padding = '12px 16px';
+    banner.style.borderRadius = '6px';
+    banner.style.boxShadow = '0 2px 8px rgba(0,0,0,0.15)';
+    banner.style.maxWidth = 'min(600px, calc(100% - 40px))';
+    const inner = document.createElement('div');
+    inner.id = 'apply-error-banner-inner';
+    banner.appendChild(inner);
+    const close = document.createElement('button');
+    close.textContent = 'Fechar';
+    close.style.marginLeft = '12px';
+    close.addEventListener('click', () => banner && banner.remove());
+    banner.appendChild(close);
+    document.body.appendChild(banner);
+  }
+  return banner;
+}
+
+// Safety: control automatic reloads. Default: allowed.
+// When an apply failure occurs (missing binds) we will prevent auto reloads to avoid losing UI state.
+(window as any).__allowAutoReload = true;
+function safeReload(delay = 250) {
+  // If auto-reloads are disabled, show banner and skip reload
+  if (!(window as any).__allowAutoReload) {
+    try {
+      const banner = createApplyErrorBanner();
+      const inner = document.getElementById('apply-error-banner-inner') as HTMLElement | null;
+      if (inner) {
+        inner.innerHTML = `<strong>Reload prevenido:</strong> Uma operação anterior falhou e a recarga automática foi bloqueada. Corrija e recarregue manualmente, se necessário.`;
+      }
+      try { console.debug('[safeReload] prevented reload due to __allowAutoReload=false'); } catch {}
+    } catch (err) {
+      try { console.debug('[safeReload] unable to show banner', err); } catch {}
+    }
+    return;
+  }
+  // Use safeReload so reloads can be blocked when apply failures happen
+  try { safeReload(delay); } catch { setTimeout(() => window.location.reload(), delay); }
+}
+// expose globally for older modules
+(window as any).safeReload = safeReload;
+
+try {
+  window.addEventListener('apply:failed', (ev: any) => {
+    try {
+      // When an apply fails, prevent subsequent automatic reloads to avoid losing
+      // the partially-applied state and give the user a chance to fix the fields.
+      (window as any).__allowAutoReload = false;
+      const detail = ev?.detail || {};
+      const missing = Array.isArray(detail.missing) ? detail.missing : [];
+      const banner = createApplyErrorBanner();
+      const inner = document.getElementById('apply-error-banner-inner') as HTMLElement | null;
+      if (inner) {
+        inner.innerHTML = `<strong>Não foi possível carregar a certidão:</strong><br/>Campo(s) faltando ou não vinculados: ${missing.map((m: string) => `<code>${m}</code>`).join(', ')}.<br/>A página não será recarregada automaticamente. Corrija os campos mostrados e tente novamente.`;
+      }
+      try { console.debug('[apply:failed] details:', detail); } catch {}
+    } catch (e) { try { console.warn('[apply:failed] handler error', e); } catch {} }
+  });
+} catch (e) { /* ignore */ }
 
 export function updateTipoButtons(state?: AppState): void {
   const tipo = (state && state.certidao && state.certidao.tipo_registro) || 'nascimento';
@@ -184,7 +281,7 @@ export function setupConfigPanel(registerHandlers?: RegisterHandlers): void {
       } catch (e) {
         /* ignore */
       }
-      setTimeout(() => window.location.reload(), 250);
+      safeReload(250);
       if (registerHandlers && typeof registerHandlers.onSave === 'function')
         registerHandlers.onSave();
     });

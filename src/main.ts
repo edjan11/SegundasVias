@@ -54,20 +54,28 @@ function ensureElectron() {
 }
 
 const electronMod = ensureElectron();
-if (!electronMod) process.exit(1);
-const { app, BrowserWindow, Tray, Menu, nativeImage, ipcMain, dialog, shell } = electronMod;
+if (!electronMod) {
+  console.log('[segundas-vias] SKIP_ELECTRON or Electron not available; continuing without desktop integration');
+}
+let app: any, BrowserWindow: any, Tray: any, Menu: any, nativeImage: any, ipcMain: any, dialog: any, shell: any;
+if (electronMod) {
+  ({ app, BrowserWindow, Tray, Menu, nativeImage, ipcMain, dialog, shell } = electronMod);
 
-// Identidade clara para nao conflitar com o app da maternidade
-try {
-  app.setName('2 Via');
-  if (app.setAppUserModelId) app.setAppUserModelId('com.local.2via');
+  // Identidade clara para nao conflitar com o app da maternidade
   try {
-    process.title = '2 Via';
+    app.setName('2 Via');
+    if (app.setAppUserModelId) app.setAppUserModelId('com.local.2via');
+    try {
+      process.title = '2 Via';
+    } catch (e) {
+      void e;
+    }
   } catch (e) {
     void e;
   }
-} catch (e) {
-  void e;
+} else {
+  // Electron disabled; ensure variables exist to avoid ReferenceErrors
+  app = undefined;
 }
 
 // ========================================
@@ -413,35 +421,39 @@ function sanitizeFilename(name) {
 }
 
 // ========================================
-// APP
+// APP (desktop only - guarded when Electron disabled)
 // ========================================
-app
-  .whenReady()
-  .then(() => {
-    console.log('[segundas-vias] app ready, criando tray e janela');
-    try {
-      _db.initDb(app.getPath('userData'));
-    } catch (err) {
-      console.warn('db init falhou', err?.message || err);
-    }
-    mainWindow = createMainWindow();
-    tray = new Tray(TRAY_ICON);
-    tray.setToolTip('2 Via');
-    updateTrayMenu();
+if (app) {
+  app
+    .whenReady()
+    .then(() => {
+      console.log('[segundas-vias] app ready, criando tray e janela');
+      try {
+        _db.initDb(app.getPath('userData'));
+      } catch (err) {
+        console.warn('db init falhou', err?.message || err);
+      }
+      mainWindow = createMainWindow();
+      tray = new Tray(TRAY_ICON);
+      tray.setToolTip('2 Via');
+      updateTrayMenu();
 
-    tray.on('click', () => showWindow());
-    tray.on('double-click', () => showWindow());
-    console.log('[segundas-vias] iniciado');
-  })
-  .catch((err) => {
-    console.error('[segundas-vias] erro ao iniciar', err);
+      tray.on('click', () => showWindow());
+      tray.on('double-click', () => showWindow());
+      console.log('[segundas-vias] iniciado');
+    })
+    .catch((err) => {
+      console.error('[segundas-vias] erro ao iniciar', err);
+    });
+
+  app.on('window-all-closed', (e) => {
+    // manter na bandeja
+    e.preventDefault();
   });
 
-app.on('window-all-closed', (e) => {
-  // Mant??m em bandeja
-  e.preventDefault();
-});
-
-app.on('activate', () => {
-  showWindow();
-});
+  app.on('activate', () => {
+    showWindow();
+  });
+} else {
+  console.log('[segundas-vias] Electron integration disabled; skipping app lifecycle initialization');
+}

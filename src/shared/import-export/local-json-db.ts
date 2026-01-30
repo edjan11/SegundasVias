@@ -14,11 +14,11 @@ export type LocalDb = {
   records: LocalDbRecord[];
 };
 
-const STORAGE_KEY = 'certidoes.mockDb';
+export const LOCAL_DB_STORAGE_KEY = 'certidoes.mockDb';
 
 export function loadLocalDb(): LocalDb {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
+    const raw = localStorage.getItem(LOCAL_DB_STORAGE_KEY);
     if (!raw) return { version: 1, records: [] };
     const parsed = JSON.parse(raw);
     if (!parsed || typeof parsed !== 'object' || !Array.isArray(parsed.records)) {
@@ -31,7 +31,7 @@ export function loadLocalDb(): LocalDb {
 }
 
 export function saveLocalDb(db: LocalDb): void {
-  localStorage.setItem(STORAGE_KEY, stableStringify(db));
+  localStorage.setItem(LOCAL_DB_STORAGE_KEY, stableStringify(db));
 }
 
 export function clearLocalDb(): void {

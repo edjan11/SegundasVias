@@ -170,9 +170,9 @@ async function openRecordById(id: string, action: 'open' | 'print' | 'export'): 
     }
     if (result.navigated) return;
     if (action === 'print') {
-      document.getElementById('btn-print')?.dispatchEvent(new Event('click'));
+      await scheduleAction('print');
     } else if (action === 'export') {
-      document.getElementById('btn-xml')?.dispatchEvent(new Event('click'));
+      await scheduleAction('export');
     }
     setStatus('');
   } catch {
@@ -207,14 +207,18 @@ async function importFile(): Promise<void> {
   try {
     const mode = (localStorage.getItem('import.mode') as 'strict' | 'safe') || 'safe';
     const result = await importBatchFiles(input.files, mode);
+    // DEBUG: log import result for troubleshooting of failing apply flows
+    try { console.debug('[import] importBatchFiles result:', result); } catch {};
     renderImportLogs(result.logs);
     const summary = `Importados: ${result.imported}/${result.total} | Falhas: ${result.failed} | Duplicados: ${result.skipped} | Modo: ${result.mode}`;
     setStatus(summary, result.failed > 0);
     if (!result.ok && mode === 'strict') return;
 
     const payloadWrap = result.firstPayload;
+    try { console.debug('[import] firstPayloadWrap:', payloadWrap); } catch {};
     if (payloadWrap && payloadWrap.payload) {
       const applied = applyCertificatePayloadToSecondCopy(payloadWrap.payload);
+      try { console.debug('[import] applied firstPayload result:', applied); } catch {};
       if (!applied.ok) {
         setStatus('Importado, mas falha ao aplicar na tela', true);
         return;
@@ -229,8 +233,10 @@ async function importFile(): Promise<void> {
       // Fallback: tenta aplicar diretamente o primeiro arquivo (sem depender do schema)
       const first = input.files[0];
       const fallback = await readImportFile(first);
+      try { console.debug('[import] fallback readImportFile result:', fallback); } catch {};
       if (fallback.ok && fallback.payload) {
         const applied = applyCertificatePayloadToSecondCopy(fallback.payload);
+        try { console.debug('[import] applied fallback payload result:', applied); } catch {};
         if (!applied.ok) {
           setStatus('Importado, mas falha ao aplicar na tela', true);
           return;
@@ -265,6 +271,26 @@ function resetLocalDb(): void {
   setStatus('Banco de testes limpo');
 }
 
+/**
+ * Schedule an action that triggers UI buttons in a safe microtask (setTimeout 0).
+ * This avoids dispatching events synchronously which can interfere with ongoing DOM updates
+ * or navigation that happened as part of payload application.
+ */
+export function scheduleAction(action: 'print' | 'export'): Promise<void> {
+  return new Promise((resolve) => {
+    setTimeout(() => {
+      const EventCtor = (document && (document.defaultView as any) && (document.defaultView as any).Event) || Event;
+      const ev = new EventCtor('click');
+      if (action === 'print') {
+        document.getElementById('btn-print')?.dispatchEvent(ev as Event);
+      } else {
+        document.getElementById('btn-xml')?.dispatchEvent(ev as Event);
+      }
+      resolve();
+    }, 0);
+  });
+}
+
 export function setupSearchPanel(): void {
   // Import controls live in the drawer (tab-config). Bind them even if search panel isn't present.
   const importInput = byId<HTMLInputElement>('import-file');
@@ -293,6 +319,7 @@ export function setupSearchPanel(): void {
     });
   });
 
+  // Hook clicks on result actions (open/print/export)
   const results = byId<HTMLElement>('search-results');
   results?.addEventListener('click', (ev) => {
     const target = ev.target as HTMLElement | null;
@@ -304,6 +331,7 @@ export function setupSearchPanel(): void {
     void openRecordById(id, action);
   });
 
+  // Enter key on inputs triggers search
   const inputs = root.querySelectorAll('input, select');
   inputs.forEach((el) => {
     el.addEventListener('keydown', (ev: Event) => {
@@ -314,4 +342,110 @@ export function setupSearchPanel(): void {
       }
     });
   });
+
+  // Ensure a pending payload listener is bound at module load time so pages without the search root still handle the event
 }
+
+// Bind listener at module scope
+let _pendingPayloadListenerBound = false;
+function bindPendingPayloadListener() {
+  if (_pendingPayloadListenerBound) return;
+  _pendingPayloadListenerBound = true;
+
+  window.addEventListener('app:pending-payload', (ev: Event) => {
+    try {
+      try { console.debug('[search-panel] pending-payload event received', (ev as CustomEvent).detail); } catch {}
+      const d = (ev as CustomEvent).detail || {};
+      const kind = String(d.kind || '').toLowerCase();
+      // Clean previous action if present
+      const statusEl = byId<HTMLElement>('import-status');
+      if (statusEl) {
+        // remove previous action area if any
+        const prev = statusEl.querySelector('#pending-payload-action');
+        if (prev) prev.remove();
+      }
+
+      const readable = (kind === 'nascimento' || kind === 'casamento' || kind === 'obito') ? kind : 'registro';
+      setStatus(`Registro enfileirado para: ${readable}. Clique para ir e aplicar.`, true);
+
+      // Create action button next to status to let user navigate explicitly
+      const btn = document.createElement('button');
+      btn.className = 'btn';
+      btn.textContent = `Ir para ${readable}`;
+      const closeBtn = document.createElement('button');
+      closeBtn.className = 'btn btn-close';
+      closeBtn.textContent = '✕';
+      closeBtn.title = 'Fechar';
+
+      const container = byId<HTMLElement>('import-status');
+      if (container) {
+        const action = document.createElement('div');
+        action.id = 'pending-payload-action';
+        action.style.marginTop = '8px';
+        btn.addEventListener('click', (e) => {
+          e.preventDefault();
+          // Map kind to href same as navigateToAct
+          const map: Record<string, string> = {
+            nascimento: './Nascimento2Via.html',
+            casamento: './Casamento2Via.html',
+            obito: './Obito2Via.html',
+          };
+          const href = map[kind] || '';
+          if (href) {
+            try {
+              // Prefer SPA navigation when available to avoid full page reloads and routing conflicts
+              try {
+                // dynamic import of router to avoid circular imports at module load time
+                const router = require('../layout-router');
+                if (router && typeof router.navigate === 'function') {
+                  // use SPA router
+                  router.navigate(kind).catch((err: any) => {
+                    console.warn('[search-panel] router.navigate failed, falling back to app:navigate', err);
+                    window.dispatchEvent(new CustomEvent('app:navigate', { detail: { href } }));
+                  });
+                } else {
+                  window.dispatchEvent(new CustomEvent('app:navigate', { detail: { href } }));
+                }
+              } catch (err) {
+                // fallback to app:navigate or direct location change
+                try { window.dispatchEvent(new CustomEvent('app:navigate', { detail: { href } })); } catch { window.location.href = href; }
+              }
+            } catch (e) {
+              try { window.location.href = href; } catch {}
+            }
+            // update status to reflect action
+            setStatus('Navegando para aplicar o registro...');
+          }
+        });
+        action.appendChild(btn);
+        container.appendChild(action);
+      } else {
+        // Fallback: if import-status is not available on this page, show a small floating action
+        const prev = document.getElementById('pending-payload-action');
+        if (prev) prev.remove();
+
+        const floatWrap = document.createElement('div');
+        floatWrap.id = 'pending-payload-action';
+        floatWrap.style.position = 'fixed';
+        floatWrap.style.right = '12px';
+        floatWrap.style.bottom = '12px';
+        floatWrap.style.zIndex = '9999';
+        floatWrap.style.boxShadow = '0 2px 8px rgba(0,0,0,0.2)';
+        floatWrap.style.background = '#fff';
+        floatWrap.style.padding = '8px';
+        floatWrap.style.borderRadius = '6px';
+        closeBtn.style.marginLeft = '8px';
+        closeBtn.addEventListener('click', (e) => { e.preventDefault(); floatWrap.remove(); });
+
+        floatWrap.appendChild(btn);
+        floatWrap.appendChild(closeBtn);
+        document.body.appendChild(floatWrap);
+      }
+    } catch (e) {
+      setStatus('Registro enfileirado. Clique no painel para navegar e aplicar.');
+    }
+  });
+}
+
+// Ensure the listener is bound at module load so pages without search roots still react
+try { bindPendingPayloadListener(); } catch (err) { /* ignore if already bound or not available */ }

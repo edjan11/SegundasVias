@@ -79,7 +79,7 @@ function setupSettingsPanelCasamento(): void {
     onAfterApply: () => setStatus('Posicao aplicada (nao salva)', false),
     onAfterSave: () => {
       setStatus('Preferencias salvas. Atualizando...', false)
-      setTimeout(() => window.location.reload(), 300)
+      setTimeout(() => (window as any).safeReload(300), 300)
     },
   });
 }

@@ -1,0 +1,473 @@
+/* EXPERIMENTAL: Taskbar + search panel (isolated, safe to delete) */
+
+.chat-search-shell {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 9998;
+  pointer-events: none;
+}
+
+.chat-search-shell .taskbar {
+  pointer-events: auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 4px 8px;
+  background: #f8fafc;
+  border-top: 1px solid #e2e8f0;
+  box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.08);
+  min-height: 36px;
+}
+
+.chat-search-shell .taskbar-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  flex: 1;
+}
+
+.chat-search-shell .taskbar-current {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 400px;
+  padding: 4px 8px;
+  border: 1px solid #e2e8f0;
+  border-radius: 4px;
+  background: #fff;
+  font-size: 11px;
+  color: #334155;
+}
+
+.chat-search-shell .taskbar-current-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  width: 140px;
+}
+
+.chat-search-shell .taskbar-drop {
+  width: 20px;
+  height: 20px;
+  border-radius: 6px;
+  border: 1px solid #e2e8f0;
+  background: #fff;
+  font-size: 10px;
+  color: #334155;
+}
+
+.chat-search-shell .taskbar-tabs-dropdown {
+  pointer-events: auto;
+  position: fixed;
+  left: 10px;
+  bottom: 44px;
+  width: 240px;
+  max-height: 60vh;
+  overflow: hidden;
+  display: none;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  background: #fff;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  padding: 6px;
+}
+
+.chat-search-shell .taskbar-tabs-dropdown[data-open="1"] {
+  display: block;
+}
+
+.chat-search-shell .taskbar-tabs-list {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 6px;
+}
+
+.chat-search-shell .taskbar-tabs-history {
+  display: none;
+  max-height: 220px;
+  overflow: auto;
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px dashed #e2e8f0;
+}
+
+.chat-search-shell .taskbar-tab-item {
+  text-align: left;
+  width: 220px;
+  border: 1px solid #e2e8f0;
+  border-radius: 4px;
+  padding: 1px 3px;
+  background: #fff;
+  font-size: 11px;
+  color: #334155;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chat-search-shell .taskbar-tabs-more {
+  margin-top: 6px;
+}
+
+.chat-search-shell .taskbar-right {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.chat-search-shell .taskbar-icon {
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  border: 1px solid #e2e8f0;
+  background: #fff;
+  font-size: 12px;
+  color: #334155;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.chat-search-shell .segmented {
+  display: inline-flex;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  overflow: hidden;
+  background: #fff;
+  height: 24px;
+  align-items: center;
+}
+
+.chat-search-shell .segmented button {
+  border: none;
+  background: transparent;
+  padding: 0 10px;
+  font-size: 12px;
+  color: #334155;
+  border-right: 1px solid #e2e8f0;
+  height: 24px;
+  line-height: 24px;
+}
+
+.chat-search-shell .segmented button:last-child {
+  border-right: none;
+}
+
+.chat-search-shell .segmented button.active {
+  background: #e2e8f0;
+}
+
+.chat-search-shell .taskbar-include {
+  position: fixed;
+  bottom: 44px;
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 6px;
+  display: none;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+}
+
+.chat-search-shell .taskbar-btn {
+  height: 24px;
+  padding: 0 10px;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+  background: #fff;
+  font-size: 12px;
+  color: #334155;
+  line-height: 24px;
+}
+.chat-search-shell .taskbar-include[data-open="1"] {
+  display: block;
+}
+
+.chat-search-shell .taskbar-settings {
+  position: fixed;
+  right: 12px;
+  bottom: 44px;
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 8px;
+  display: none;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+}
+
+.chat-search-shell .taskbar-settings[data-open="1"] {
+  display: block;
+}
+
+.chat-search-shell .taskbar-tray {
+  display: inline-flex;
+  gap: 6px;
+}
+
+.chat-search-shell .taskbar-icon--json {
+  color: #0f766e;
+  border-color: #99f6e4;
+}
+
+.chat-search-shell .taskbar-icon--xml {
+  color: #1d4ed8;
+  border-color: #bfdbfe;
+}
+
+.chat-search-shell .taskbar-icon--pdf {
+  color: #b91c1c;
+  border-color: #fecaca;
+}
+
+.chat-search-shell .taskbar-panel {
+  pointer-events: auto;
+  position: fixed;
+  right: 12px;
+  bottom: 44px;
+  width: 540px;
+  max-height: 62vh;
+  overflow: auto;
+  display: none;
+}
+
+.chat-search-shell[data-has-results="1"] .taskbar-panel {
+  width: 700px;
+  max-height: 70vh;
+}
+
+.chat-search-shell[data-open="1"] .taskbar-panel {
+  display: block;
+}
+
+.chat-search-shell .taskbar-card {
+  padding: 8px;
+}
+
+.chat-search-shell .taskbar-search-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 4px 6px;
+}
+
+.chat-search-shell .taskbar-search-grid .field label {
+  font-size: 11px;
+}
+
+.chat-search-shell .taskbar-search-grid .field .campo {
+  font-size: 11px;
+  height: 26px;
+  padding: 2px 6px;
+}
+
+.chat-search-shell .taskbar-search-grid[hidden] {
+  display: none !important;
+}
+
+.chat-search-shell .taskbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.chat-search-shell .taskbar-actions .btn[data-search-run] {
+  font-weight: 600;
+}
+
+.chat-search-shell .taskbar-status {
+  font-size: 11px;
+  color: #64748b;
+}
+
+.chat-search-shell .taskbar-results {
+  margin-top: 6px;
+  font-size: 11px;
+  color: #64748b;
+}
+
+.chat-search-shell .taskbar-results-table {
+  width: 100%;
+  table-layout: fixed;
+  border-collapse: collapse;
+  margin-top: 6px;
+  font-size: 11px;
+  color: #334155;
+}
+
+.chat-search-shell .taskbar-results-table th,
+.chat-search-shell .taskbar-results-table td {
+  border: 1px solid #e2e8f0;
+  padding: 3px 6px;
+  text-align: left;
+  vertical-align: top;
+}
+
+.chat-search-shell .taskbar-results-table th {
+  background: #f1f5f9;
+  font-weight: 600;
+  color: #334155;
+}
+
+.chat-search-shell .taskbar-results-table td {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chat-search-shell .taskbar-results-table td.col-nome {
+  white-space: normal;
+  word-break: break-word;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  line-height: 1.2;
+  max-height: 2.6em;
+}
+
+.chat-search-shell .taskbar-results-table td.col-pais {
+  white-space: normal;
+  line-height: 1.2;
+}
+
+.chat-search-shell .taskbar-results-table td.col-pais div {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chat-search-shell .taskbar-results-table .col-nome { width: 24%; }
+.chat-search-shell .taskbar-results-table .col-pais { width: 20%; }
+.chat-search-shell .taskbar-results-table .col-data { width: 9%; }
+.chat-search-shell .taskbar-results-table .col-tipo { width: 6%; }
+.chat-search-shell .taskbar-results-table .col-livro { width: 6%; }
+.chat-search-shell .taskbar-results-table .col-folha { width: 6%; }
+.chat-search-shell .taskbar-results-table .col-termo { width: 8%; }
+.chat-search-shell .taskbar-results-table .col-cartorio { width: 6%; }
+.chat-search-shell .taskbar-results-table .col-action { width: 6%; }
+
+.chat-search-shell .taskbar-results-table td:last-child,
+.chat-search-shell .taskbar-results-table th:last-child {
+  text-align: right;
+  white-space: nowrap;
+}
+
+.chat-search-shell .taskbar-result-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.chat-search-shell .taskbar-result-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 8px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.chat-search-shell .taskbar-result-text {
+  font-size: 12px;
+  color: #334155;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+body.theme-dark .chat-search-shell .taskbar {
+  background: #0f172a;
+  border-color: var(--border);
+}
+
+body.theme-dark .chat-search-shell .taskbar-current,
+body.theme-dark .chat-search-shell .taskbar-drop,
+body.theme-dark .chat-search-shell .taskbar-icon,
+body.theme-dark .chat-search-shell .segmented,
+body.theme-dark .chat-search-shell .segmented button,
+body.theme-dark .chat-search-shell .taskbar-tab-item,
+body.theme-dark .chat-search-shell .taskbar-result-row {
+  background: #111827;
+  border-color: var(--border);
+  color: #e2e8f0;
+}
+
+body.theme-dark .chat-search-shell .taskbar-status,
+body.theme-dark .chat-search-shell .taskbar-result-text {
+  color: #cbd5f5;
+}
+
+body.theme-dark .chat-search-shell .taskbar-tabs-dropdown {
+  background: #0f172a;
+  border-color: var(--border);
+}
+
+body.theme-dark .chat-search-shell .taskbar-tabs-history {
+  border-color: var(--border);
+}
+
+body.theme-dark .chat-search-shell .taskbar-include,
+body.theme-dark .chat-search-shell .taskbar-settings {
+  background: #0f172a;
+  border-color: var(--border);
+  color: #e2e8f0;
+}
+
+body.theme-dark .chat-search-shell .taskbar-results-table th,
+body.theme-dark .chat-search-shell .taskbar-results-table td {
+  border-color: var(--border);
+}
+
+body.theme-dark .chat-search-shell .taskbar-results-table th {
+  background: #111827;
+  color: #e2e8f0;
+}
+
+/* color tags by kind */
+.chat-search-shell .kind-nascimento {
+  background: rgba(16, 185, 129, 0.12);
+  border-color: rgba(16, 185, 129, 0.3);
+}
+.chat-search-shell .kind-casamento {
+  background: rgba(239, 68, 68, 0.12);
+  border-color: rgba(239, 68, 68, 0.3);
+}
+.chat-search-shell .kind-obito {
+  background: rgba(59, 130, 246, 0.12);
+  border-color: rgba(59, 130, 246, 0.3);
+}
+
+
+body.theme-dark .chat-search-shell .kind-nascimento {
+  background: rgba(16, 185, 129, 0.18);
+}
+body.theme-dark .chat-search-shell .kind-casamento {
+  background: rgba(239, 68, 68, 0.18);
+}
+body.theme-dark .chat-search-shell .kind-obito {
+  background: rgba(59, 130, 246, 0.18);
+}
+.chat-search-shell .taskbar-docs button {
+  width: 22px;
+  padding: 0;
+  text-align: center;
+  font-size: 11px;
+}
+.chat-search-shell .segmented--names {
+  height: 28px;
+}
+
+.chat-search-shell .segmented--names button {
+  height: 28px;
+  line-height: 28px;
+  padding: 0 8px;
+  font-size: 12px;
+  min-width: 96px;
+}

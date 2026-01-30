@@ -12,6 +12,7 @@ function stripScripts(root: ParentNode): void {
 
 function extractContainer(doc: Document): Element | null {
   return (
+    doc.querySelector('.app-shell') ||
     doc.querySelector('.app-shell .main-pane .container') ||
     doc.querySelector('.container') ||
     doc.querySelector('main') ||

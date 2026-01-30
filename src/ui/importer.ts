@@ -1,10 +1,12 @@
 import { assertIsCertificatePayload } from './payload/apply-payload';
 import { parseCasamentoXmlToPayload, parseNascimentoXmlToPayload } from './payload/xml-to-payload';
+import Papa from 'papaparse';
+import { mapCsvRowToPayload } from '../shared/import-export/csv-to-payload';
 
 export type ImportResult = {
   ok: boolean;
   kind: 'nascimento' | 'casamento' | 'obito';
-  sourceFormat: 'json' | 'xml';
+  sourceFormat: 'json' | 'xml' | 'csv';
   raw: string;
   payload?: any;
   errors?: string[];
@@ -51,6 +53,35 @@ export async function readImportFile(file: File): Promise<ImportResult> {
       const kind = String(payload?.certidao?.tipo_registro || 'nascimento').toLowerCase() as ImportResult['kind'];
       return { ok: true, kind, sourceFormat: 'json', raw: text, payload };
     } catch (e) {
+      // If not JSON, attempt CSV heuristic
+      const looksLikeCsv = trimmed.includes(',') && trimmed.includes('\n');
+      if (looksLikeCsv) {
+        try {
+          const parsed = Papa.parse(trimmed, { header: true, skipEmptyLines: true });
+          const rows = parsed?.data || [];
+          if (!rows || rows.length === 0) {
+            return {
+              ok: false,
+              kind: 'nascimento',
+              sourceFormat: 'csv',
+              raw: text,
+              errors: ['CSV vazio ou invalido'],
+            };
+          }
+          const payload = mapCsvRowToPayload(rows[0]);
+          const kind = String(payload?.certidao?.tipo_registro || 'nascimento').toLowerCase() as ImportResult['kind'];
+          return { ok: true, kind, sourceFormat: 'csv', raw: text, payload };
+        } catch (csvErr) {
+          return {
+            ok: false,
+            kind: 'nascimento',
+            sourceFormat: 'csv',
+            raw: text,
+            errors: ['Falha ao parsear CSV'],
+          };
+        }
+      }
+
       return {
         ok: false,
         kind: 'nascimento',

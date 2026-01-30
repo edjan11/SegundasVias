@@ -43,7 +43,8 @@
     "start-nodemon": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/start-nodemon.ps1",
     "check:context": "node tools/check_context_size.js",
     "prepare": "husky install",
-    "collect-docs": "node tools/collect-docs.js"
+    "collect-docs": "node tools/collect-docs.js",
+    "e2e:puppeteer": "node scripts/e2e-puppeteer.js"
   },
   "tools": {
     "import_names": "node tools/import_names.js",
@@ -81,6 +82,7 @@
     "npm-run-all": "^4.1.5",
     "postcss": "^8.5.6",
     "prettier": "^2.8.8",
+    "puppeteer": "^21.11.0",
     "source-map-explorer": "^2.5.2",
     "tailwindcss": "^3.4.7",
     "ts-node": "^10.9.2",
