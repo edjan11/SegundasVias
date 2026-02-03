@@ -11,21 +11,29 @@ const puppeteer = require('puppeteer');
   page.on('console', (msg) => console.log('[page]', msg.type(), msg.text()));
 
   try {
-    await page.goto(url, { waitUntil: 'networkidle2', timeout: 30000 });
-
     // Prepare a sample pending payload similar to tests
     const samplePayload = {
       certidao: { tipo_registro: 'nascimento' },
       registro: { nome_completo: 'Fulano de Tal', cpf: '12345678909', data_registro: '2020-01-01' }
     };
 
-    // Enable import tracer and initialize DOM snapshots array for instrumentation
-    await page.evaluate(() => { try { localStorage.setItem('debug.importTrace', '1'); } catch (e) {} });
+    // CRITICAL FIX: Navigate to a blank page first, then inject localStorage BEFORE loading the actual page
+    await page.goto('about:blank');
+    
+    // Now inject the payload into localStorage BEFORE the page loads
+    await page.evaluateOnNewDocument((p) => {
+      window.localStorage.setItem('ui.pendingPayload', JSON.stringify({ savedAt: new Date().toISOString(), payload: p }));
+      window.localStorage.setItem('debug.importTrace', '1');
+    }, samplePayload);
+
+    // NOW navigate to the actual page - localStorage is already populated!
+    await page.goto(url, { waitUntil: 'networkidle2', timeout: 30000 });
+
+    // Initialize DOM snapshots array for instrumentation
     await page.evaluate(() => { try { window.__domSnapshots = window.__domSnapshots || []; } catch (e) {} });
 
-    // Save in localStorage and dispatch pending event multiple times to ensure page listener picks it up
-    await page.evaluate((p) => {
-      window.localStorage.setItem('ui.pendingPayload', JSON.stringify({ savedAt: new Date().toISOString(), payload: p }));
+    // Dispatch pending event multiple times to ensure page listener picks it up (belt and suspenders)
+    await page.evaluate(() => {
       function dispatchPending() {
         try {
           const ev = new CustomEvent('app:pending-payload', { detail: { kind: 'nascimento' } });
@@ -42,9 +50,9 @@ const puppeteer = require('puppeteer');
       // re-dispatch after short delays to increase chance that listener is registered
       setTimeout(dispatchPending, 500);
       setTimeout(dispatchPending, 2000);
-    }, samplePayload);
+    });
 
-    console.log('[e2e] pending payload injected, waiting for action button...');
+    console.log('[e2e] pending payload injected BEFORE page load, waiting for action button...');
 
     // Fetch localStorage value for debugging
     const pendingRaw = await page.evaluate(() => window.localStorage.getItem('ui.pendingPayload'));

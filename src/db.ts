@@ -89,6 +89,32 @@ function saveDraft(payload) {
 function ingest(payload) {
   const db = readDb();
   const now = nowIso();
+  
+  // FIX 5: Verificar matrícula duplicada antes de inserir
+  const data = payload && payload.data ? payload.data : {};
+  const registro = (data as any).registro || {};
+  const matricula = String(registro.matricula || '').trim();
+  
+  if (matricula) {
+    // Buscar registro existente com mesma matrícula
+    const existing = db.certidoes.find((r) => {
+      try {
+        const rData = r.data || {};
+        const rReg = (rData as any).registro || {};
+        const rMat = String(rReg.matricula || '').trim();
+        return rMat && rMat === matricula;
+      } catch {
+        return false;
+      }
+    });
+    
+    if (existing) {
+      try { console.warn('[db] MATRÍCULA DUPLICADA detectada:', matricula, 'ignorando novo registro'); } catch {}
+      // Retornar o ID do registro existente em vez de criar duplicata
+      return { id: existing.id, updatedAt: existing.updatedAt, isDuplicate: true };
+    }
+  }
+  
   const record = {
     id: makeId(),
     kind: (payload && payload.kind) || 'nascimento',

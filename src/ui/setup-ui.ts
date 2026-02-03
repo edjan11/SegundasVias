@@ -384,9 +384,9 @@ export function setupActSelect(defaultValue?: string): void {
   const goTo = (val: string) => {
     try {
       const map: Record<string, string> = {
-        nascimento: './Nascimento2Via.html',
-        casamento: './Casamento2Via.html',
-        obito: './Obito2Via.html',
+        nascimento: '/ui/pages/Base2ViaLayout.html?act=nascimento',
+        casamento: '/ui/pages/Base2ViaLayout.html?act=casamento',
+        obito: '/ui/pages/Base2ViaLayout.html?act=obito',
       };
       const next = map[val];
       if (next) {
@@ -396,7 +396,13 @@ export function setupActSelect(defaultValue?: string): void {
         } catch (e) {
           /* ignore */
         }
-        window.location.href = next;
+        const path = String(window.location.pathname || '').toLowerCase();
+        const isSpaShell = path.includes('base2vialayout') || path.startsWith('/2via/');
+        if (isSpaShell) {
+          window.dispatchEvent(new CustomEvent('app:navigate', { detail: { href: next } }));
+        } else {
+          window.location.href = next;
+        }
       }
     } catch (err) {
       /* ignore */
@@ -618,12 +624,20 @@ try {
                 b.title = k;
                 b.addEventListener('click', () => {
                   const dest: Record<string, string> = {
-                    nascimento: './Nascimento2Via.html',
-                    casamento: './Casamento2Via.html',
-                    obito: './Obito2Via.html',
+                      nascimento: '/ui/pages/Base2ViaLayout.html?act=nascimento',
+                      casamento: '/ui/pages/Base2ViaLayout.html?act=casamento',
+                      obito: '/ui/pages/Base2ViaLayout.html?act=obito',
                   };
                   const next = dest[k] || '';
-                  if (next) window.location.href = next;
+                    if (next) {
+                      const path = String(window.location.pathname || '').toLowerCase();
+                      const isSpaShell = path.includes('base2vialayout') || path.startsWith('/2via/');
+                      if (isSpaShell) {
+                        window.dispatchEvent(new CustomEvent('app:navigate', { detail: { href: next } }));
+                      } else {
+                        window.location.href = next;
+                      }
+                    }
                 });
                 wrap.appendChild(b);
               });

@@ -2033,6 +2033,11 @@ window.addEventListener('app:navigate', (ev: Event) => {
   try {
     const href = (ev as CustomEvent).detail?.href;
     if (!href) return;
+    const path = String(window.location.pathname || '').toLowerCase();
+    const isSpaShell = path.includes('base2vialayout') || path.startsWith('/2via/');
+    if (isSpaShell) {
+      return;
+    }
     // clear dirty flag so native beforeunload doesn't block (if fired)
     isDirty = false;
     showLoadingOverlay();

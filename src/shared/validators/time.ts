@@ -11,6 +11,9 @@ function isValidTimeParts(hour: number, minute: number): boolean {
 export function normalizeTime(raw: string): string {
   const input = String(raw || '').trim();
   if (!input) return '';
+  const hasColon = input.includes(':');
+  const digits = input.replace(/\D/g, '');
+  if (!hasColon && digits.length < 4) return '';
   const m = /^(\d{1,2})[:]?(\d{2})$/.exec(input);
   if (!m) return '';
   const hh = Number(m[1]);

@@ -386,9 +386,9 @@ function bindPendingPayloadListener() {
           e.preventDefault();
           // Map kind to href same as navigateToAct
           const map: Record<string, string> = {
-            nascimento: './Nascimento2Via.html',
-            casamento: './Casamento2Via.html',
-            obito: './Obito2Via.html',
+            nascimento: '/ui/pages/Base2ViaLayout.html?act=nascimento',
+            casamento: '/ui/pages/Base2ViaLayout.html?act=casamento',
+            obito: '/ui/pages/Base2ViaLayout.html?act=obito',
           };
           const href = map[kind] || '';
           if (href) {

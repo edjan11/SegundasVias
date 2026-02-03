@@ -54,6 +54,10 @@
         <input autocomplete="postal-code" name="no_autofill_postal" tabindex="-1" />
         <input autocomplete="country" name="no_autofill_country" tabindex="-1" />
       </div>
+      
+      <!-- Hidden field for certidao.tipo_registro (required by import payload validation) -->
+      <input type="hidden" data-bind="certidao.tipo_registro" value="casamento" />
+      
       <div class="card">
         <div class="section">
         <div class="subTitulo">Termo e casamento</div>

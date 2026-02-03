@@ -20,6 +20,18 @@ export function parseRegistrationTypeDigit(matricula: string): RegistrationType 
 }
 
 /**
+ * API boundary: infer the act type (nascimento/casamento/obito) from a matricula.
+ * Pure logic that can be exposed later as a backend validation endpoint.
+ */
+export function inferActFromMatricula(matricula: string): 'nascimento' | 'casamento' | 'obito' | '' {
+  const regType = parseRegistrationTypeDigit(matricula);
+  if (regType === 'nascimento') return 'nascimento';
+  if (regType === 'obito') return 'obito';
+  if (regType === 'civil' || regType === 'religioso') return 'casamento';
+  return '';
+}
+
+/**
  * API boundary: validate if a matricula matches the expected registration type.
  * Returns a non-blocking result that can be surfaced in UI or API responses.
  */

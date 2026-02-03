@@ -4,8 +4,8 @@ export function applyTimeMask(
   if (!input) return;
   const digits = digitsOnly((input as any).value).slice(0, 4);
   let out = '';
-  if (digits.length >= 1) out += digits.slice(0, 2);
-  if (digits.length > 2) out += ':' + digits.slice(2, 4);
+  if (digits.length < 4) out = digits;
+  else out = `${digits.slice(0, 2)}:${digits.slice(2, 4)}`;
   (input as any).value = out;
 }
 

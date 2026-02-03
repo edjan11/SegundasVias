@@ -1073,11 +1073,44 @@ async function setupApp(): Promise<void> {
 
   void setupCityIntegration();
 
-  const pending = consumePendingPayload();
-  if (pending) applyCertificatePayloadToSecondCopy(pending);
+  // Payload application moved to layout-router to ensure proper URL state
+  // consumePendingPayload() will be checked AFTER route navigation completes
+  console.log('[nascimento] setup() complete - payload will be applied via layout-router after navigation');
 }
 
-void setupApp();
+// FIX 4.2: Guard to prevent nascimento from running on wrong page
+// FIX 4.2: Guard to prevent nascimento from running on wrong page
+// This fixes the dual-bundle loading issue where nascimento would overwrite casamento fields
+const currentUrl = window.location.href.toLowerCase();
+const currentPath = window.location.pathname.toLowerCase();
+
+// Only run on nascimento pages:
+// 1. Path contains 'nascimento' (e.g., /2via/nascimento, Nascimento2Via.html)
+// 2. Base2ViaLayout with act=nascimento query param
+// 3. Base2ViaLayout WITHOUT any act param (default is nascimento)
+const hasActParam = currentUrl.includes('act=');
+const isOnNascimentoPage = 
+  currentPath.includes('nascimento') || 
+  (currentPath.includes('base2vialayout') && currentUrl.includes('act=nascimento')) ||
+  (currentPath.includes('base2vialayout') && !hasActParam);
+
+console.log('[nascimento] module loaded, checking page guard', { 
+  currentUrl, 
+  currentPath,
+  hasActParam,
+  isOnNascimentoPage 
+});
+
+if (!isOnNascimentoPage) {
+  console.warn('[nascimento] GUARD BLOCKED: Not on nascimento page, skipping setupApp()', {
+    reason: 'Detected wrong page (act param points elsewhere) - preventing field overwrite',
+    path: currentPath,
+    url: currentUrl
+  });
+} else {
+  console.log('[nascimento] module loaded, calling setupApp()');
+  void setupApp();
+}
 
 // Exposed unmount for SPA shell to clean up listeners and timers when switching acts
 export function unmount(): void {

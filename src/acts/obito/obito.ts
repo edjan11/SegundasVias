@@ -1267,8 +1267,9 @@ async function setup() {
     /* ignore */
   }
 
-  const pending = consumePendingPayload();
-  if (pending) applyCertificatePayloadToSecondCopy(pending);
+  // Payload application moved to layout-router to ensure proper URL state
+  // consumePendingPayload() will be checked AFTER route navigation completes
+  console.log('[obito] setup() complete - payload will be applied via layout-router after navigation');
 
   // Disable browser autofill heuristics on form fields
   try {
@@ -1279,7 +1280,29 @@ async function setup() {
   }
 }
 
-setup();
+// FIX 4.2: Guard to prevent obito from running on wrong page
+// This prevents the bundle from executing if loaded on the wrong page
+const currentUrl = window.location.href.toLowerCase();
+const currentPath = window.location.pathname.toLowerCase();
+const isOnObitoPage = 
+  currentPath.includes('obito') || 
+  (currentPath.includes('base2vialayout') && currentUrl.includes('act=obito'));
+
+console.log('[obito] module loaded, checking page guard', { 
+  currentUrl, 
+  currentPath, 
+  isOnObitoPage 
+});
+
+if (!isOnObitoPage) {
+  console.warn('[obito] GUARD BLOCKED: Not on obito page, skipping setup()', {
+    reason: 'Detected wrong page - preventing incorrect initialization',
+    path: currentPath
+  });
+} else {
+  console.log('[obito] module loaded, calling setup()');
+  setup();
+}
 
 // Expose unmount for SPA shell
 export function unmount(): void {

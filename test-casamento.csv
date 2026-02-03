@@ -1,0 +1,2 @@
+registro_numero,registro_acervo,registro_folha,registro_termo,registro_livro_numero,registro_tipo,cartorio_codigo,data_registro,nomeCartorio,nomeSolteiroC1,nomeAtualdoC1,nomeSolteiroC2,nomeAtualdoC2,cpfC1,cpfC2,data_nascimento_c1,data_nascimento_c2,uf_naturalidade_c1,uf_naturalidade_c2,cidade_naturalidade_c1,cidade_naturalidade_c2,nome_completo,cpf,data_registro_format
+123456,1,1,1,2023,01,123456,2023-06-15,Cartório Teste,SILVA,SILVA,SANTOS,SANTOS,12345678901,98765432101,1990-01-15,1992-03-20,SP,RJ,São Paulo,Rio de Janeiro,TESTE COMPLETO,12345678901,15/06/2023

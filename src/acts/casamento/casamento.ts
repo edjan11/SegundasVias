@@ -918,8 +918,9 @@ async function setup(): Promise<void> {
   });
   setupActionButtonsListeners();
 
-  const pending = consumePendingPayload();
-  if (pending) applyCertificatePayloadToSecondCopy(pending);
+  // Payload application moved to layout-router to ensure proper URL state
+  // consumePendingPayload() will be checked AFTER route navigation completes
+  console.log('[casamento] setup() complete - payload will be applied via layout-router after navigation');
 
 function setupPrintButton(): void {
   (document.getElementById('btn-print') as HTMLElement | null)?.addEventListener('click', async (e) => {
@@ -1078,8 +1079,30 @@ function canProceed(): boolean {
   return false;
 }
 
-// Boot the page
-setup();
+// FIX 4.2: Guard to prevent casamento from running on wrong page
+// This prevents the bundle from executing if loaded on the wrong page
+const currentUrl = window.location.href.toLowerCase();
+const currentPath = window.location.pathname.toLowerCase();
+const isOnCasamentoPage = 
+  currentPath.includes('casamento') || 
+  (currentPath.includes('base2vialayout') && currentUrl.includes('act=casamento'));
+
+console.log('[casamento] module loaded, checking page guard', { 
+  currentUrl, 
+  currentPath, 
+  isOnCasamentoPage 
+});
+
+if (!isOnCasamentoPage) {
+  console.warn('[casamento] GUARD BLOCKED: Not on casamento page, skipping setup()', {
+    reason: 'Detected wrong page - preventing incorrect initialization',
+    path: currentPath
+  });
+} else {
+  console.log('[casamento] module loaded, calling setup()');
+  // Boot the page
+  setup();
+}
 
 // Expose setup for potential manual calls
 export { setup };

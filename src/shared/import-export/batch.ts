@@ -6,6 +6,7 @@ import { validatePayloadBasic } from './payload-validate';
 import { parseCasamentoXmlToPayload, parseNascimentoXmlToPayload } from '../../ui/payload/xml-to-payload';
 import { stableStringify } from './stable-json';
 import { insertLocalRecords, loadLocalDb, LocalDbRecord } from './local-json-db';
+import { inferActFromPayload } from '../act-inference';
 
 export type ImportMode = 'strict' | 'safe';
 export type ImportSourceFormat = 'json' | 'xml';
@@ -56,6 +57,10 @@ function deriveKind(payload: any, fallback: ImportKind): ImportKind {
   if (type === 'casamento') return 'casamento';
   if (type === 'obito') return 'obito';
   if (type === 'nascimento') return 'nascimento';
+  const inferred = inferActFromPayload(payload);
+  if (inferred === 'casamento') return 'casamento';
+  if (inferred === 'obito') return 'obito';
+  if (inferred === 'nascimento') return 'nascimento';
   return fallback;
 }
 

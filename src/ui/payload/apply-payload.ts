@@ -10,6 +10,15 @@ import {
   dispatchInputEvents,
 } from './bind';
 import { extractMatriculaParts } from '../../shared/matricula';
+import { inferActFromPayload } from '../../shared/act-inference';
+import { resolveOficioFromCns } from '../../shared/cartorio-mapping';
+import {
+  showApplyLoading,
+  updateApplyLoading,
+  hideApplyLoading,
+  isApplyLoadingVisible,
+  forceCleanupApplyLoading,
+} from './apply-loading';
 
 type CertificatePayload = {
   certidao?: Record<string, unknown>;
@@ -103,6 +112,17 @@ function getCurrentAct(): string {
   if (body.classList.contains('page-obito')) return 'obito';
 
   const href = window.location.href || '';
+  
+  // FIX: Check for ?act= query parameter (new routing system with Base2ViaLayout.html)
+  try {
+    const url = new URL(href, window.location.origin);
+    const actParam = url.searchParams.get('act')?.toLowerCase();
+    if (actParam === 'nascimento' || actParam === 'casamento' || actParam === 'obito') {
+      return actParam;
+    }
+  } catch {}
+
+  // Fallback: Check old URL format (Nascimento2Via.html, etc.)
   if (href.includes('Nascimento2Via')) return 'nascimento';
   if (href.includes('Casamento2Via')) return 'casamento';
   if (href.includes('Obito2Via')) return 'obito';
@@ -131,6 +151,7 @@ function looksLikeRegistro(obj: any): boolean {
 function normalizePayload(raw: any, fallbackKind?: string): CertificatePayload | null {
   if (!raw || typeof raw !== 'object') return null;
   const kindFallback = String(fallbackKind || '').trim().toLowerCase();
+  const inferredKind = inferActFromPayload(raw);
 
   if (raw.certidao && raw.registro) return raw as CertificatePayload;
   if (raw.payload) return normalizePayload(raw.payload, fallbackKind);
@@ -138,7 +159,7 @@ function normalizePayload(raw: any, fallbackKind?: string): CertificatePayload |
   if (raw.record) return normalizePayload(raw.record, fallbackKind);
 
   if (raw.registro && !raw.certidao) {
-    const tipo = String(raw?.tipo_registro || raw?.kind || kindFallback || '').trim().toLowerCase();
+    const tipo = String(raw?.tipo_registro || raw?.kind || inferredKind || kindFallback || '').trim().toLowerCase();
     return {
       certidao: { tipo_registro: tipo || kindFallback || '' },
       registro: raw.registro,
@@ -146,7 +167,7 @@ function normalizePayload(raw: any, fallbackKind?: string): CertificatePayload |
   }
 
   if (looksLikeRegistro(raw)) {
-    const tipo = String(raw?.tipo_registro || raw?.kind || kindFallback || '').trim().toLowerCase();
+    const tipo = String(raw?.tipo_registro || raw?.kind || inferredKind || kindFallback || '').trim().toLowerCase();
     return {
       certidao: { tipo_registro: tipo || kindFallback || '' },
       registro: raw,
@@ -169,9 +190,9 @@ function navigateToAct(kind: string): void {
   __lastNavigateTs = now;
 
   const map: Record<string, string> = {
-    nascimento: './Nascimento2Via.html',
-    casamento: './Casamento2Via.html',
-    obito: './Obito2Via.html',
+    nascimento: '/ui/pages/Base2ViaLayout.html?act=nascimento',
+    casamento: '/ui/pages/Base2ViaLayout.html?act=casamento',
+    obito: '/ui/pages/Base2ViaLayout.html?act=obito',
   };
   const href = map[kind];
   if (!href) return;
@@ -227,14 +248,29 @@ export function queuePendingPayload(payload: CertificatePayload): boolean {
 
 export function consumePendingPayload(): CertificatePayload | null {
   try {
+    console.log('[consumePendingPayload] START - checking for pending payload');
     const stor = (typeof window !== 'undefined' && (window as any).localStorage) ? (window as any).localStorage : undefined;
-    if (!stor) return null;
+    console.log('[consumePendingPayload] localStorage available?', !!stor);
+    if (!stor) {
+      console.log('[consumePendingPayload] localStorage NOT available, returning null');
+      return null;
+    }
     const raw = stor.getItem(PENDING_KEY);
-    if (!raw) return null;
+    console.log('[consumePendingPayload] raw value from localStorage:', raw);
+    if (!raw) {
+      console.log('[consumePendingPayload] NO raw value found in localStorage, returning null');
+      return null;
+    }
     const parsed = JSON.parse(raw);
+    console.log('[consumePendingPayload] parsed object:', parsed);
+    console.log('[consumePendingPayload] parsed.payload:', parsed?.payload);
     stor.removeItem(PENDING_KEY);
-    return parsed?.payload || null;
-  } catch {
+    console.log('[consumePendingPayload] removed from localStorage, returning payload');
+    const result = parsed?.payload || null;
+    console.log('[consumePendingPayload] final result:', result);
+    return result;
+  } catch (err) {
+    console.error('[consumePendingPayload] ERROR caught:', err);
     return null;
   }
 }
@@ -300,33 +336,35 @@ function applyCartorioOficio(
   root: Document | HTMLElement,
   warnings: BindWarning[],
 ): void {
-  const mapping: Record<string, string> = (window as any).CNS_CARTORIOS || {};
+  // Primeiro, tenta usar o valor direto do registro (se já estiver definido)
   const oficioRaw = String((reg as any).cartorio_oficio || '').trim();
   if (oficioRaw) {
     setBoundValue('ui.cartorio_oficio', oficioRaw, root, warnings);
     return;
   }
 
+  // Segundo, tenta extrair CNS do campo cartorio_cns da certidão
   const cartorioCnsRaw = String((cert as any).cartorio_cns || '').replace(/\D+/g, '').slice(0, 6);
-  let oficioFound = false;
   if (cartorioCnsRaw) {
-    const oficio = Object.keys(mapping).find((k) => String(mapping[k]) === cartorioCnsRaw);
+    const oficio = resolveOficioFromCns(cartorioCnsRaw);
     if (oficio) {
       setBoundValue('ui.cartorio_oficio', oficio, root, warnings);
-      oficioFound = true;
-    } else {
       setBoundValue('certidao.cartorio_cns', cartorioCnsRaw, root, warnings);
+      return;
     }
   }
 
-  if (!oficioFound && (reg as any).matricula) {
-    const matDigits = onlyDigits(String((reg as any).matricula || ''));
-    const prefix = matDigits.slice(0, 6);
-    if (prefix.length === 6) {
-      setBoundValue('certidao.cartorio_cns', prefix, root, warnings);
-      const oficioFromMat = Object.keys(mapping).find((k) => String(mapping[k]) === prefix);
+  // Terceiro, tenta extrair CNS dos primeiros 6 dígitos da matrícula
+  const matricula = String((reg as any).matricula || '');
+  if (matricula) {
+    const matDigits = onlyDigits(matricula);
+    const cnsFromMatricula = matDigits.slice(0, 6);
+    if (cnsFromMatricula.length === 6) {
+      const oficioFromMat = resolveOficioFromCns(cnsFromMatricula);
       if (oficioFromMat) {
         setBoundValue('ui.cartorio_oficio', oficioFromMat, root, warnings);
+        setBoundValue('certidao.cartorio_cns', cnsFromMatricula, root, warnings);
+        console.log(`[applyCartorioOficio] CNS ${cnsFromMatricula} da matrícula → Ofício ${oficioFromMat}`);
       }
     }
   }
@@ -473,12 +511,32 @@ function mapEstadoCivilValue(raw: string): string {
 function applyCasamentoToForm(payload: CertificatePayload, root: Document | HTMLElement, warnings: BindWarning[]): void {
   const cert = payload.certidao || {};
   const reg = payload.registro || {};
+  
+  console.log('🔵 [CASAMENTO] applyCasamentoToForm inicio', {
+    rootType: (root as Document).location ? 'document' : 'element',
+    hasConjuges: Array.isArray((reg as any).conjuges),
+    conjugesCount: ((reg as any).conjuges || []).length
+  });
+  
   applyObjectToBinds('certidao', cert as Record<string, unknown>, root, warnings);
   applyObjectToBinds('registro', reg as Record<string, unknown>, root, warnings);
 
   const conj = Array.isArray((reg as any).conjuges) ? (reg as any).conjuges : [];
   const c1 = conj[0] || {};
   const c2 = conj[1] || {};
+  
+  console.log('🔵 [CASAMENTO] Dados dos conjuges:', {
+    c1Nome: c1.nome_atual_habilitacao,
+    c1Novo: c1.novo_nome,
+    c1CPF: c1.cpf,
+    c2Nome: c2.nome_atual_habilitacao,
+    c2Novo: c2.novo_nome,
+    c2CPF: c2.cpf
+  });
+  
+  // Test if selectors find elements
+  const testElement = (root as Document).querySelector?.('input[name="nomeSolteiro"]');
+  console.log('🔵 [CASAMENTO] Teste de seletor input[name="nomeSolteiro"]:', testElement ? 'ENCONTRADO' : 'NAO ENCONTRADO');
 
   setBySelector(root, 'input[name="nomeSolteiro"]', c1.nome_atual_habilitacao || '');
   setBySelector(root, 'input[name="nomeCasado"]', c1.novo_nome || '');
@@ -583,6 +641,27 @@ export function applyCertificatePayloadToSecondCopy(
   root: Document | HTMLElement = document,
   attemptsLeft: number = 5,
 ): { ok: boolean; warnings: BindWarning[]; navigated?: boolean } {
+  console.log('[applyCertificatePayloadToSecondCopy] INICIANDO com payload:', payload);
+  console.log('[applyCertificatePayloadToSecondCopy] root:', root, 'attemptsLeft:', attemptsLeft);
+  
+  // Mostrar loading na primeira tentativa
+  if (attemptsLeft === 5) {
+    try {
+      showApplyLoading(attemptsLeft);
+      console.log('[applyCertificatePayloadToSecondCopy] loading mostrado - primeira tentativa');
+    } catch (err) {
+      try { console.error('[applyCertificatePayloadToSecondCopy] erro ao mostrar loading:', err); } catch {}
+    }
+  } else {
+    // Atualizar progresso nas retentativas
+    try {
+      updateApplyLoading(attemptsLeft);
+      console.log('[applyCertificatePayloadToSecondCopy] loading atualizado - tentativa', 5 - attemptsLeft + 1);
+    } catch (err) {
+      try { console.error('[applyCertificatePayloadToSecondCopy] erro ao atualizar loading:', err); } catch {}
+    }
+  }
+  
   const warnings: BindWarning[] = [];
   // Prefer the .app-shell element as scope when present. Narrow the type so TS knows it's an HTMLElement.
   const shell = (root as Document).querySelector?.('.app-shell') as HTMLElement | null;
@@ -603,14 +682,50 @@ export function applyCertificatePayloadToSecondCopy(
     ].filter(Boolean),
   });
   // IMPORTANTÍSSIMO: não devolver ok:false pra não disparar reload no caller
+  try { hideApplyLoading(false); } catch {}
   return { ok: true, warnings };
 }
 
-  const kind = String((normalized.certidao as any).tipo_registro || getCurrentAct() || '').trim().toLowerCase();
+  // FIX: Converter datas ISO (YYYY-MM-DD) para formato brasileiro (DD/MM/YYYY)
+  // antes de aplicar ao formulário, pois máscaras esperam DD/MM/YYYY
+  try {
+    const reg = normalized.registro as Record<string, unknown>;
+    // data_registro: comum em nascimento e óbito
+    if (reg.data_registro && /^\d{4}-\d{2}-\d{2}$/.test(String(reg.data_registro))) {
+      const [year, month, day] = String(reg.data_registro).split('-');
+      reg.data_registro = `${day}/${month}/${year}`;
+      try { console.debug('[apply] converted data_registro from ISO to BR:', reg.data_registro); } catch {}
+    }
+    // data_celebracao: casamento
+    if (reg.data_celebracao && /^\d{4}-\d{2}-\d{2}$/.test(String(reg.data_celebracao))) {
+      const [year, month, day] = String(reg.data_celebracao).split('-');
+      reg.data_celebracao = `${day}/${month}/${year}`;
+      try { console.debug('[apply] converted data_celebracao from ISO to BR:', reg.data_celebracao); } catch {}
+    }
+    // data_falecimento: óbito
+    if (reg.data_falecimento && /^\d{4}-\d{2}-\d{2}$/.test(String(reg.data_falecimento))) {
+      const [year, month, day] = String(reg.data_falecimento).split('-');
+      reg.data_falecimento = `${day}/${month}/${year}`;
+      try { console.debug('[apply] converted data_falecimento from ISO to BR:', reg.data_falecimento); } catch {}
+    }
+  } catch (err) {
+    try { console.warn('[apply] error converting dates:', err); } catch {}
+  }
+
+  const kind =
+    String(inferActFromPayload(normalized) || (normalized.certidao as any).tipo_registro || '')
+      .trim()
+      .toLowerCase();
   const current = getCurrentAct();
-  if (kind && current && kind !== current) {
+  let urlAct = '';
+  try {
+    const url = new URL(window.location.href, window.location.origin);
+    urlAct = String(url.searchParams.get('act') || '').toLowerCase();
+  } catch {}
+  const shouldAutoNavigate = attemptsLeft === 5 && kind && current && kind !== current && kind !== urlAct;
+  if (shouldAutoNavigate) {
     if (kind === 'nascimento' || kind === 'casamento' || kind === 'obito') {
-      try { console.debug('[apply] queuing pending payload and navigating', { kind, current }); } catch {};
+      try { console.debug('[apply] queuing pending payload and AUTO-NAVIGATING', { kind, current }); } catch {};
       const queued = queuePendingPayload(normalized);
       if (!queued) {
         try { console.debug('[apply] payload already queued, skipping navigate'); } catch {};
@@ -618,8 +733,39 @@ export function applyCertificatePayloadToSecondCopy(
       }
       // As part of diagnostics, record that navigation is requested
       try { (window as any).__domSnapshots = (window as any).__domSnapshots || []; (window as any).__domSnapshots.push({ label: 'apply-queued-navigate', time: Date.now(), kind, current }); } catch {}
-      // Do not navigate automatically to avoid native beforeunload dialogs appearing multiple times.
-      // The UI will receive 'app:pending-payload' and show an explicit action button for the user.
+      
+      // FIX 4: NAVEGAÇÃO AUTOMÁTICA - Agora navegamos imediatamente sem esperar usuário clicar
+      // Mapear tipo para URL correta
+      const urlMap: Record<string, string> = {
+        nascimento: '/ui/pages/Base2ViaLayout.html?act=nascimento',
+        casamento: '/ui/pages/Base2ViaLayout.html?act=casamento',
+        obito: '/ui/pages/Base2ViaLayout.html?act=obito',
+      };
+      const targetUrl = urlMap[kind];
+      if (targetUrl) {
+        try {
+          console.log('[apply] NAVEGANDO AUTOMATICAMENTE para:', targetUrl);
+          // FIX 4.1: Setar flag para BYPASS do beforeunload dialog
+          (window as any).__navigatingForImport = true;
+          console.log('[apply] __navigatingForImport = true - beforeunload será ignorado');
+
+          // NÃO esconder o loading aqui - deixar que persista enquanto navega
+          // O loading será automaticamente removido quando a página carregar
+          try {
+            console.debug('[applyCertificatePayloadToSecondCopy] navegação automática em progresso - loading persiste');
+          } catch (err) { try { console.error('[...] erro ao log:', err); } catch {} }
+
+          const path = String(window.location.pathname || '').toLowerCase();
+          const isSpaShell = path.includes('base2vialayout') || path.startsWith('/2via/');
+          if (isSpaShell) {
+            window.dispatchEvent(new CustomEvent('app:navigate', { detail: { href: targetUrl } }));
+          } else {
+            window.location.href = targetUrl;
+          }
+        } catch (navErr) {
+          try { console.error('[apply] erro ao navegar:', navErr); } catch {}
+        }
+      }
       return { ok: true, warnings, navigated: true };
     }
   }
@@ -749,7 +895,8 @@ export function applyCertificatePayloadToSecondCopy(
   // schedule a retry a few times to allow dynamic UI to render and bind elements to appear.
   try {
     const missingPaths = warnings.filter((w) => w.type === 'missing-bind').map((w) => w.path);
-    const critical = ['certidao.tipo_registro', 'registro.nome_completo', 'registro.cpf', 'registro.data_registro'];
+      // certidao.tipo_registro agora existe como hidden input no HTML, então não precisa estar na lista crítica
+      const critical = ['registro.nome_completo', 'registro.cpf', 'registro.data_registro'];
     const needRetry = attemptsLeft > 0 && missingPaths.some((p) => critical.includes(p));
 
     // Diagnostic helper to probe DOM for likely candidates when a bind is missing
@@ -878,6 +1025,11 @@ export function applyCertificatePayloadToSecondCopy(
       // If we've exhausted retries and critical binds remain missing, surface a non-blocking but prominent error
       try {
         if (attemptsLeft <= 0) {
+          try { 
+            hideApplyLoading(false);
+            console.debug('[applyCertificatePayloadToSecondCopy] loading escondido - tentativas esgotadas');
+          } catch (err) { try { console.error('[...] erro ao esconder loading:', err); } catch {} }
+          
           try { console.debug('[apply] attempts exhausted and critical binds missing', missingPaths); } catch {}
           const detail = { missing: Array.from(new Set(warnings.filter((w) => w.type === 'missing-bind').map((w) => w.path))), reason: 'binding-missing' };
           (window as any).__domSnapshots = (window as any).__domSnapshots || [];
@@ -897,6 +1049,14 @@ export function applyCertificatePayloadToSecondCopy(
     
     } catch (e) { /* ignore retry detection errors */ }
 
+
+  // ✅ Loading concluído com sucesso - aplicação completa
+  try { 
+    hideApplyLoading(true);
+    console.log('[applyCertificatePayloadToSecondCopy] loading escondido - aplicação completa');
+  } catch (err) {
+    try { console.error('[applyCertificatePayloadToSecondCopy] erro ao esconder loading:', err); } catch {}
+  }
 
   return { ok: true, warnings };
 }

@@ -24,9 +24,15 @@ function getContentType(filePath) {
 const server = http.createServer((req, res) => {
   try {
     let reqPath = decodeURIComponent(req.url.split('?')[0]);
-    if (reqPath === '/' || reqPath.startsWith('/2via/')) {
+    if (reqPath === '/') {
       res.writeHead(200, { 'Content-Type': getContentType(layoutPath) });
       return fs.createReadStream(layoutPath).pipe(res);
+    }
+    if (reqPath.startsWith('/2via/')) {
+      const seg = reqPath.split('/2via/')[1] || '';
+      const act = (seg.split('/')[0] || '').toLowerCase() || 'nascimento';
+      res.writeHead(302, { Location: `/ui/pages/Base2ViaLayout.html?act=${encodeURIComponent(act)}` });
+      return res.end();
     }
     // Normalize to a relative path (remove leading slash) to avoid path.join treating it as absolute
     const relPath = reqPath.replace(/^\\|^\//, '');

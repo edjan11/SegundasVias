@@ -40,11 +40,21 @@ export function enableImportFlowTracer(): void {
             if (desc && desc.configurable) {
               Object.defineProperty(input, 'value', {
                 get() {
-                  return desc.get.call(this);
+                  try {
+                    return desc.get?.call(this);
+                  } catch (e) {
+                    return '';
+                  }
                 },
                 set(v) {
-                  const prev = desc.get.call(this);
-                  desc.set.call(this, v);
+                  const prev = desc.get?.call(this);
+                  try {
+                    desc.set?.call(this, v);
+                  } catch (e) {
+                    // Ignorar erro do setter nativo - pode ocorrer em inputs readonly ou disabled
+                    // O importante é capturar o trace
+                    try { console.debug('[import-trace] setter error (ignored):', e); } catch {}
+                  }
                   try {
                     pushLog({ selector, prev, val: v, stack: (new Error()).stack });
                   } catch (e) {}

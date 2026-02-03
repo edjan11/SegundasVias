@@ -1,7 +1,9 @@
 import { loadActHtml } from '../../shared/ui/act-page';
 
 export async function mount(container: HTMLElement): Promise<void> {
+  console.log('[route/nascimento] mount() called');
   const payload = await loadActHtml('/ui/pages/Nascimento2Via.html');
+  console.log('[route/nascimento] loadActHtml returned bodyClass:', payload.bodyClass);
   container.innerHTML = payload.mainHtml;
   const drawer = document.getElementById('drawer');
   if (drawer && payload.drawerHtml && payload.drawerHtml.trim()) {
@@ -13,7 +15,11 @@ export async function mount(container: HTMLElement): Promise<void> {
       // ignore if event cannot be dispatched
     }
   }
-  if (payload.bodyClass) document.body.className = payload.bodyClass;
+  if (payload.bodyClass) {
+    console.log('[route/nascimento] Setting body.className to:', payload.bodyClass);
+    document.body.className = payload.bodyClass;
+  }
+  console.log('[route/nascimento] mount() complete, body.className is now:', document.body.className);
 }
 
 export function unmount(): void {

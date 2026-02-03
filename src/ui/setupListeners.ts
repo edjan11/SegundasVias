@@ -231,6 +231,11 @@ export function initBeforeUnload(opts: { getIsDirty: () => boolean; getWindow: (
   const { getIsDirty, getWindow } = opts;
   const w = getWindow();
   w.addEventListener('beforeunload', (e) => {
+    // FIX 4.1: Se navegando devido a importação, NÃO mostrar diálogo beforeunload
+    if ((w as any).__navigatingForImport === true) {
+      console.log('[beforeunload] BYPASS - navegação de importação em progresso');
+      return;
+    }
     if (!getIsDirty()) return;
     e.preventDefault();
     (e as any).returnValue = '';

@@ -2,6 +2,8 @@ import { assertIsCertificatePayload } from './payload/apply-payload';
 import { parseCasamentoXmlToPayload, parseNascimentoXmlToPayload } from './payload/xml-to-payload';
 import Papa from 'papaparse';
 import { mapCsvRowToPayload } from '../shared/import-export/csv-to-payload';
+import { inferActFromMatricula } from '../shared/matricula/type';
+import { inferActFromPayload } from '../shared/act-inference';
 
 export type ImportResult = {
   ok: boolean;
@@ -50,7 +52,10 @@ export async function readImportFile(file: File): Promise<ImportResult> {
           errors: check.errors,
         };
       }
-      const kind = String(payload?.certidao?.tipo_registro || 'nascimento').toLowerCase() as ImportResult['kind'];
+      const inferred =
+        inferActFromMatricula(String(payload?.registro?.matricula || '')) ||
+        inferActFromPayload(payload);
+      const kind = String(payload?.certidao?.tipo_registro || inferred || 'nascimento').toLowerCase() as ImportResult['kind'];
       return { ok: true, kind, sourceFormat: 'json', raw: text, payload };
     } catch (e) {
       // If not JSON, attempt CSV heuristic
@@ -69,7 +74,10 @@ export async function readImportFile(file: File): Promise<ImportResult> {
             };
           }
           const payload = mapCsvRowToPayload(rows[0]);
-          const kind = String(payload?.certidao?.tipo_registro || 'nascimento').toLowerCase() as ImportResult['kind'];
+          const inferred =
+            inferActFromMatricula(String(payload?.registro?.matricula || '')) ||
+            inferActFromPayload(payload);
+          const kind = String(payload?.certidao?.tipo_registro || inferred || 'nascimento').toLowerCase() as ImportResult['kind'];
           return { ok: true, kind, sourceFormat: 'csv', raw: text, payload };
         } catch (csvErr) {
           return {
