@@ -46,6 +46,16 @@ Testes:
 - Templates de impressão em `src/prints/` geram HTML pronto para conversão em PDF; revisar sanitização antes de usar em produção.
 - Preferir `src/` como fonte canônica e evitar editar arquivos em `ui/js` gerados por bundler.
 
+## Regras padrão — importação, inclusão e alteração (todas as 2ª vias)
+
+A importação de dados funciona exclusivamente como um mecanismo de entrada de um payload já estruturado, seja em JSON ou XML. Embora esse payload venha pronto, ele ainda deve passar por verificações básicas antes de ser aplicado, como a validação de formato e uma compatibilidade mínima com o modelo esperado pela aplicação. Essas verificações devem ser leves, servindo apenas para evitar erros de parse ou incompatibilidades grosseiras. Após essa etapa, a importação deve apenas entregar o payload normalizado ao fluxo em que foi acionada, sem assumir qualquer decisão de criação, alteração ou sobrescrita de registros.
+
+A decisão de **incluir uma nova 2ª via** ocorre exclusivamente quando o fluxo é iniciado pelo botão “Incluir 2ª via”. Nesse contexto, o payload importado ou os dados preenchidos manualmente devem seguir o processo de criação, passando pelas regras de verificação de existência de matrícula em todas as camadas do banco de dados. Caso já exista um registro com a mesma matrícula, o sistema deve aplicar a política definida, como bloquear a criação, exibir um aviso ou permitir complementação automática de dados. Se não existir, uma nova 2ª via pode ser criada normalmente.
+
+Já a **alteração de uma 2ª via existente** ocorre quando o usuário abre um registro previamente cadastrado. Nesse cenário, qualquer importação realizada serve apenas como apoio ao preenchimento ou complemento de campos da interface. Ao salvar, o sistema deve executar exclusivamente a atualização do registro atualmente aberto, sobrescrevendo apenas os dados dessa 2ª via específica, sem disparar verificações de duplicidade por matrícula nem acionar lógica de criação. A alteração deve sempre estar vinculada ao identificador interno do registro, garantindo que apenas a 2ª via em edição seja modificada.
+
+Essa separação clara entre importação, inclusão e alteração garante que a importação não se torne uma fonte implícita de criação ou sobrescrita indevida de registros, preservando a integridade dos dados e evitando conflitos entre 2ªs vias distintas que compartilhem a mesma matrícula.
+
 ## Logs e arquivos gerados
 
 - Logs de ferramentas e scripts foram movidos para `archive/logs-2026-01-20/` e essa pasta está ignorada pelo git.

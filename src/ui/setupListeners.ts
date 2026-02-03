@@ -102,14 +102,22 @@ export function initMatriculaAutoListeners(opts: {
 
 export function initActions(opts: {
   saveDraft: () => void;
+  includeDraft?: () => void;
   generateFile: (f: string) => void;
   setTipoRegistro: (t: string) => void;
   getDocument: () => Document;
   navigateToAct?: (kind: string) => void;
 }) {
-  const { saveDraft, generateFile, setTipoRegistro, getDocument, navigateToAct } = opts;
+  const { saveDraft, includeDraft, generateFile, setTipoRegistro, getDocument, navigateToAct } = opts;
   const doc = getDocument();
   (doc.getElementById('btn-save') as HTMLElement | null)?.addEventListener('click', saveDraft);
+  (doc.getElementById('btn-incluir-assento') as HTMLElement | null)?.addEventListener('click', () => {
+    if (typeof includeDraft === 'function') {
+      includeDraft();
+      return;
+    }
+    saveDraft();
+  });
   (doc.getElementById('btn-json') as HTMLElement | null)?.addEventListener('click', () =>
     generateFile('json'),
   );

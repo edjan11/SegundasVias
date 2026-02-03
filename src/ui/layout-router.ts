@@ -1,5 +1,5 @@
 import { installAbnt2Guards } from '../shared/ui/abnt2';
-import { applyCertificatePayloadToSecondCopy, consumePendingPayload } from './payload/apply-payload';
+import { applyCertificatePayloadToSecondCopy, consumePendingPayload, queuePendingPayload } from './payload/apply-payload';
 
 const ROUTES: Record<string, { id: string; loader: () => Promise<{ mount: (el: HTMLElement) => Promise<void> | void; unmount?: () => void }> }> = {
   nascimento: { id: 'nascimento', loader: () => import('./routes/nascimento') },
@@ -83,7 +83,6 @@ async function importActBundle(act: string): Promise<any> {
 
 async function navigate(act: string, opts: { push?: boolean } = {}): Promise<void> {
   const normalizedAct = normalizeAct(act);
-  console.log('[layout-router] navigate() called with act:', act, '-> normalized:', normalizedAct);
 
   const currentFromUrl = resolveActFromLocation();
   const hasIntent = consumeActSwitchIntent(normalizedAct);
@@ -96,7 +95,6 @@ async function navigate(act: string, opts: { push?: boolean } = {}): Promise<voi
   }
 
   if (currentRoute?.id === normalizedAct && currentFromUrl === normalizedAct) {
-    console.debug('[layout-router] navigate skipped: already on route', normalizedAct);
     return;
   }
   
@@ -110,15 +108,11 @@ async function navigate(act: string, opts: { push?: boolean } = {}): Promise<voi
   container.classList.add('loading');
 
   if (currentRoute?.unmount) {
-    console.log('[layout-router] Unmounting previous route:', currentRoute.id);
     try { await currentRoute.unmount(); } catch (e) { console.warn('unmount falhou', e); }
   }
 
-  console.log('[layout-router] Loading route:', route.id);
   const mod = await route.loader();
-  console.log('[layout-router] Mounting route:', route.id);
   await mod.mount(container);
-  console.log('[layout-router] Route mounted, body class is now:', document.body.className);
 
   if (opts.push !== false) {
     const url = buildUrlForAct(route.id);
@@ -139,12 +133,12 @@ async function navigate(act: string, opts: { push?: boolean } = {}): Promise<voi
   requestAnimationFrame(() => {
     container.classList.remove('loading');
     container.classList.add('loaded');
+     updateAtoButtons(route.id);
     
     // Apply pending payload if any (after route is fully mounted and URL is updated)
     try {
       const pending = consumePendingPayload();
       if (pending) {
-        console.log('[layout-router] Applying pending payload after route navigation');
         applyCertificatePayloadToSecondCopy(pending);
       }
     } catch (err) {
@@ -156,7 +150,6 @@ async function navigate(act: string, opts: { push?: boolean } = {}): Promise<voi
       const hideLoading = (window as any).hideApplyLoading;
       if (typeof hideLoading === 'function') {
         hideLoading(true);
-        console.log('[layout-router] hideApplyLoading(true) chamado após navegação completa');
       }
     } catch (err) {
       // Se hideApplyLoading não estiver disponível, não há problema
@@ -180,16 +173,18 @@ async function navigate(act: string, opts: { push?: boolean } = {}): Promise<voi
 }
 
 function wireGlobalHandlers(): void {
-  document.addEventListener('change', (event) => {
+  document.addEventListener('click', (event) => {
     if (!(event as Event).isTrusted) return;
     const target = event.target as HTMLElement | null;
     if (!target) return;
-    if (target.id !== 'ato-select') return;
-    const val = (target as HTMLSelectElement).value;
-    if (val) {
-      allowActSwitch(val, 'ato-select');
-      navigate(val).catch((err) => console.error('Erro ao trocar ato', err));
+    if (!target.classList.contains('ato-btn')) return;
+    const atoValue = target.getAttribute('data-ato');
+    if (!atoValue) return;
+    if ((window as any).__applyInProgress) {
+      return;
     }
+    allowActSwitch(atoValue, 'ato-btn');
+    navigate(atoValue).catch((err) => console.error('Erro ao trocar ato', err));
   });
 
   document.body.addEventListener('click', (ev) => {
@@ -205,6 +200,23 @@ function wireGlobalHandlers(): void {
   });
 }
 
+function updateAtoButtons(currentAct: string): void {
+  document.querySelectorAll('.ato-btn').forEach((btn) => {
+    const btnAto = btn.getAttribute('data-ato');
+    if (btnAto === currentAct) {
+      btn.classList.add('active');
+    } else {
+      btn.classList.remove('active');
+    }
+  });
+  
+  // Reset button visibility when switching atos - reset to 'include' mode (new record)
+  const updateButtonsVisibility = (window as any).__updateButtonsVisibility;
+  if (typeof updateButtonsVisibility === 'function') {
+    updateButtonsVisibility();
+  }
+}
+
 window.addEventListener('popstate', (event) => {
   const act = event.state?.act || resolveActFromLocation();
   navigate(act, { push: false }).catch((err) => console.error('popstate', err));
@@ -214,10 +226,12 @@ window.addEventListener('popstate', (event) => {
 window.addEventListener('app:navigate', (event: Event) => {
   const customEvent = event as CustomEvent<{ href: string }>;
   const href = customEvent.detail?.href;
-  console.log('[layout-router] app:navigate received with href:', href);
   if (!href) return;
+  if ((window as any).__applyInProgress) {
+    console.warn('[layout-router] app:navigate ignorado durante apply', { href });
+    return;
+  }
   if (lastNavigateHref && lastNavigateHref.href === href && Date.now() - lastNavigateHref.ts < 800) {
-    console.debug('[layout-router] app:navigate ignored: duplicate href', href);
     return;
   }
   lastNavigateHref = { href, ts: Date.now() };
@@ -234,27 +248,49 @@ window.addEventListener('app:navigate', (event: Event) => {
   }
   if (!actRaw && matchSpa) actRaw = matchSpa[1].toLowerCase();
   if (!actRaw && matchLegacy) actRaw = matchLegacy[1].toLowerCase();
-  console.log('[layout-router] app:navigate regex match:', { matchLegacy, matchSpa, actRaw });
   if (!actRaw) {
     console.warn('[layout-router] app:navigate - Could not extract act from href:', href);
     return;
   }
   const act = normalizeAct(actRaw);
-  console.log('[layout-router] app:navigate - navigating to:', act);
   if (currentRoute?.id === act && resolveActFromLocation() === act) {
-    console.debug('[layout-router] app:navigate ignored: already on route', act);
     return;
   }
   allowActSwitch(act, 'app:navigate');
   navigate(act).catch((err) => console.error('app:navigate', err));
 });
 
+// Quando um payload pendente é enfileirado e já estamos na rota correta,
+// aplicar sem navegar novamente.
+window.addEventListener('app:pending-payload', () => {
+  try {
+    if ((window as any).__applyInProgress) return;
+    const current = resolveActFromLocation();
+    const pending = consumePendingPayload();
+    if (!pending) return;
+    const kind = String((pending as any)?.certidao?.tipo_registro || '').toLowerCase();
+    if (kind && normalizeAct(kind) === current) {
+      applyCertificatePayloadToSecondCopy(pending);
+      return;
+    }
+    // Se o payload não é da rota atual, re-enfileira e navega para o ato correto
+    try { queuePendingPayload(pending); } catch {}
+    if (kind) {
+      const act = normalizeAct(kind);
+      if (act && act !== current) {
+        allowActSwitch(act, 'pending-payload');
+        navigate(act).catch((err) => console.error('pending-payload navigate', err));
+      }
+    }
+  } catch (err) {
+    console.warn('[layout-router] app:pending-payload error', err);
+  }
+});
+
 document.addEventListener('DOMContentLoaded', () => {
   installAbnt2Guards(document);
   wireGlobalHandlers();
   const act = resolveActFromLocation();
-  console.log('[layout-router] DOMContentLoaded - resolveActFromLocation() returned:', act);
-  console.log('[layout-router] Current URL:', window.location.href);
   allowActSwitch(act, 'init');
   navigate(act, { push: false }).catch((err) => console.error('init', err));
 });

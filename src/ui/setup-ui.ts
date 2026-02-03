@@ -383,6 +383,10 @@ export function setupActSelect(defaultValue?: string): void {
 
   const goTo = (val: string) => {
     try {
+      if ((window as any).__applyInProgress) {
+        try { console.debug('setupActSelect -> navigation blocked during apply', val); } catch {}
+        return;
+      }
       const map: Record<string, string> = {
         nascimento: '/ui/pages/Base2ViaLayout.html?act=nascimento',
         casamento: '/ui/pages/Base2ViaLayout.html?act=casamento',
@@ -414,31 +418,6 @@ export function setupActSelect(defaultValue?: string): void {
     select.addEventListener('change', () => goTo(select.value));
     select.addEventListener('input', () => goTo(select.value));
 
-    // quick-switch buttons (nascimento, casamento, obito) to improve navigation flow
-    try {
-      const toolbar =
-        document.querySelector('.toolbar-left') || document.querySelector('.toolbar-right');
-      if (toolbar && !document.getElementById('ato-switch')) {
-        const wrap = document.createElement('div');
-        wrap.id = 'ato-switch';
-        wrap.style.display = 'inline-flex';
-        wrap.style.gap = '6px';
-        wrap.style.marginLeft = '8px';
-        const map: Record<string, string> = { nascimento: 'N', casamento: 'C', obito: 'O' };
-        Object.keys(map).forEach((k) => {
-          const b = document.createElement('button');
-          b.type = 'button';
-          b.className = 'ato-btn';
-          b.textContent = map[k];
-          b.title = k;
-          b.addEventListener('click', () => goTo(k));
-          wrap.appendChild(b);
-        });
-        toolbar.appendChild(wrap);
-      }
-    } catch (e) {
-      /* ignore */
-    }
   }, 10);
 
   // delegation fallback: listen at document level so replaced/recreated select still triggers
@@ -605,47 +584,6 @@ try {
             /* ignore */
           }
 
-          // also create quick-switch buttons in the toolbar (nascimento/casamento/obito)
-          try {
-            const toolbar =
-              document.querySelector('.toolbar-left') || document.querySelector('.toolbar-right');
-            if (toolbar && !document.getElementById('ato-switch')) {
-              const wrap = document.createElement('div');
-              wrap.id = 'ato-switch';
-              wrap.style.display = 'inline-flex';
-              wrap.style.gap = '6px';
-              wrap.style.marginLeft = '8px';
-              const map: Record<string, string> = { nascimento: 'N', casamento: 'C', obito: 'O' };
-              Object.keys(map).forEach((k) => {
-                const b = document.createElement('button');
-                b.type = 'button';
-                b.className = 'ato-btn';
-                b.textContent = map[k];
-                b.title = k;
-                b.addEventListener('click', () => {
-                  const dest: Record<string, string> = {
-                      nascimento: '/ui/pages/Base2ViaLayout.html?act=nascimento',
-                      casamento: '/ui/pages/Base2ViaLayout.html?act=casamento',
-                      obito: '/ui/pages/Base2ViaLayout.html?act=obito',
-                  };
-                  const next = dest[k] || '';
-                    if (next) {
-                      const path = String(window.location.pathname || '').toLowerCase();
-                      const isSpaShell = path.includes('base2vialayout') || path.startsWith('/2via/');
-                      if (isSpaShell) {
-                        window.dispatchEvent(new CustomEvent('app:navigate', { detail: { href: next } }));
-                      } else {
-                        window.location.href = next;
-                      }
-                    }
-                });
-                wrap.appendChild(b);
-              });
-              toolbar.appendChild(wrap);
-            }
-          } catch (e) {
-            /* ignore */
-          }
         } catch (e) {
           console.log('error while checking name DB', e);
         }

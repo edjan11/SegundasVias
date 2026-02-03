@@ -15,6 +15,27 @@
     </style>
   </head>
   <body>
+    <!-- Toolbar global (não duplicada) -->
+    <div class="toolbar">
+      <div class="toolbar-left">
+        <div class="app-title">2ª Via de Certidão</div>
+        <div class="ato-picker">
+          <button class="ato-btn" data-ato="nascimento" title="Nascimento">N</button>
+          <button class="ato-btn" data-ato="casamento" title="Casamento">C</button>
+          <button class="ato-btn" data-ato="obito" title="Óbito">O</button>
+        </div>
+      </div>
+      <div class="toolbar-right">
+        <button id="btn-incluir-assento" class="btn primary compact" title="Salvar registro no banco">Incluir Assento</button>
+        <button id="drawer-toggle" class="btn secondary">Painel</button>
+        <div style="display:inline-flex; gap:6px; align-items:center; margin-left:8px;">
+          <button id="btn-json" class="btn json compact" title="Gerar JSON">JSON</button>
+          <button id="btn-xml" class="btn xml compact" title="Exportar XML">XML</button>
+          <button id="btn-print" class="btn pdf compact" title="Imprimir PDF">PDF</button>
+        </div>
+      </div>
+    </div>
+
     <main id="app" role="main" aria-live="polite">
       <!-- Conteudo do ato sera carregado aqui dinamicamente -->
     </main>

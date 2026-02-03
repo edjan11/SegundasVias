@@ -73,7 +73,7 @@ export function mountChatSearchShell(): HTMLElement | null {
       </div>
       <div class="taskbar-right">
         <button class="taskbar-icon" type="button" data-panel-toggle="search" title="Busca">&#128269;</button>
-        <button class="taskbar-btn" type="button" data-include-toggle title="Registrar">Registrar</button>
+        <button class="taskbar-btn" type="button" data-include-toggle title="Incluir 2ª via">Incluir 2ª via</button>
         <div class="taskbar-include" data-include aria-hidden="true">
           <div class="segmented segmented--names" data-include-seg>
             <button type="button" data-open-act="nascimento">Nascimento</button>
@@ -425,6 +425,9 @@ function bindChatSearchShell(root: HTMLElement): void {
             setStatus('Falha ao aplicar na tela');
             return;
           }
+          try {
+            (window as any).__setRegistroContext?.('edit', r.id);
+          } catch {}
           setStatus('Aplicado na tela');
           addTab({ id: r.id, kind: r.kind || '', label: r.nome || 'SEM NOME' });
         } catch {
@@ -603,8 +606,21 @@ function bindChatSearchShell(root: HTMLElement): void {
     if (!tabsVisible || !tabsHistory) return;
     tabsVisible.textContent = '';
     tabsHistory.textContent = '';
-    const visible = tabs.slice(0, tabsVisibleLimit);
-    const hidden = tabs.slice(tabsVisibleLimit, tabsHistoryLimit);
+    
+    // Safety dedup at render time (shouldn't be needed if addTab() works, but belt+suspenders)
+    // Filter duplicates by (label + kind) combination
+    const seen = new Set<string>();
+    const dedupedForRender = tabs.filter((tab) => {
+      const key = `${tab.label || 'SEM NOME'}|${tab.kind || 'nascimento'}`;
+      if (seen.has(key)) {
+        return false;
+      }
+      seen.add(key);
+      return true;
+    });
+    
+    const visible = dedupedForRender.slice(0, tabsVisibleLimit);
+    const hidden = dedupedForRender.slice(tabsVisibleLimit, tabsHistoryLimit);
 
     const renderItem = (tab: any, container: HTMLElement) => {
       const el = document.createElement('button');
@@ -624,6 +640,9 @@ function bindChatSearchShell(root: HTMLElement): void {
             setStatus('Falha ao aplicar na tela');
             return;
           }
+          try {
+            (window as any).__setRegistroContext?.('edit', tab.id);
+          } catch {}
           setStatus('Aplicado na tela');
           setActive(tab);
           addTab(tab);
@@ -652,14 +671,41 @@ function bindChatSearchShell(root: HTMLElement): void {
   };
 
   const addTab = (item: { id: string; kind: string; label: string }) => {
-    const tabs = loadTabs().filter((t) => t.id !== item.id);
-    tabs.unshift({
+    const tabs = loadTabs();
+    
+    // Check for duplicate: same label + kind but different ID
+    const duplicate = tabs.find((t) => 
+      t.label === (item.label || 'SEM NOME') && 
+      t.kind === (item.kind || 'nascimento') &&
+      t.id !== item.id
+    );
+    
+    if (duplicate) {
+      // Alert user instead of silently adding duplicate
+      const msg = `⚠️ Registro "${item.label}" já está na lista (ID: ${duplicate.id})`;
+      setStatus(msg);
+      // Play a subtle sound effect to draw attention (if available)
+      try { 
+        const audio = new Audio('data:audio/wav;base64,UklGRiYAAABXQVZFZm10IBAAAAABAAEAQB8AAAB9AAACABAAZGF0YQIAAAAAAA==');
+        audio.play().catch(() => {});
+      } catch {}
+      return; // Don't add duplicate
+    }
+    
+    // Remove any existing entry with same ID (allows re-opening same record to move it to top)
+    const dedupedById = tabs.filter((t) => t.id !== item.id);
+    
+    // Add new tab to front
+    dedupedById.unshift({
       id: item.id,
-      kind: item.kind || '',
+      kind: item.kind || 'nascimento',
       label: item.label || 'SEM NOME',
       updatedAt: Date.now(),
     });
-    const filtered = tabs.slice(0, tabsHistoryLimit);
+    
+    // Keep only most recent 100
+    const filtered = dedupedById.slice(0, tabsHistoryLimit);
+    
     saveTabs(filtered);
     renderTabs(filtered);
     setActive(item);
@@ -746,6 +792,9 @@ function bindChatSearchShell(root: HTMLElement): void {
         casamento: './Casamento2Via.html',
         obito: './Obito2Via.html',
       };
+      try {
+        (window as any).__setRegistroContext?.('include');
+      } catch {}
       if (dest[act]) window.location.href = dest[act];
     });
   });

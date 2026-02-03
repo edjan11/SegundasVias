@@ -162,7 +162,6 @@ function blockNavigation(): void {
       try {
         e.preventDefault?.();
         e.stopPropagation?.();
-        console.log('[apply-loading] navegação bloqueada durante processamento:', e.detail?.href);
       } catch {}
     };
 
@@ -174,13 +173,11 @@ function blockNavigation(): void {
       if (state.visible) {
         e.preventDefault?.();
         e.returnValue = '';
-        console.log('[apply-loading] beforeunload bloqueado');
       }
     };
     window.addEventListener('beforeunload', window.__applyLoadingBlockBeforeUnload);
 
     state.navigationBlocked = true;
-    console.log('[apply-loading] navegação bloqueada');
   } catch (err) {
     try { console.error('[apply-loading] erro ao bloquear navegação:', err); } catch {}
   }
@@ -204,7 +201,6 @@ function unblockNavigation(): void {
     }
 
     state.navigationBlocked = false;
-    console.log('[apply-loading] navegação desbloqueada');
   } catch (err) {
     try { console.error('[apply-loading] erro ao desbloquear navegação:', err); } catch {}
   }
@@ -232,10 +228,6 @@ export function showApplyLoading(attemptsLeft: number = 5): void {
     void element.offsetHeight;
 
     blockNavigation();
-
-    try { 
-      console.log('[apply-loading] loading mostrado, attemptsLeft:', attemptsLeft); 
-    } catch {}
   } catch (err) {
     try { console.error('[apply-loading] erro ao mostrar loading:', err); } catch {}
   }
@@ -263,9 +255,6 @@ export function updateApplyLoading(attemptsLeft: number): void {
       attemptsInfo.textContent = `Tentativa ${state.maxAttempts - attemptsLeft + 1} de ${state.maxAttempts}`;
     }
 
-    try { 
-      console.log('[apply-loading] progresso atualizado, attemptsLeft:', attemptsLeft); 
-    } catch {}
   } catch (err) {
     try { console.error('[apply-loading] erro ao atualizar loading:', err); } catch {}
   }
@@ -315,10 +304,6 @@ export function hideApplyLoading(success: boolean = true): void {
 
     state.visible = false;
     unblockNavigation();
-
-    try { 
-      console.log('[apply-loading] loading escondido, success:', success); 
-    } catch {}
   } catch (err) {
     try { console.error('[apply-loading] erro ao esconder loading:', err); } catch {}
   }
@@ -342,8 +327,6 @@ export function forceCleanupApplyLoading(): void {
     unblockNavigation();
     state.visible = false;
     state.loadingElement = null;
-
-    try { console.log('[apply-loading] limpeza forçada completada'); } catch {}
   } catch (err) {
     try { console.error('[apply-loading] erro durante limpeza forçada:', err); } catch {}
   }

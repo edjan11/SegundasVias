@@ -150,6 +150,7 @@ let lastSavedSnapshot = '';
 let lastSavedId = '';
 let isDirty = true;
 let currentDirs = { jsonDir: '', xmlDir: '' };
+let currentRegistroMode: 'include' | 'edit' = 'include';
 
 interface Registro {
   nome_completo?: string;
@@ -204,14 +205,42 @@ declare global {
       pickXmlDir?: (...args: unknown[]) => unknown;
     };
     __adjustMatricula?: (raw: string, obs?: string) => string;
+    __setRegistroContext?: (mode: 'include' | 'edit', recordId?: string) => void;
+    __getRegistroContext?: () => { mode: 'include' | 'edit'; recordId?: string };
   }
 }
 
 import { adjustMatricula } from './shared/matricula/cnj';
 
+// Atualiza visibilidade dos botões baseado no modo de registro
+function updateButtonsVisibility(): void {
+  const btnIncluir = document.getElementById('btn-incluir-assento') as HTMLElement | null;
+  const btnSave = document.getElementById('btn-save') as HTMLElement | null;
+
+  if (currentRegistroMode === 'include') {
+    // Modo "Incluir": mostrar botão "Incluir Assento", esconder "Salvar"
+    if (btnIncluir) btnIncluir.style.display = 'block';
+    if (btnSave) btnSave.style.display = 'none';
+  } else if (currentRegistroMode === 'edit') {
+    // Modo "Editar": mostrar botão "Salvar", esconder "Incluir Assento"
+    if (btnIncluir) btnIncluir.style.display = 'none';
+    if (btnSave) btnSave.style.display = 'block';
+  }
+}
+
 // expose for interactive debugging and prompts
 if (typeof window !== 'undefined') {
   (window as Window & { __adjustMatricula?: typeof adjustMatricula }).__adjustMatricula = adjustMatricula;
+  (window as Window & { __setRegistroContext?: (mode: 'include' | 'edit', recordId?: string) => void }).__setRegistroContext = (mode, recordId) => {
+    currentRegistroMode = mode;
+    lastSavedId = recordId ? String(recordId) : '';
+    updateButtonsVisibility();
+  };
+  (window as Window & { __getRegistroContext?: () => { mode: 'include' | 'edit'; recordId?: string } }).__getRegistroContext = () => ({
+    mode: currentRegistroMode,
+    recordId: lastSavedId || undefined,
+  });
+  (window as Window & { __updateButtonsVisibility?: () => void }).__updateButtonsVisibility = updateButtonsVisibility;
 }
 
 function setStatus(text: string, isError?: boolean) {
@@ -1238,6 +1267,10 @@ function downloadFile(name: string, content: string, mime: string) {
 }
 
 async function saveDraft() {
+  if (currentRegistroMode !== 'edit' || !lastSavedId) {
+    setStatus('Use “Incluir 2ª via” para criar um novo registro.', true);
+    return;
+  }
   const data = normalizeData();
   if (!validateData(data)) return;
   recordPlaceMappingFromState();
@@ -1258,10 +1291,45 @@ async function saveDraft() {
     }
     lastSavedSnapshot = computeSnapshot();
     setDirty(false);
+    updateButtonsVisibility();
     setStatus('Salvo');
   } catch (err) {
     logger.error('saveDraft failed', { err });
     setStatus('Falha ao salvar', true);
+  }
+}
+
+async function includeDraft() {
+  currentRegistroMode = 'include';
+  lastSavedId = '';
+  const data = normalizeData();
+  if (!validateData(data)) return;
+  recordPlaceMappingFromState();
+  try {
+    if (window.api && window.api.dbSaveDraft) {
+      const res = await window.api.dbSaveDraft({
+        id: null,
+        data,
+        sourceFormat: 'manual',
+        kind: data.certidao.tipo_registro || 'nascimento',
+      }) as unknown;
+      if (res && typeof res === 'object' && 'id' in res) {
+        const r = res as { id?: unknown };
+        if (r.id) {
+          lastSavedId = String(r.id);
+          currentRegistroMode = 'edit';
+        }
+      }
+    } else {
+      localStorage.setItem('draft_certidao', JSON.stringify(data));
+    }
+    lastSavedSnapshot = computeSnapshot();
+    setDirty(false);
+    updateButtonsVisibility();
+    setStatus('Incluído');
+  } catch (err) {
+    logger.error('includeDraft failed', { err });
+    setStatus('Falha ao incluir', true);
   }
 }
 
@@ -1332,6 +1400,7 @@ function setupConfigModal() {
 function setupActions() {
   initActions({
     saveDraft,
+    includeDraft,
     generateFile,
     setTipoRegistro,
     getDocument: () => document,

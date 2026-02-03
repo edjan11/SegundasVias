@@ -1,4 +1,4 @@
-import { applyCertificatePayloadToSecondCopy } from '../payload/apply-payload';
+import { applyCertificatePayloadToSecondCopy, queuePendingPayload } from '../payload/apply-payload';
 import { importBatchFiles } from '../../shared/import-export/batch';
 import { readImportFile } from '../importer';
 import { exportLocalDb, clearLocalDb } from '../../shared/import-export/local-json-db';
@@ -133,6 +133,32 @@ function renderResults(items: any[], total: number): void {
 
 let searchStore: SearchStore | null = null;
 
+function resolveActFromPayload(payload: any): string {
+  return String(payload?.certidao?.tipo_registro || payload?.tipo_registro || payload?.kind || '')
+    .trim()
+    .toLowerCase();
+}
+
+function resolveActFromUrl(): string {
+  try {
+    const url = new URL(window.location.href, window.location.origin);
+    return String(url.searchParams.get('act') || '').toLowerCase();
+  } catch {
+    return '';
+  }
+}
+
+function navigateToActByKind(kind: string): void {
+  const map: Record<string, string> = {
+    nascimento: '/ui/pages/Base2ViaLayout.html?act=nascimento',
+    casamento: '/ui/pages/Base2ViaLayout.html?act=casamento',
+    obito: '/ui/pages/Base2ViaLayout.html?act=obito',
+  };
+  const href = map[kind];
+  if (!href) return;
+  try { window.dispatchEvent(new CustomEvent('app:navigate', { detail: { href } })); } catch { window.location.href = href; }
+}
+
 function resolveSearchStore(): SearchStore | null {
   if (searchStore) return searchStore;
   if (window.api && window.api.dbSearch && window.api.dbGet) {
@@ -160,20 +186,28 @@ async function openRecordById(id: string, action: 'open' | 'print' | 'export'): 
       setStatus('Registro sem payload', true);
       return;
     }
+    const kind = resolveActFromPayload(payload);
+    const current = resolveActFromUrl();
+    if (kind && current && kind !== current) {
+      if (action === 'print' || action === 'export') {
+        localStorage.setItem('ui.pendingAction', action);
+      }
+      const queued = queuePendingPayload(payload);
+      if (!queued) {
+        setStatus('Payload pendente já existe', true);
+        return;
+      }
+      navigateToActByKind(kind);
+      return;
+    }
     const result = applyCertificatePayloadToSecondCopy(payload);
     if (!result.ok) {
       setStatus('Falha ao aplicar payload', true);
       return;
     }
-    if (result.warnings.length) {
-      setStatus(`Aplicado com ${result.warnings.length} aviso(s)`);
-    }
-    if (result.navigated) return;
-    if (action === 'print') {
-      await scheduleAction('print');
-    } else if (action === 'export') {
-      await scheduleAction('export');
-    }
+    if (result.warnings.length) setStatus(`Aplicado com ${result.warnings.length} aviso(s)`);
+    if (action === 'print') await scheduleAction('print');
+    if (action === 'export') await scheduleAction('export');
     setStatus('');
   } catch {
     setStatus('Falha ao abrir registro', true);
@@ -217,36 +251,52 @@ async function importFile(): Promise<void> {
     const payloadWrap = result.firstPayload;
     try { console.debug('[import] firstPayloadWrap:', payloadWrap); } catch {};
     if (payloadWrap && payloadWrap.payload) {
+      const kind = resolveActFromPayload(payloadWrap.payload);
+      const current = resolveActFromUrl();
+      if (kind && current && kind !== current) {
+        const queued = queuePendingPayload(payloadWrap.payload);
+        if (!queued) {
+          setStatus('Payload pendente já existe', true);
+          return;
+        }
+        setStatus('Importado. Navegando para aplicar na tela...');
+        navigateToActByKind(kind);
+        return;
+      }
       const applied = applyCertificatePayloadToSecondCopy(payloadWrap.payload);
       try { console.debug('[import] applied firstPayload result:', applied); } catch {};
       if (!applied.ok) {
         setStatus('Importado, mas falha ao aplicar na tela', true);
         return;
       }
-      if (applied.warnings.length) {
-        setStatus(`Aplicado com ${applied.warnings.length} aviso(s)`);
-      } else {
-        setStatus('Importado e aplicado na tela');
-      }
-      if (applied.navigated) return;
+      if (applied.warnings.length) setStatus(`Aplicado com ${applied.warnings.length} aviso(s)`);
+      else setStatus('Importado e aplicado na tela');
     } else {
       // Fallback: tenta aplicar diretamente o primeiro arquivo (sem depender do schema)
       const first = input.files[0];
       const fallback = await readImportFile(first);
       try { console.debug('[import] fallback readImportFile result:', fallback); } catch {};
       if (fallback.ok && fallback.payload) {
+        const kind = resolveActFromPayload(fallback.payload);
+        const current = resolveActFromUrl();
+        if (kind && current && kind !== current) {
+          const queued = queuePendingPayload(fallback.payload);
+          if (!queued) {
+            setStatus('Payload pendente já existe', true);
+            return;
+          }
+          setStatus('Importado. Navegando para aplicar na tela...');
+          navigateToActByKind(kind);
+          return;
+        }
         const applied = applyCertificatePayloadToSecondCopy(fallback.payload);
         try { console.debug('[import] applied fallback payload result:', applied); } catch {};
         if (!applied.ok) {
           setStatus('Importado, mas falha ao aplicar na tela', true);
           return;
         }
-        if (applied.warnings.length) {
-          setStatus(`Aplicado com ${applied.warnings.length} aviso(s)`);
-        } else {
-          setStatus('Importado e aplicado na tela');
-        }
-        if (applied.navigated) return;
+        if (applied.warnings.length) setStatus(`Aplicado com ${applied.warnings.length} aviso(s)`);
+        else setStatus('Importado e aplicado na tela');
       }
     }
   } catch (e) {
@@ -299,6 +349,18 @@ export function setupSearchPanel(): void {
     byId<HTMLElement>('btn-import')?.addEventListener('click', () => void importFile());
     byId<HTMLElement>('btn-export-local')?.addEventListener('click', () => exportLocalDbToJson());
     byId<HTMLElement>('btn-reset-local')?.addEventListener('click', () => resetLocalDb());
+  }
+
+  if (!(window as any).__pendingActionHandler) {
+    (window as any).__pendingActionHandler = true;
+    window.addEventListener('app:apply-complete', () => {
+      try {
+        const pending = localStorage.getItem('ui.pendingAction') as 'print' | 'export' | null;
+        if (!pending) return;
+        localStorage.removeItem('ui.pendingAction');
+        void scheduleAction(pending);
+      } catch {}
+    });
   }
 
   const root = byId<HTMLElement>('op-search') || byId<HTMLElement>('tab-search');

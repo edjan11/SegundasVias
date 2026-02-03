@@ -183,7 +183,6 @@ function navigateToAct(kind: string): void {
   const now = Date.now();
   // Debounce repeated navigation to same target to avoid multiple beforeunload dialogs
   if (__lastNavigateKind === kind && now - __lastNavigateTs < 5000) {
-    try { console.debug('[navigate] navigation to', kind, 'debounced'); } catch {}
     return;
   }
   __lastNavigateKind = kind;
@@ -208,15 +207,12 @@ export function queuePendingPayload(payload: CertificatePayload): boolean {
     // Safely access localStorage via window if available (node/jsdom tests may not have global localStorage)
     const stor = (typeof window !== 'undefined' && (window as any).localStorage) ? (window as any).localStorage : undefined;
     if (!stor) {
-      try { console.debug('[queue] localStorage unavailable in this environment'); } catch {}
       return false;
     }
 
     // Avoid queueing duplicate pending payloads
     const existing = stor.getItem(PENDING_KEY);
-    try { console.debug('[queue] existing pending raw:', existing); } catch {}
     if (existing) {
-      try { console.debug('[queue] pending payload already exists, skipping queue'); } catch {}
       return false;
     }
     stor.setItem(
@@ -225,8 +221,6 @@ export function queuePendingPayload(payload: CertificatePayload): boolean {
     );
     // Notify UI that a pending payload is queued so pages can show guidance
     try {
-      try { console.debug('[queue] window present?', !!(window && (window as any).dispatchEvent)); } catch {}
-      try { console.debug('[queue] dispatching pending event to window'); } catch {}
       const EventCtor = (window as any).CustomEvent || (window as any).Event;
       let ev: any;
       try {
@@ -238,36 +232,34 @@ export function queuePendingPayload(payload: CertificatePayload): boolean {
         ev.detail = { kind: (payload?.certidao as any)?.tipo_registro };
       }
       window.dispatchEvent(ev);
-    } catch (e) { try { console.debug('[queue] dispatch error', e); } catch {} }
+    } catch {}
     return true;
   } catch (e) {
-    try { console.debug('[queue] error when setting pending payload', e); } catch {}
     return false;
   }
 }
 
 export function consumePendingPayload(): CertificatePayload | null {
   try {
-    console.log('[consumePendingPayload] START - checking for pending payload');
+    if ((window as any).__applyInProgress) {
+      return null;
+    }
     const stor = (typeof window !== 'undefined' && (window as any).localStorage) ? (window as any).localStorage : undefined;
-    console.log('[consumePendingPayload] localStorage available?', !!stor);
     if (!stor) {
-      console.log('[consumePendingPayload] localStorage NOT available, returning null');
       return null;
     }
     const raw = stor.getItem(PENDING_KEY);
-    console.log('[consumePendingPayload] raw value from localStorage:', raw);
     if (!raw) {
-      console.log('[consumePendingPayload] NO raw value found in localStorage, returning null');
       return null;
     }
     const parsed = JSON.parse(raw);
-    console.log('[consumePendingPayload] parsed object:', parsed);
-    console.log('[consumePendingPayload] parsed.payload:', parsed?.payload);
     stor.removeItem(PENDING_KEY);
-    console.log('[consumePendingPayload] removed from localStorage, returning payload');
     const result = parsed?.payload || null;
-    console.log('[consumePendingPayload] final result:', result);
+    try {
+      if (result && typeof result === 'object') {
+        (result as any).__pendingId = parsed?.savedAt || new Date().toISOString();
+      }
+    } catch {}
     return result;
   } catch (err) {
     console.error('[consumePendingPayload] ERROR caught:', err);
@@ -364,7 +356,6 @@ function applyCartorioOficio(
       if (oficioFromMat) {
         setBoundValue('ui.cartorio_oficio', oficioFromMat, root, warnings);
         setBoundValue('certidao.cartorio_cns', cnsFromMatricula, root, warnings);
-        console.log(`[applyCartorioOficio] CNS ${cnsFromMatricula} da matrícula → Ofício ${oficioFromMat}`);
       }
     }
   }
@@ -511,32 +502,13 @@ function mapEstadoCivilValue(raw: string): string {
 function applyCasamentoToForm(payload: CertificatePayload, root: Document | HTMLElement, warnings: BindWarning[]): void {
   const cert = payload.certidao || {};
   const reg = payload.registro || {};
-  
-  console.log('🔵 [CASAMENTO] applyCasamentoToForm inicio', {
-    rootType: (root as Document).location ? 'document' : 'element',
-    hasConjuges: Array.isArray((reg as any).conjuges),
-    conjugesCount: ((reg as any).conjuges || []).length
-  });
-  
+
   applyObjectToBinds('certidao', cert as Record<string, unknown>, root, warnings);
   applyObjectToBinds('registro', reg as Record<string, unknown>, root, warnings);
 
   const conj = Array.isArray((reg as any).conjuges) ? (reg as any).conjuges : [];
   const c1 = conj[0] || {};
   const c2 = conj[1] || {};
-  
-  console.log('🔵 [CASAMENTO] Dados dos conjuges:', {
-    c1Nome: c1.nome_atual_habilitacao,
-    c1Novo: c1.novo_nome,
-    c1CPF: c1.cpf,
-    c2Nome: c2.nome_atual_habilitacao,
-    c2Novo: c2.novo_nome,
-    c2CPF: c2.cpf
-  });
-  
-  // Test if selectors find elements
-  const testElement = (root as Document).querySelector?.('input[name="nomeSolteiro"]');
-  console.log('🔵 [CASAMENTO] Teste de seletor input[name="nomeSolteiro"]:', testElement ? 'ENCONTRADO' : 'NAO ENCONTRADO');
 
   setBySelector(root, 'input[name="nomeSolteiro"]', c1.nome_atual_habilitacao || '');
   setBySelector(root, 'input[name="nomeCasado"]', c1.novo_nome || '');
@@ -641,14 +613,16 @@ export function applyCertificatePayloadToSecondCopy(
   root: Document | HTMLElement = document,
   attemptsLeft: number = 5,
 ): { ok: boolean; warnings: BindWarning[]; navigated?: boolean } {
-  console.log('[applyCertificatePayloadToSecondCopy] INICIANDO com payload:', payload);
-  console.log('[applyCertificatePayloadToSecondCopy] root:', root, 'attemptsLeft:', attemptsLeft);
+  const w = window as any;
+  w.__applyInProgressCount = (w.__applyInProgressCount || 0) + 1;
+  w.__applyInProgress = true;
+  let warnings: BindWarning[] = [];
+  try {
   
   // Mostrar loading na primeira tentativa
   if (attemptsLeft === 5) {
     try {
       showApplyLoading(attemptsLeft);
-      console.log('[applyCertificatePayloadToSecondCopy] loading mostrado - primeira tentativa');
     } catch (err) {
       try { console.error('[applyCertificatePayloadToSecondCopy] erro ao mostrar loading:', err); } catch {}
     }
@@ -656,18 +630,16 @@ export function applyCertificatePayloadToSecondCopy(
     // Atualizar progresso nas retentativas
     try {
       updateApplyLoading(attemptsLeft);
-      console.log('[applyCertificatePayloadToSecondCopy] loading atualizado - tentativa', 5 - attemptsLeft + 1);
     } catch (err) {
       try { console.error('[applyCertificatePayloadToSecondCopy] erro ao atualizar loading:', err); } catch {}
     }
   }
   
-  const warnings: BindWarning[] = [];
+  warnings = [];
   // Prefer the .app-shell element as scope when present. Narrow the type so TS knows it's an HTMLElement.
   const shell = (root as Document).querySelector?.('.app-shell') as HTMLElement | null;
   const scope: HTMLElement | Document = shell || root;
   const normalized = normalizePayload(payload, getCurrentAct());
-  try { console.debug('[apply] normalized payload:', normalized, 'currentAct:', getCurrentAct()); } catch {};
   // E2E: capture initial DOM snapshot for diagnostics if enabled
   try { (window as any).__domSnapshots = (window as any).__domSnapshots || []; (window as any).__domSnapshots.push({ label: 'apply-start', time: Date.now(), act: getCurrentAct() }); } catch {}
   if (!normalized || !normalized.certidao || !normalized.registro) {
@@ -694,19 +666,16 @@ export function applyCertificatePayloadToSecondCopy(
     if (reg.data_registro && /^\d{4}-\d{2}-\d{2}$/.test(String(reg.data_registro))) {
       const [year, month, day] = String(reg.data_registro).split('-');
       reg.data_registro = `${day}/${month}/${year}`;
-      try { console.debug('[apply] converted data_registro from ISO to BR:', reg.data_registro); } catch {}
     }
     // data_celebracao: casamento
     if (reg.data_celebracao && /^\d{4}-\d{2}-\d{2}$/.test(String(reg.data_celebracao))) {
       const [year, month, day] = String(reg.data_celebracao).split('-');
       reg.data_celebracao = `${day}/${month}/${year}`;
-      try { console.debug('[apply] converted data_celebracao from ISO to BR:', reg.data_celebracao); } catch {}
     }
     // data_falecimento: óbito
     if (reg.data_falecimento && /^\d{4}-\d{2}-\d{2}$/.test(String(reg.data_falecimento))) {
       const [year, month, day] = String(reg.data_falecimento).split('-');
       reg.data_falecimento = `${day}/${month}/${year}`;
-      try { console.debug('[apply] converted data_falecimento from ISO to BR:', reg.data_falecimento); } catch {}
     }
   } catch (err) {
     try { console.warn('[apply] error converting dates:', err); } catch {}
@@ -724,50 +693,11 @@ export function applyCertificatePayloadToSecondCopy(
   } catch {}
   const shouldAutoNavigate = attemptsLeft === 5 && kind && current && kind !== current && kind !== urlAct;
   if (shouldAutoNavigate) {
-    if (kind === 'nascimento' || kind === 'casamento' || kind === 'obito') {
-      try { console.debug('[apply] queuing pending payload and AUTO-NAVIGATING', { kind, current }); } catch {};
-      const queued = queuePendingPayload(normalized);
-      if (!queued) {
-        try { console.debug('[apply] payload already queued, skipping navigate'); } catch {};
-        return { ok: true, warnings, navigated: true };
-      }
-      // As part of diagnostics, record that navigation is requested
-      try { (window as any).__domSnapshots = (window as any).__domSnapshots || []; (window as any).__domSnapshots.push({ label: 'apply-queued-navigate', time: Date.now(), kind, current }); } catch {}
-      
-      // FIX 4: NAVEGAÇÃO AUTOMÁTICA - Agora navegamos imediatamente sem esperar usuário clicar
-      // Mapear tipo para URL correta
-      const urlMap: Record<string, string> = {
-        nascimento: '/ui/pages/Base2ViaLayout.html?act=nascimento',
-        casamento: '/ui/pages/Base2ViaLayout.html?act=casamento',
-        obito: '/ui/pages/Base2ViaLayout.html?act=obito',
-      };
-      const targetUrl = urlMap[kind];
-      if (targetUrl) {
-        try {
-          console.log('[apply] NAVEGANDO AUTOMATICAMENTE para:', targetUrl);
-          // FIX 4.1: Setar flag para BYPASS do beforeunload dialog
-          (window as any).__navigatingForImport = true;
-          console.log('[apply] __navigatingForImport = true - beforeunload será ignorado');
-
-          // NÃO esconder o loading aqui - deixar que persista enquanto navega
-          // O loading será automaticamente removido quando a página carregar
-          try {
-            console.debug('[applyCertificatePayloadToSecondCopy] navegação automática em progresso - loading persiste');
-          } catch (err) { try { console.error('[...] erro ao log:', err); } catch {} }
-
-          const path = String(window.location.pathname || '').toLowerCase();
-          const isSpaShell = path.includes('base2vialayout') || path.startsWith('/2via/');
-          if (isSpaShell) {
-            window.dispatchEvent(new CustomEvent('app:navigate', { detail: { href: targetUrl } }));
-          } else {
-            window.location.href = targetUrl;
-          }
-        } catch (navErr) {
-          try { console.error('[apply] erro ao navegar:', navErr); } catch {}
-        }
-      }
-      return { ok: true, warnings, navigated: true };
-    }
+    try { console.warn('[apply] rota divergente detectada durante apply; navegando para ato correto', { kind, current, urlAct }); } catch {}
+    try { queuePendingPayload(payload); } catch {}
+    try { hideApplyLoading(false); } catch {}
+    try { navigateToAct(kind); } catch {}
+    return { ok: true, warnings, navigated: true };
   }
 
   // If .app-shell scope doesn't contain any of the common binds, try fallbacks (document / body)
@@ -781,19 +711,14 @@ export function applyCertificatePayloadToSecondCopy(
       return false;
     }
   }
-
   let effectiveScope: HTMLElement | Document = scope;
   const anyInScope = requiredChecks.some((p) => hasBindInScope(effectiveScope, p));
   if (!anyInScope) {
-    try { console.debug('[apply] no binds found in .app-shell, trying global fallbacks'); } catch {}
     if ((root as Document) && (root as Document).querySelector && requiredChecks.some((p) => hasBindInScope(document, p))) {
       effectiveScope = document;
-      try { console.debug('[apply] using document as effectiveScope'); } catch {}
     } else if (document.body && requiredChecks.some((p) => hasBindInScope(document.body as HTMLElement, p))) {
       effectiveScope = document.body as HTMLElement;
-      try { console.debug('[apply] using document.body as effectiveScope'); } catch {}
     } else {
-      try { console.debug('[apply] no bind found in fallbacks; proceeding with original scope'); } catch {}
     }
   }
   // Clear previous values to avoid stale data when loading a smaller record.
@@ -834,7 +759,6 @@ export function applyCertificatePayloadToSecondCopy(
       // ignore
     }
   } else {
-    try { console.debug('[apply] retry attempt, skipping clearing of existing inputs to avoid wiping applied values'); } catch {}
   }
 
   if (kind === 'nascimento') {
@@ -872,24 +796,6 @@ export function applyCertificatePayloadToSecondCopy(
   } catch {
     // ignore fallback errors
   }
-
-  try { console.debug('[apply] warnings:', JSON.stringify(warnings)); } catch {}
-
-  // Log effective status of critical binds after attempted apply
-  try {
-    const probe = (path: string) => {
-      const els = findBoundElements(document, path);
-      const values = els.map((el) => {
-        try {
-          if (el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement) return (el as HTMLInputElement).value;
-          if (el instanceof HTMLSelectElement) return el.value;
-          return el.textContent || el.innerText || '';
-        } catch { return '' }
-      });
-      try { console.debug('[apply] probe', { path, count: els.length, values }); } catch {}
-    };
-    ['certidao.tipo_registro', 'registro.nome_completo', 'registro.cpf', 'registro.data_registro'].forEach(probe);
-  } catch {}
 
   // If required binds are missing (e.g., tipo_registro or core registro fields),
   // schedule a retry a few times to allow dynamic UI to render and bind elements to appear.
@@ -933,21 +839,17 @@ export function applyCertificatePayloadToSecondCopy(
           } catch { return false }
         }).slice(0, 5).map((n) => (n as HTMLElement).outerHTML.slice(0, 400));
 
-        try { console.debug('[apply][diagnose] missing path', path, { fuzzy: found, attrMatchesCount: attrMatches.length, attrMatches: attrMatches.slice(0,3) }); } catch {}
+        
       } catch (e) {
-        try { console.debug('[apply][diagnose] error while diagnosing', path, e); } catch {}
       }
     }
 
     if (needRetry) {
-      try { console.debug('[apply] missing critical binds detected, will attempt retries, attemptsLeft=', attemptsLeft - 1, 'missing=', missingPaths); } catch {}
-
       // Provide additional diagnostics for missing certidao.tipo_registro specifically
       if (missingPaths.includes('certidao.tipo_registro')) diagnoseMissingBind('certidao.tipo_registro');
 
       // Exponential backoff delay: 250ms, 500ms, 1000ms, ... based on attemptsLeft
       const delay = 250 * Math.pow(2, (5 - attemptsLeft));
-      try { console.debug('[apply] scheduling retry in', delay, 'ms'); } catch {}
 
       // record snapshot that we'll retry
       try { (window as any).__domSnapshots = (window as any).__domSnapshots || []; (window as any).__domSnapshots.push({ label: 'apply-before-retry', time: Date.now(), attemptsLeft, missing: missingPaths }); } catch {}
@@ -957,14 +859,13 @@ export function applyCertificatePayloadToSecondCopy(
         try {
           applyCertificatePayloadToSecondCopy(payload, root, attemptsLeft - 1);
         } catch (e) {
-          try { console.debug('[apply] retry failed', e); } catch {}
         }
       }, delay);
 
       // also schedule a quick, low-latency retry to catch near-immediate mounts
       if (attemptsLeft > 0) {
         setTimeout(() => {
-          try { applyCertificatePayloadToSecondCopy(payload, root, attemptsLeft - 1); } catch (e) { try { console.debug('[apply] quick retry failed', e); } catch {} }
+          try { applyCertificatePayloadToSecondCopy(payload, root, attemptsLeft - 1); } catch {}
         }, Math.min(50, delay));
       }
 
@@ -978,7 +879,7 @@ export function applyCertificatePayloadToSecondCopy(
                 if (document.querySelector(sel)) {
                   try { console.debug('[apply] observer detected selector', sel); } catch {}
                   try { observer.disconnect(); } catch {}
-                  try { applyCertificatePayloadToSecondCopy(payload, root, attemptsLeft - 1); } catch (e) { try { console.debug('[apply] observer triggered retry failed', e); } catch {} }
+                  try { applyCertificatePayloadToSecondCopy(payload, root, attemptsLeft - 1); } catch {}
                   return;
                 }
               }
@@ -1018,7 +919,7 @@ export function applyCertificatePayloadToSecondCopy(
             ensureDirect('certidao.tipo_registro', (normalized.certidao as any)?.tipo_registro || '');
 
             try { (window as any).__domSnapshots = (window as any).__domSnapshots || []; (window as any).__domSnapshots.push({ label: 'apply-final-ensure-end', time: Date.now(), attemptsLeft }); } catch {}
-          } catch (e) { try { console.debug('[apply] final ensure failed', e); } catch {} }
+          } catch {}
         }, finalDelay);
       }
 
@@ -1027,10 +928,8 @@ export function applyCertificatePayloadToSecondCopy(
         if (attemptsLeft <= 0) {
           try { 
             hideApplyLoading(false);
-            console.debug('[applyCertificatePayloadToSecondCopy] loading escondido - tentativas esgotadas');
           } catch (err) { try { console.error('[...] erro ao esconder loading:', err); } catch {} }
-          
-          try { console.debug('[apply] attempts exhausted and critical binds missing', missingPaths); } catch {}
+
           const detail = { missing: Array.from(new Set(warnings.filter((w) => w.type === 'missing-bind').map((w) => w.path))), reason: 'binding-missing' };
           (window as any).__domSnapshots = (window as any).__domSnapshots || [];
           (window as any).__domSnapshots.push({ label: 'apply-failed', time: Date.now(), detail });
@@ -1038,7 +937,13 @@ export function applyCertificatePayloadToSecondCopy(
             const EventCtor = (window as any).CustomEvent || (window as any).Event;
             const ev = new EventCtor('apply:failed', { detail });
             window.dispatchEvent(ev);
-          } catch (e) { try { console.debug('[apply] failed to dispatch apply:failed', e); } catch {} }
+          } catch {}
+
+          try {
+            const EventCtor = (window as any).CustomEvent || (window as any).Event;
+            const ev = new EventCtor('app:apply-complete', { detail: { ok: false, reason: 'attempts-exhausted' } });
+            window.dispatchEvent(ev);
+          } catch {}
 
           // Return failure so callers can react appropriately without causing navigation/reload
           return { ok: false, warnings };
@@ -1053,10 +958,28 @@ export function applyCertificatePayloadToSecondCopy(
   // ✅ Loading concluído com sucesso - aplicação completa
   try { 
     hideApplyLoading(true);
-    console.log('[applyCertificatePayloadToSecondCopy] loading escondido - aplicação completa');
   } catch (err) {
     try { console.error('[applyCertificatePayloadToSecondCopy] erro ao esconder loading:', err); } catch {}
   }
 
+  try {
+    const EventCtor = (window as any).CustomEvent || (window as any).Event;
+    const ev = new EventCtor('app:apply-complete', { detail: { ok: true } });
+    window.dispatchEvent(ev);
+  } catch {}
   return { ok: true, warnings };
+  } finally {
+    w.__applyInProgressCount = Math.max(0, (w.__applyInProgressCount || 1) - 1);
+    if (w.__applyInProgressCount === 0) {
+      w.__applyInProgress = false;
+    }
+    try {
+      const stor = (typeof window !== 'undefined' && (window as any).localStorage) ? (window as any).localStorage : undefined;
+      if (stor && stor.getItem(PENDING_KEY)) {
+        const EventCtor = (window as any).CustomEvent || (window as any).Event;
+        const ev = new EventCtor('app:pending-payload');
+        window.dispatchEvent(ev);
+      }
+    } catch {}
+  }
 }
