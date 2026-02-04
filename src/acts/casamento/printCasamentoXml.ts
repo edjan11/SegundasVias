@@ -27,6 +27,7 @@ type CasamentoJson = {
     matricula?: string;
     data_celebracao?: string;
     regime_bens?: string;
+    tipo_casamento?: string;
     data_registro?: string;
     averbacao_anotacao?: string;
     anotacoes_cadastro?: {
@@ -125,6 +126,33 @@ function normalizeRegimeBens(regime?: string): { descricao: string; codigo: stri
 
   // se não reconhece, só devolve a descrição (sem código) e NÃO sobrescreve pc_321
   return { descricao: raw, codigo: "" };
+}
+
+function normalizeTipoCasamentoText(raw?: string): string {
+  return String(raw || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toUpperCase()
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function mapTipoCasamento(raw?: string): string {
+  const v = normalizeTipoCasamentoText(raw);
+  if (!v) return '';
+  if (v === '2' || v === '3') return v;
+  if (v === 'B') return '2';
+  if (v.startsWith('B') && v.includes('AUX')) return '3';
+  if (v.includes('CIVIL')) return '2';
+  if (v.includes('RELIGIOS')) return '3';
+  return '';
+}
+
+function inferTipoCasamentoFromMatricula(matricula?: string): string {
+  const digits = onlyDigits(matricula);
+  if (digits.length < 15) return '';
+  const tipo = digits.charAt(14);
+  return tipo === '2' || tipo === '3' ? tipo : '';
 }
 
 function extractLivroFolhaTermoFromMatricula(matricula?: string): { livro: string; folha: string; termo: string } {
@@ -235,11 +263,23 @@ export function buildCasamentoXmlFromJson(templateXml: string, data: CasamentoJs
   const c1 = conj[0] || {};
   const c2 = conj[1] || {};
 
-  // pc_004: CNS do cartório -> PRIORITIZE os 6 primeiros dígitos da matrícula
-  const matricula6 = onlyDigits(r.matricula).slice(0, 6);
-  const cns = matricula6 || onlyDigits(data?.certidao?.cartorio_cns) || '';
-  if (matricula6) xml = setTag(xml, "pc_004", matricula6, 1, true, warnings);
-  else if (cns) xml = setTag(xml, "pc_004", cns, 1, true, warnings);
+  // pc_004: CNS do acervo no XML do casamento.
+  // Regra:
+  // 1) usar os 6 primeiros dígitos da matrícula, quando ela estiver válida (>=30 dígitos);
+  // 2) fallback para certidao.cartorio_cns (CNS interno/emissor).
+  const matriculaDigits = onlyDigits(r.matricula);
+  const matricula6 = matriculaDigits.length >= 30 ? matriculaDigits.slice(0, 6) : "";
+  const cnsCertidao = onlyDigits(data?.certidao?.cartorio_cns).slice(0, 6);
+  const cns = matricula6 || cnsCertidao;
+
+  if (matriculaDigits && matriculaDigits.length < 30) {
+    warnings.push(`MATRICULA_INCOMPLETA: ${matriculaDigits} (pc_004 caiu para fallback do certidao.cartorio_cns)`);
+  }
+  if (matricula6 && cnsCertidao && matricula6 !== cnsCertidao) {
+    warnings.push(`CNS_DIVERGENTE: pc_004=${matricula6} (acervo pela matrícula) vs certidao.cartorio_cns=${cnsCertidao}`);
+  }
+
+  if (cns) xml = setTag(xml, "pc_004", cns, 1, true, warnings);
   else warnings.push("FALTANTE: não foi possível determinar pc_004 (matrícula e certidao.cartorio_cns ausentes)");
 
   // pc_006: anotações/averbações (pode ser vazio)
@@ -317,6 +357,14 @@ export function buildCasamentoXmlFromJson(templateXml: string, data: CasamentoJs
   if (termo) xml = setTag(xml, "pc_301", termo, 1, true, warnings);
   if (livro) xml = setTag(xml, "pc_302", livro, 1, true, warnings);
   if (folha) xml = setTag(xml, "pc_303", folha, 1, true, warnings);
+
+  // ===== Tipo de casamento (pc_499 / pc_326) =====
+  let tipoCasamento = mapTipoCasamento(r.tipo_casamento);
+  if (!tipoCasamento) tipoCasamento = inferTipoCasamentoFromMatricula(r.matricula);
+  if (tipoCasamento) {
+    xml = setTag(xml, "pc_499", tipoCasamento, 1, true, warnings);
+    xml = setTag(xml, "pc_326", tipoCasamento === '3' ? 'B AUX' : 'B', 1, true, warnings);
+  }
 
   // ===== Datas =====
   const dc = normalizeDateBR(r.data_celebracao);

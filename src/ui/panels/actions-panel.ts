@@ -41,7 +41,7 @@ export function setupActionsPanel(options: ActionPanelOptions): void {
 
   const jsonOutput = q<HTMLTextAreaElement>('#json-output');
   const xmlOutput = q<HTMLTextAreaElement>('#xml-output');
-  const btnSaveTop = q<HTMLElement>('#btn-save');
+  const btnSaveTop = q<HTMLElement>('#btn-save[data-preview="1"]');
 
   const setStatus = (msg: string, isError?: boolean) => {
     if (typeof options.onStatus === 'function') {
@@ -232,9 +232,9 @@ export function setupActionsPanel(options: ActionPanelOptions): void {
     w._actionsShortcutsBound = true;
     window.addEventListener('keydown', (e) => {
       const key = e.key.toLowerCase();
-      if ((e.ctrlKey || e.metaKey) && key === 'p') {
+      if ((e.ctrlKey || e.metaKey) && (e.altKey || e.shiftKey) && key === 'p') {
         e.preventDefault();
-        setStatus('Use Ctrl+Alt+P para exportar PDF');
+        handleExportPdf();
         return;
       }
       if (e.ctrlKey && (e.code === 'Space' || key === ' ')) {
@@ -242,10 +242,7 @@ export function setupActionsPanel(options: ActionPanelOptions): void {
         handleExportJson(true);
         return;
       }
-      if (e.ctrlKey && (e.altKey || e.shiftKey) && key === 'p') {
-        e.preventDefault();
-        handleExportPdf();
-      }
+      // Ctrl+P fica livre para a impressao nativa (inclusive na janela de PDF).
     });
   }
 

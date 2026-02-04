@@ -1,0 +1,55 @@
+{
+  "certidao": {
+    "plataformaId": "certidao-eletronica",
+    "tipo_registro": "casamento",
+    "tipo_certidao": "Breve relato",
+    "transcricao": false,
+    "cartorio_cns": "163659",
+    "selo": "",
+    "cod_selo": "",
+    "modalidade": "eletronica",
+    "cota_emolumentos": "",
+    "cota_emolumentos_isento": false
+  },
+  "registro": {
+    "conjuges": [
+      {
+        "nome_atual_habilitacao": "João da Silva",
+        "cpf_sem_inscricao": false,
+        "cpf": "12345678900",
+        "novo_nome": "João Silva e Santos",
+        "data_nascimento": "01/01/1985",
+        "nacionalidade": "BRASILEIRA",
+        "estado_civil": "Solteiro",
+        "municipio_naturalidade": "São Paulo",
+        "uf_naturalidade": "SP",
+        "genitores": "José da Silva; Maria da Silva"
+      },
+      {
+        "nome_atual_habilitacao": "Maria dos Santos",
+        "cpf_sem_inscricao": false,
+        "cpf": "98765432100",
+        "novo_nome": "Maria Silva e Santos",
+        "data_nascimento": "02/02/1988",
+        "nacionalidade": "BRASILEIRA",
+        "estado_civil": "Solteira",
+        "municipio_naturalidade": "Rio de Janeiro",
+        "uf_naturalidade": "RJ",
+        "genitores": "Pedro dos Santos; Ana dos Santos"
+      }
+    ],
+    "matricula": "2024000123",
+    "matricula_livro": "2024",
+    "matricula_folha": "001",
+    "matricula_termo": "23",
+    "tipo_casamento": "Civil",
+    "data_celebracao": "15/06/2024",
+    "regime_bens": "Comunhão parcial de bens",
+    "data_registro": "20/06/2024",
+    "averbacao_anotacao": "",
+    "anotacoes_cadastro": {
+      "primeiro_conjuge": [],
+      "segundo_conjuge": []
+    }
+  }
+}

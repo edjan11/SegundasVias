@@ -75,16 +75,48 @@
       <div class="section-divider"></div>
 
       <div class="section">
-        <div class="subTitulo">1o nubente (noivo)</div>
+        <div class="subTitulo">Nomes dos Cônjuges</div>
         <div class="grid">
-          <div class="campo span-6">
-            <label class="label">Nome atual <span class="obrigatorio">*</span></label>
-            <input name="nomeSolteiro" data-name-validate data-required />
+          <!-- Cônjuge 1 (Noivo) -->
+          <div class="campo span-12">
+            <div class="label" style="font-weight: 600; margin-bottom: 8px;">1º Cônjuge (Noivo)</div>
           </div>
-          <div class="campo span-6">
-            <label class="label">Nome apos casamento</label>
-            <input name="nomeCasado" data-name-validate />
+          <div class="campo span-4">
+            <label class="label">Nome anterior ao casamento <span class="obrigatorio">*</span></label>
+            <input name="nomeAntesCasamentoNoivo" data-name-validate data-required />
           </div>
+          <div class="campo span-4">
+            <label class="label">Nome que passou a utilizar após o casamento</label>
+            <input name="nomeAposCasamentoNoivo" data-name-validate />
+          </div>
+          <div class="campo span-4">
+            <label class="label">Nome atual (após alterações posteriores)</label>
+            <input name="nomeAtualNoivo" data-name-validate />
+          </div>
+          
+          <!-- Cônjuge 2 (Noiva) -->
+          <div class="campo span-12">
+            <div class="label" style="font-weight: 600; margin-bottom: 8px; margin-top: 16px;">2º Cônjuge (Noiva)</div>
+          </div>
+          <div class="campo span-4">
+            <label class="label">Nome anterior ao casamento <span class="obrigatorio">*</span></label>
+            <input name="nomeAntesCasamentoNoiva" data-name-validate data-required />
+          </div>
+          <div class="campo span-4">
+            <label class="label">Nome que passou a utilizar após o casamento</label>
+            <input name="nomeAposCasamentoNoiva" data-name-validate />
+          </div>
+          <div class="campo span-4">
+            <label class="label">Nome atual (após alterações posteriores)</label>
+            <input name="nomeAtualNoiva" data-name-validate />
+          </div>
+        </div>
+      </div>
+      <div class="section-divider"></div>
+
+      <div class="section">
+        <div class="subTitulo">1o nubente (noivo) - Dados Complementares</div>
+        <div class="grid">
           <div class="campo span-6">
             <label class="label">Nome do pai</label>
             <input name="nomePaiNoivo" data-name-validate />
@@ -145,16 +177,8 @@
       <div class="section-divider"></div>
 
       <div class="section">
-        <div class="subTitulo">2o nubente (noiva)</div>
+        <div class="subTitulo">2o nubente (noiva) - Dados Complementares</div>
         <div class="grid">
-          <div class="campo span-6">
-            <label class="label">Nome atual <span class="obrigatorio">*</span></label>
-            <input name="nomeSolteira" data-name-validate data-required />
-          </div>
-          <div class="campo span-6">
-            <label class="label">Nome apos casamento</label>
-            <input name="nomeCasada" data-name-validate />
-          </div>
           <div class="campo span-6">
             <label class="label">Nome do pai</label>
             <input name="nomePaiNoiva" data-name-validate />

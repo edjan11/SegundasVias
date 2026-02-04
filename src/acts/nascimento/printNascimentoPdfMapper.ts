@@ -76,6 +76,23 @@ function joinCityUf(city: string, uf: string): string {
   return c || u;
 }
 
+function formatMatriculaForPdf(value: string): string {
+  const digits = normalizeSpace(value).replace(/\D+/g, '');
+  if (digits.length !== 32) return normalizeSpace(value);
+  const parts = [
+    digits.slice(0, 6),
+    digits.slice(6, 8),
+    digits.slice(8, 10),
+    digits.slice(10, 14),
+    digits.slice(14, 15),
+    digits.slice(15, 20),
+    digits.slice(20, 23),
+    digits.slice(23, 30),
+    digits.slice(30, 32),
+  ];
+  return `${parts[0]} ${parts[1]} ${parts[2]} ${parts[3]} ${parts[4]} ${parts[5]} ${parts[6]} ${parts[7]} - ${parts[8]}`;
+}
+
 export function buildNascimentoPdfDataFromForm(doc?: DocLike) {
   const d: DocLike = doc || document;
 
@@ -134,6 +151,12 @@ export function buildNascimentoPdfDataFromForm(doc?: DocLike) {
   const gemeo = Number(gemeosQtd || 0) > 0 ? 'SIM' : 'NAO';
 
   const cartorioCns = normalizeSpace(valueOf(d, 'input[data-bind="certidao.cartorio_cns"]'));
+  const assinanteEl = q<HTMLSelectElement>(d, 'select[name="idAssinante"]');
+  const assinanteNome = upper(
+    assinanteEl?.selectedOptions?.[0]?.textContent ||
+      assinanteEl?.value ||
+      '',
+  );
   const averbacao = upper(valueOf(d, 'textarea[data-bind="registro.averbacao_anotacao"]'));
   const anotacoes = upper(valueOf(d, 'textarea[data-bind="ui.anotacoes_raw"]'));
 
@@ -144,11 +167,14 @@ export function buildNascimentoPdfDataFromForm(doc?: DocLike) {
   return {
     certidao: {
       cartorio_cns: cartorioCns,
+      serventuario_nome: assinanteNome,
+      serventuario_cargo: assinanteNome ? 'ESCREVENTE' : '',
     },
     registro: {
       nome_completo: nome,
       cpf,
       matricula,
+      matricula_formatada: formatMatriculaForPdf(matricula),
       livro,
       folha,
       termo,

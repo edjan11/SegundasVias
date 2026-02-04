@@ -322,11 +322,11 @@ export function mapperHtmlToJsonNascimento(doc?: DocLike) {
   // ===== payload final (igual exemplos) =====
   const payload: any = {
     certidao: {
-      plataformaId: PLATAFORMA_ID,
+      plataformaId: "certidao-eletronica",
       tipo_registro: 'nascimento',
-      tipo_certidao: TIPO_CERTIDAO_PADRAO,
-      transcricao: !!transcricao,
-      cartorio_cns: cartorio_cns,
+      tipo_certidao: "Breve relato",
+      transcricao: false,
+      cartorio_cns: '163659',
       selo: '',
       cod_selo: '',
       modalidade: 'eletronica',
@@ -350,6 +350,7 @@ export function mapperHtmlToJsonNascimento(doc?: DocLike) {
       municipio_nascimento,
       uf_nascimento,
       sexo,
+      sexo_outros: sexo === 'outros' ? String(sexo_outros_raw || '').trim() : '',
       gemeos: {
         quantidade: String(gemeosQtd),
         irmao: gemeosIrmao,

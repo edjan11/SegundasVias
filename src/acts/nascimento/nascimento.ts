@@ -18,6 +18,7 @@ import { buildMatriculaBase30, calcDv2Digits, buildMatriculaFinal } from '../../
 import { setupNameCopy, setupAutoNationality } from '../../shared/productivity/index';
 import { setupAdminPanel } from '../../shared/ui/admin';
 import { buildCertidaoFileName, readOficioValue } from '../../shared/ui/file-name';
+import { setupOutputDirControls } from '../../ui/output-dirs.js';
 import { setupDraftAutosave } from '../../shared/ui/draft-autosave';
 import { applyFontFamily, applyTheme } from '../../shared/ui/theme';
 
@@ -28,11 +29,16 @@ import { buildIndexFromData } from '../../shared/city-uf-resolver';
 
 import { buildNascimentoPdfHtmlFromTemplate } from '../../prints/nascimento/printNascimentoTjTemplate';
 import { openHtmlAndSavePdf } from '../../prints/shared/openAndSavePdf';
+import { runSealFlowBeforePrint } from '../../prints/shared/printSealFlow';
 import { setupSearchPanel } from '../../ui/panels/search-panel';
 import { ensureDrawerLoaded } from '../../ui/panels/drawer-loader';
 import { setupSettingsPanelBase } from '../../ui/panels/settings-panel';
 import { applyCertificatePayloadToSecondCopy, consumePendingPayload } from '../../ui/payload/apply-payload';
 import { setupActionsPanel } from '../../ui/panels/actions-panel';
+import { autoExportJsonXml, buildDateFolderFromValue } from '../../shared/registro/auto-export';
+import { persistRegistro } from '../../shared/registro/persist';
+import { ensureRegistroContext, getRegistroContext, setRegistroContext } from '../../shared/registro/context';
+import { isAutoSaveEnabled } from '../../shared/ui/auto-save-toggle';
 
 // (mantido aqui só se você realmente usa em algum lugar desse arquivo)
 // import { escapeHtml, sanitizeHref, sanitizeCss } from '../../prints/shared/print-utils.js';
@@ -46,12 +52,8 @@ const FIXED_LAYOUT_KEY = 'ui.fixedLayout';
 const INTERNAL_ZOOM_KEY = 'ui.internalZoom';
 const FONT_FAMILY_KEY = 'ui.fontFamily';
 const THEME_KEY = 'ui.theme';
-const OUTPUT_DIR_KEY_JSON = 'outputDir.nascimento.json';
-const OUTPUT_DIR_KEY_XML = 'outputDir.nascimento.xml';
 const AUTO_JSON_KEY = 'ui.autoGenerateJson';
 const AUTO_XML_KEY = 'ui.autoGenerateXml';
-
-let outputDirs = { json: '', xml: '' };
 const FIXED_CARTORIO_CNS = '163659';
 
 // =========================
@@ -338,7 +340,37 @@ function updateOutputs(): void {
   updateDebug();
 }
 
+function shouldSkipGenericRequiredValidation(
+  input: HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement,
+): boolean {
+  if (input.classList.contains('w-date') || input.classList.contains('w-time')) return true;
+  if ((input as HTMLElement).hasAttribute('data-name-validate')) return true;
+  return false;
+}
+
+function reconcileRequiredFields(root: Document | HTMLElement = document): void {
+  const requiredFields = Array.from(
+    root.querySelectorAll<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>('[data-required]'),
+  );
+
+  requiredFields.forEach((input) => {
+    const type = (input as HTMLInputElement).type || '';
+    if (type === 'checkbox' || type === 'radio') return;
+    if (shouldSkipGenericRequiredValidation(input)) return;
+
+    const field = resolveField(input);
+    const value = String((input as HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement).value || '');
+    const state = getFieldState({ required: true, value, isValid: true });
+    applyFieldState(field as HTMLElement, state);
+
+    if (value.trim()) {
+      input.classList.remove('invalid');
+    }
+  });
+}
+
 function canProceed(): boolean {
+  reconcileRequiredFields(document);
   const invalids = collectInvalidFields(document);
   if (!invalids || invalids.length === 0) return true;
 
@@ -352,6 +384,7 @@ function canProceed(): boolean {
 }
 
 function updateActionButtons(): void {
+  reconcileRequiredFields(document);
   const invalids = collectInvalidFields(document);
   const disabled = !!(invalids && invalids.length > 0);
 
@@ -614,6 +647,21 @@ function setupValidation(): void {
 
     setupNameValidationLocal();
   }
+
+  const requiredInputs = Array.from(
+    document.querySelectorAll<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>('[data-required]'),
+  );
+  requiredInputs.forEach((input) => {
+    const type = (input as HTMLInputElement).type || '';
+    if (type === 'checkbox' || type === 'radio') return;
+    if (shouldSkipGenericRequiredValidation(input)) return;
+
+    const handler = () => reconcileRequiredFields(document);
+    input.addEventListener('input', handler);
+    input.addEventListener('change', handler);
+    input.addEventListener('blur', handler);
+    handler();
+  });
 }
 
 function setupNameValidationLocal(): void {
@@ -689,10 +737,12 @@ function setupNameValidationLocal(): void {
       const nameRes = validateName(value, { minWords: 2 });
       const result = validator.check(value);
       const token = (result?.token ? String(result.token).trim() : '') || '';
-      const suspect = !!result?.suspicious || !!nameRes.invalid;
+      const invalidByStructure = !!nameRes.invalid;
+      const suspect = !!result?.suspicious;
 
-      input.classList.toggle('invalid', suspect);
-      field?.classList.toggle('name-suspect', suspect);
+      // Suspeita do banco de nomes nao deve bloquear export/salvamento.
+      input.classList.toggle('invalid', invalidByStructure);
+      field?.classList.toggle('name-suspect', suspect || invalidByStructure);
 
       if (token) {
         input.setAttribute('data-name-token', token);
@@ -702,7 +752,7 @@ function setupNameValidationLocal(): void {
         field?.removeAttribute('data-name-token');
       }
 
-      if (nameRes.invalid) setFieldHint(field, 'Informe nome e sobrenome');
+      if (invalidByStructure) setFieldHint(field, 'Informe nome e sobrenome');
       else if (suspect) setFieldHint(field, 'Nome incorreto!');
       else clearFieldHint(field);
     };
@@ -757,6 +807,20 @@ function setupLiveOutputs(): void {
   document.addEventListener('input', handler);
   document.addEventListener('change', handler);
   updateOutputs();
+}
+
+function setupApplyCompleteRevalidation(): void {
+  const w = window as any;
+  if (w.__nascimentoApplyRevalidationBound) return;
+  w.__nascimentoApplyRevalidationBound = true;
+
+  window.addEventListener('app:apply-complete', () => {
+    window.setTimeout(() => {
+      reconcileRequiredFields(document);
+      updateOutputs();
+      updateActionButtons();
+    }, 0);
+  });
 }
 
 function setupLocalDraftAutosave(): void {
@@ -899,17 +963,13 @@ function setupSettingsPanel(): void {
   });
 }
 
-function updateOutputDirUi(): void {
-  const badge = document.getElementById('outputDirBadge') as HTMLElement | null;
-  if (badge) badge.textContent = `JSON: ${outputDirs.json || '...'} | XML: ${outputDirs.xml || '...'}`;
-  const jsonEl = document.getElementById('json-dir') as HTMLInputElement | null;
-  const xmlEl = document.getElementById('xml-dir') as HTMLInputElement | null;
-  if (jsonEl) jsonEl.value = outputDirs.json || '';
-  if (xmlEl) xmlEl.value = outputDirs.xml || '';
-}
-
 function resolveRegisteredName(data: any): string {
-  return String(data?.registro?.nome_completo || '').trim();
+  const fromPayload = String(data?.registro?.nome_completo || '').trim();
+  if (fromPayload) return fromPayload;
+  const fromDom =
+    String((document.querySelector('[data-bind="registro.nome_completo"]') as HTMLInputElement | null)?.value || '').trim();
+  if (fromDom) return fromDom;
+  return '';
 }
 
 function resolveOficioLabel(): string {
@@ -917,38 +977,103 @@ function resolveOficioLabel(): string {
   return readOficioValue(select);
 }
 
-async function pickOutputDir(kind: 'json' | 'xml'): Promise<void> {
-  if (!window.api || (kind === 'json' && !window.api.pickJsonDir) || (kind === 'xml' && !window.api.pickXmlDir)) {
-    setStatus('API indisponivel para escolher pastas', true);
-    return;
-  }
-  const dir = kind === 'json'
-    ? await window.api.pickJsonDir()
-    : await window.api.pickXmlDir();
-  if (!dir || typeof dir !== 'string') return;
-  const dirStr = String(dir);
-  if (kind === 'json') {
-    outputDirs.json = dirStr;
-    localStorage.setItem(OUTPUT_DIR_KEY_JSON, dirStr);
-  } else {
-    outputDirs.xml = dirStr;
-    localStorage.setItem(OUTPUT_DIR_KEY_XML, dirStr);
-  }
-  updateOutputDirUi();
+function setupOutputDirs(): void {
+  setupOutputDirControls({
+    getDocument: () => document,
+    onStatus: setStatus,
+  });
 }
 
-function setupOutputDirs(): void {
-  outputDirs = {
-    json: localStorage.getItem(OUTPUT_DIR_KEY_JSON) || '',
-    xml: localStorage.getItem(OUTPUT_DIR_KEY_XML) || '',
-  };
-  updateOutputDirUi();
-  (document.getElementById('pick-json') as HTMLElement | null)?.addEventListener('click', () => {
-    void pickOutputDir('json');
-  });
-  (document.getElementById('pick-xml') as HTMLElement | null)?.addEventListener('click', () => {
-    void pickOutputDir('xml');
-  });
+async function autoSaveFiles(data: any): Promise<void> {
+  if (!isAutoSaveEnabled()) return;
+  try {
+    const json = buildJsonString(data);
+    const xml = await buildXmlString(data);
+    const subdir = buildDateFolderFromValue(data?.registro?.data_registro);
+    await autoExportJsonXml(
+      {
+        json,
+        xml,
+        jsonName: buildFileNameForData('json', data),
+        xmlName: buildFileNameForData('xml', data),
+        subdir,
+        allowDownloadFallback: true,
+      },
+      {
+        saveJson: window.api?.saveJson ? ((payload) => window.api!.saveJson!(payload)) as any : undefined,
+        saveXml: window.api?.saveXml ? ((payload) => window.api!.saveXml!(payload)) as any : undefined,
+        download: (name, content, mime) => {
+          try {
+            downloadText(name, content, mime);
+            return true;
+          } catch {
+            return false;
+          }
+        },
+        onStatus: setStatus,
+      },
+    );
+  } catch (err) {
+    console.error('autoSaveFiles error', err);
+    setStatus('Falha no auto salvar', true);
+  }
+}
+
+async function persistRegistroFromForm(mode: 'include' | 'edit'): Promise<void> {
+  if (!canProceed()) return;
+  const ctx = getRegistroContext();
+  if (mode === 'edit' && !ctx.recordId) {
+    setStatus('Use “Incluir Assento” antes de salvar.', true);
+    return;
+  }
+
+  const data = buildJsonData();
+  try {
+    const res = await persistRegistro(
+      {
+        data,
+        kind: 'nascimento',
+        mode,
+        recordId: mode === 'edit' ? ctx.recordId : null,
+        sourceFormat: 'manual',
+      },
+      {
+        dbSaveDraft: window.api?.dbSaveDraft as any,
+        fallbackSave: async (payload) => {
+          localStorage.setItem('draft_certidao', JSON.stringify(payload.data || {}));
+          return { id: payload.id || `local-${Date.now()}` };
+        },
+      },
+    );
+    setRegistroContext(res.mode, res.recordId);
+    setStatus(mode === 'include' ? 'Incluido' : 'Salvo');
+    await autoSaveFiles(data);
+  } catch (err) {
+    console.error('persistRegistro failed', err);
+    setStatus('Falha ao salvar no banco', true);
+  }
+}
+
+function setupRegistroActions(): void {
+  ensureRegistroContext();
+  const btnInclude = document.getElementById('btn-incluir-assento') as HTMLElement | null;
+  const btnSave = document.getElementById('btn-save') as HTMLElement | null;
+
+  if (btnInclude && btnInclude.getAttribute('data-bound') !== '1') {
+    btnInclude.setAttribute('data-bound', '1');
+    btnInclude.addEventListener('click', (e) => {
+      e.preventDefault();
+      void persistRegistroFromForm('include');
+    });
+  }
+
+  if (btnSave && btnSave.getAttribute('data-bound') !== '1') {
+    btnSave.setAttribute('data-bound', '1');
+    btnSave.addEventListener('click', (e) => {
+      e.preventDefault();
+      void persistRegistroFromForm('edit');
+    });
+  }
 }
 
 // =========================
@@ -958,7 +1083,8 @@ function ensureDefaultCartorioCns(): void {
   try {
     const cnsInput = document.querySelector('input[data-bind="certidao.cartorio_cns"]') as HTMLInputElement | null;
     if (!cnsInput) return;
-    if (cnsInput.value) return;
+    // Skip if value already present or if marked as imported from file
+    if (cnsInput.value || cnsInput.dataset.imported === 'true') return;
 
     cnsInput.value = '163659';
     cnsInput.readOnly = true;
@@ -991,8 +1117,15 @@ function setupPrintButton(): void {
     }
 
     try {
-      openHtmlAndSavePdf(html, 'NASCIMENTO_');
-      setStatus('Gerando PDF…');
+      openHtmlAndSavePdf(html, 'NASCIMENTO_', undefined, {
+        beforePrint: async (popupWindow) =>
+          await runSealFlowBeforePrint({
+            certType: 'nascimento',
+            payload: data,
+            popupWindow,
+          }),
+      });
+      setStatus('PDF aberto. Analise e use Selagem (Ctrl+Espaco) no popup.');
     } catch {
       showToast('Permita popups para imprimir/baixar PDF');
       setStatus('Popup bloqueado', true);
@@ -1046,6 +1179,7 @@ async function setupApp(): Promise<void> {
   setupDrawerTabs();
   setupOpsPanel();
   setupOutputDirs();
+  setupRegistroActions();
   setupPrintButton();
   setupActionsPanel({
     getJson: buildJsonData,
@@ -1066,6 +1200,7 @@ async function setupApp(): Promise<void> {
 
   setupAutoNationality('input[name="nacionalidade"]', 'BRASILEIRO');
   setupLiveOutputs();
+  setupApplyCompleteRevalidation();
   setupActSelect('nascimento');
   updateActionButtons();
   setupSearchPanel();

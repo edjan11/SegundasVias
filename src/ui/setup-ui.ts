@@ -2,7 +2,7 @@
 // Apenas migraÃ§Ã£o estrutural, sem alteraÃ§Ã£o de comportamento.
 
 import { createNameValidator } from '../shared/nameValidator';
-import { clearFieldHint } from '../ui';
+import { clearFieldHint } from './field-hint';
 import { sanitizeNameForDisplay } from '../shared/stringUtils';
 import { setupSearchPanel } from './panels/search-panel';
 import { setupDrawerTabs } from './panels/drawer-tabs';

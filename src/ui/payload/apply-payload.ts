@@ -26,6 +26,7 @@ type CertificatePayload = {
 };
 
 const PENDING_KEY = 'ui.pendingPayload';
+const FIXED_CARTORIO_CNS = '163659';
 
 type ApplyErrorDetail = {
   code: 'INVALID_PAYLOAD' | 'MISSING_REQUIRED_DATA' | 'MISSING_BIND' | 'UNKNOWN';
@@ -327,51 +328,60 @@ function applyMatriculaParts(
   if (matricula) setBySelector(root, '#matricula', matricula);
 }
 
+function resolveOficioFromMatricula(reg: Record<string, unknown>): string {
+  const matricula = String((reg as any).matricula || '');
+  if (!matricula) return '';
+  const cnsFromMatricula = onlyDigits(matricula).slice(0, 6);
+  if (cnsFromMatricula.length !== 6) return '';
+  return resolveOficioFromCns(cnsFromMatricula);
+}
+
 function applyCartorioOficio(
   cert: Record<string, unknown>,
   reg: Record<string, unknown>,
   root: Document | HTMLElement,
   warnings: BindWarning[],
 ): void {
-  // Primeiro, tenta usar o valor direto do registro (se já estiver definido)
+  // Primeiro: ofício do acervo pela matrícula (prefixo CNS da matrícula), sem mexer no CNS interno.
+  const oficioFromMatricula = resolveOficioFromMatricula(reg);
+  if (oficioFromMatricula) {
+    setBoundValue('ui.cartorio_oficio', oficioFromMatricula, root, warnings);
+    return;
+  }
+
+  // Segundo, tenta usar o valor direto do registro (se já estiver definido)
   const oficioRaw = String((reg as any).cartorio_oficio || '').trim();
   if (oficioRaw) {
     setBoundValue('ui.cartorio_oficio', oficioRaw, root, warnings);
     return;
   }
 
-  // Segundo, tenta extrair CNS do campo cartorio_cns da certidão
+  // Terceiro, usa o CNS interno da certidão para resolver o ofício quando não há acervo na matrícula.
   const cartorioCnsRaw = String((cert as any).cartorio_cns || '').replace(/\D+/g, '').slice(0, 6);
   if (cartorioCnsRaw) {
     const oficio = resolveOficioFromCns(cartorioCnsRaw);
     if (oficio) {
       setBoundValue('ui.cartorio_oficio', oficio, root, warnings);
-      setBoundValue('certidao.cartorio_cns', cartorioCnsRaw, root, warnings);
-      return;
-    }
-  }
-
-  // Terceiro, tenta extrair CNS dos primeiros 6 dígitos da matrícula
-  const matricula = String((reg as any).matricula || '');
-  if (matricula) {
-    const matDigits = onlyDigits(matricula);
-    const cnsFromMatricula = matDigits.slice(0, 6);
-    if (cnsFromMatricula.length === 6) {
-      const oficioFromMat = resolveOficioFromCns(cnsFromMatricula);
-      if (oficioFromMat) {
-        setBoundValue('ui.cartorio_oficio', oficioFromMat, root, warnings);
-        setBoundValue('certidao.cartorio_cns', cnsFromMatricula, root, warnings);
-      }
     }
   }
 }
 
 function applyNascimentoToForm(payload: CertificatePayload, root: Document | HTMLElement, warnings: BindWarning[]): void {
-  const cert = payload.certidao || {};
-  const reg = payload.registro || {};
+  const certRaw = payload.certidao || {};
+  const regRaw = payload.registro || {};
+  const oficioFromMatricula = resolveOficioFromMatricula(regRaw as Record<string, unknown>);
+  const cert = {
+    ...(certRaw as Record<string, unknown>),
+    cartorio_cns: FIXED_CARTORIO_CNS,
+  };
+  const reg = {
+    ...(regRaw as Record<string, unknown>),
+    ...(oficioFromMatricula ? { cartorio_oficio: oficioFromMatricula } : {}),
+  };
 
   applyObjectToBinds('certidao', cert as Record<string, unknown>, root, warnings);
   applyObjectToBinds('registro', reg as Record<string, unknown>, root, warnings);
+  setBoundValue('certidao.cartorio_cns', FIXED_CARTORIO_CNS, root, warnings);
 
   // Mark CNS input as imported if it has a value from payload
   if (cert?.cartorio_cns) {
@@ -468,7 +478,12 @@ function applyNascimentoToForm(payload: CertificatePayload, root: Document | HTM
     if (inferred) setBoundValue('ui.local_nascimento_tipo', inferred, root, warnings);
   }
   applyMatriculaParts(reg as Record<string, unknown>, root, warnings);
-  applyCartorioOficio(cert as Record<string, unknown>, reg as Record<string, unknown>, root, warnings);
+  applyCartorioOficio(
+    { ...(cert as Record<string, unknown>), cartorio_cns: FIXED_CARTORIO_CNS },
+    reg as Record<string, unknown>,
+    root,
+    warnings,
+  );
 
   const gemeos = (reg as any).gemeos?.irmao;
   if (Array.isArray(gemeos)) {
@@ -587,8 +602,9 @@ function applyCasamentoToForm(payload: CertificatePayload, root: Document | HTML
   const c1 = conj[0] || {};
   const c2 = conj[1] || {};
 
-  setBySelector(root, 'input[name="nomeSolteiro"]', c1.nome_atual_habilitacao || '');
-  setBySelector(root, 'input[name="nomeCasado"]', c1.novo_nome || '');
+  setBySelector(root, 'input[name="nomeAntesCasamentoNoivo"]', c1.nome_atual_habilitacao || '');
+  setBySelector(root, 'input[name="nomeAposCasamentoNoivo"]', c1.nome_apos_casamento || '');
+  setBySelector(root, 'input[name="nomeAtualNoivo"]', c1.novo_nome || '');
   setBySelector(root, 'input[name="dataNascimentoNoivo"]', c1.data_nascimento || '');
   setBySelector(root, 'input[name="nacionalidadeNoivo"]', c1.nacionalidade || '');
   setBySelector(root, 'input[name="cidadeNascimentoNoivo"]', c1.municipio_naturalidade || '');
@@ -599,8 +615,9 @@ function applyCasamentoToForm(payload: CertificatePayload, root: Document | HTML
   setBySelector(root, 'input[name="nomeMaeNoivo"]', gen1.mae);
   setBySelector(root, 'select[name="estadoCivilNoivo"]', mapEstadoCivilValue(c1.estado_civil || ''));
 
-  setBySelector(root, 'input[name="nomeSolteira"]', c2.nome_atual_habilitacao || '');
-  setBySelector(root, 'input[name="nomeCasada"]', c2.novo_nome || '');
+  setBySelector(root, 'input[name="nomeAntesCasamentoNoiva"]', c2.nome_atual_habilitacao || '');
+  setBySelector(root, 'input[name="nomeAposCasamentoNoiva"]', c2.nome_apos_casamento || '');
+  setBySelector(root, 'input[name="nomeAtualNoiva"]', c2.novo_nome || '');
   setBySelector(root, 'input[name="dataNascimentoNoiva"]', c2.data_nascimento || '');
   setBySelector(root, 'input[name="nacionalidadeNoiva"]', c2.nacionalidade || '');
   setBySelector(root, 'input[name="cidadeNascimentoNoiva"]', c2.municipio_naturalidade || '');
@@ -642,7 +659,7 @@ function applyCasamentoToForm(payload: CertificatePayload, root: Document | HTML
   }
 
   // Casamento: não preencher observação com averbação (deixar vazio)
-  // setBySelector(root, 'textarea[name="observacao"]', (reg as any).averbacao_anotacao || '');
+  setBySelector(root, 'textarea[name="observacao"]', (reg as any).averbacao_anotacao || '');
   applyMatriculaParts(reg as Record<string, unknown>, root, warnings);
   applyCartorioOficio(cert as Record<string, unknown>, reg as Record<string, unknown>, root, warnings);
 }

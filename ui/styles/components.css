@@ -146,6 +146,63 @@ body.page-casamento #name-db-status {
   word-break: break-word;
 }
 
+/* Admin Module Cards - Modular navigation for admin features */
+.admin-modules {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.admin-module-card {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  padding: 15px;
+  background: #f8f9fa;
+  border: 1px solid #dee2e6;
+  border-radius: 6px;
+  text-decoration: none;
+  color: inherit;
+  transition: all 0.2s ease;
+  cursor: pointer;
+}
+
+.admin-module-card:hover {
+  background: #e9ecef;
+  border-color: #adb5bd;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  transform: translateY(-1px);
+}
+
+.admin-module-card:active {
+  transform: translateY(0);
+}
+
+.module-icon {
+  font-size: 32px;
+  min-width: 40px;
+  text-align: center;
+  user-select: none;
+}
+
+.module-info {
+  flex: 1;
+}
+
+.module-title {
+  font-weight: 600;
+  font-size: 15px;
+  margin-bottom: 4px;
+  color: #212529;
+}
+
+.module-desc {
+  font-size: 13px;
+  color: #6c757d;
+  line-height: 1.4;
+}
+
 .cardTitle {
   font-weight: 700;
   font-size: 13px;
@@ -163,6 +220,23 @@ body.page-casamento #name-db-status {
   display: flex;
   gap: 8px;
   align-items: center;
+}
+.toolbar-seal-slot {
+  display: inline-flex;
+  align-items: center;
+}
+.toolbar-right .taskbar-seal-btn {
+  padding: 3px 8px;
+  border-radius: 6px;
+  border: 1px solid #cfd8e3;
+  background: #ffffff;
+  color: #0f172a;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1.4;
+}
+.toolbar-right .taskbar-seal-btn:hover {
+  background: #f8fafc;
 }
 
 .badge {
@@ -363,11 +437,11 @@ a.type-btn {
 .campo select,
 .campo textarea {
   height: var(--h);
-  min-height: var(--ui-input-min-height);
+  min-height: 11px;
   border: 1px solid var(--border);
   border-radius: 8px;
-  padding: 6px 10px;
-  font-size: var(--ui-font-size, var(--font));
+  padding: 1px 5px;
+  font-size: 13px;
   line-height: 1.35;
   min-height: 10px;
   outline: none;
@@ -1881,7 +1955,7 @@ body.theme-dark .filiacao-split {
 
 /* espaço no input pra não bater no ícone */
 .name-field input[data-name-validate]{
-  padding-right: 34px;
+  padding-right: 5px;
 }
 
 /* estado suspeito (sem hint embaixo) */

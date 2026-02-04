@@ -3,7 +3,7 @@ import { CasamentoDomainSchema } from '../../core/schemas/CasamentoDomainSchema'
 import { ObitoDomainSchema } from '../../core/schemas/ObitoDomainSchema';
 import { detectXmlKind } from './detect-xml-kind';
 import { validatePayloadBasic } from './payload-validate';
-import { parseCasamentoXmlToPayload, parseNascimentoXmlToPayload } from '../../ui/payload/xml-to-payload';
+import { parseCasamentoXmlToPayload, parseNascimentoXmlToPayload, parseNascimentoJsonToPayload } from '../../ui/payload/xml-to-payload';
 import { stableStringify } from './stable-json';
 import { insertLocalRecords, loadLocalDb, LocalDbRecord } from './local-json-db';
 import { inferActFromPayload } from '../act-inference';
@@ -86,13 +86,14 @@ export async function parseImportFile(file: File): Promise<ImportItem[]> {
     const records = extractRecordsFromJson(parsed);
     return records.map((payload, idx) => {
       const kind = deriveKind(payload, 'nascimento');
+      const normalizedPayload = kind === 'nascimento' ? parseNascimentoJsonToPayload(payload) : payload;
       return {
         index: idx,
         sourceName: `${file.name}#${idx + 1}`,
         sourceFormat: 'json',
         kind,
-        payload,
-        raw: stableStringify(payload),
+        payload: normalizedPayload,
+        raw: stableStringify(normalizedPayload),
       };
     });
   }

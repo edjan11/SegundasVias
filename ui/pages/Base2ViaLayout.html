@@ -8,6 +8,7 @@
     <link rel="stylesheet" href="/ui/styles/layout.css" />
     <link rel="stylesheet" href="/ui/styles/components.css" />
     <link rel="stylesheet" href="/ui/styles/abnt2.css" />
+    <link rel="stylesheet" href="/ui/js/layout-router.bundle.css" />
     <style>
       /* Minimal transition for act content switch */
       #app.loading { opacity: 0.3; transition: opacity .18s ease; }
@@ -27,6 +28,9 @@
       </div>
       <div class="toolbar-right">
         <button id="btn-incluir-assento" class="btn primary compact" title="Salvar registro no banco">Incluir Assento</button>
+        <span class="toolbar-seal-slot" data-selo-slot></span>
+        <button id="btn-save" class="btn save compact" title="Salvar alteracoes no registro" disabled aria-disabled="true">Salvar</button>
+        <button id="btn-auto-save" class="btn secondary compact" aria-pressed="false" title="Auto salvar JSON/XML por dia">Auto OFF</button>
         <button id="drawer-toggle" class="btn secondary">Painel</button>
         <div style="display:inline-flex; gap:6px; align-items:center; margin-left:8px;">
           <button id="btn-json" class="btn json compact" title="Gerar JSON">JSON</button>

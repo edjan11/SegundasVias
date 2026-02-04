@@ -81,18 +81,9 @@ export function mountChatSearchShell(): HTMLElement | null {
             <button type="button" data-open-act="obito">Obito</button>
           </div>
         </div>
-        <div class="segmented taskbar-docs" data-docs-seg>
-          <button type="button" data-action="json">J</button>
-          <button type="button" data-action="xml">X</button>
-          <button type="button" data-action="pdf">P</button>
-        </div>
+        <div class="taskbar-seal-slot" data-selo-slot></div>
         <div class="taskbar-tray" data-tray>
           <!-- tray icons (optional) -->
-        </div>
-        <button class="taskbar-icon" type="button" data-tray-toggle title="Ocultar/mostrar itens">&#9650;</button>
-        <button class="taskbar-icon" type="button" data-taskbar-settings title="Config">&#9881;</button>
-        <div class="taskbar-settings" data-taskbar-settings-panel aria-hidden="true">
-          <div class="muted">Config (experimental)</div>
         </div>
       </div>
     </div>
@@ -125,21 +116,17 @@ export function mountChatSearchShell(): HTMLElement | null {
             <label>Data registro</label>
             <input class="campo" data-search-dr />
           </div>
-          <div class="field">
+          <div class="field field-mini">
             <label>Livro</label>
-            <input class="campo" data-search-livro />
+            <input class="campo campo-mini" data-search-livro />
           </div>
-          <div class="field">
+          <div class="field field-mini">
             <label>Folha</label>
-            <input class="campo" data-search-folha />
+            <input class="campo campo-mini" data-search-folha />
           </div>
-          <div class="field">
+          <div class="field field-mini">
             <label>Termo</label>
-            <input class="campo" data-search-termo />
-          </div>
-          <div class="field">
-            <label>Cartorio</label>
-            <input class="campo" data-search-cartorio />
+            <input class="campo campo-mini" data-search-termo />
           </div>
         </div>
         <div class="taskbar-search-grid" data-search-group="casamento" hidden>
@@ -167,17 +154,17 @@ export function mountChatSearchShell(): HTMLElement | null {
             <label>Tipo (civil/religioso)</label>
             <input class="campo" data-search-tipo-cas />
           </div>
-          <div class="field">
+          <div class="field field-mini">
             <label>Livro</label>
-            <input class="campo" data-search-livro />
+            <input class="campo campo-mini" data-search-livro />
           </div>
-          <div class="field">
+          <div class="field field-mini">
             <label>Folha</label>
-            <input class="campo" data-search-folha />
+            <input class="campo campo-mini" data-search-folha />
           </div>
-          <div class="field">
+          <div class="field field-mini">
             <label>Termo</label>
-            <input class="campo" data-search-termo />
+            <input class="campo campo-mini" data-search-termo />
           </div>
         </div>
         <div class="taskbar-search-grid" data-search-group="obito" hidden>
@@ -197,21 +184,17 @@ export function mountChatSearchShell(): HTMLElement | null {
             <label>Data registro</label>
             <input class="campo" data-search-dr />
           </div>
-          <div class="field">
+          <div class="field field-mini">
             <label>Livro</label>
-            <input class="campo" data-search-livro />
+            <input class="campo campo-mini" data-search-livro />
           </div>
-          <div class="field">
+          <div class="field field-mini">
             <label>Folha</label>
-            <input class="campo" data-search-folha />
+            <input class="campo campo-mini" data-search-folha />
           </div>
-          <div class="field">
+          <div class="field field-mini">
             <label>Termo</label>
-            <input class="campo" data-search-termo />
-          </div>
-          <div class="field">
-            <label>Cartorio</label>
-            <input class="campo" data-search-cartorio />
+            <input class="campo campo-mini" data-search-termo />
           </div>
         </div>
         <div class="taskbar-actions">
@@ -255,7 +238,6 @@ function bindChatSearchShell(root: HTMLElement): void {
   const tabsKey = 'ui.taskbar.tabs';
   const tabsVisibleLimit = 10;
   const tabsHistoryLimit = 100;
-  const trayKey = 'ui.taskbar.trayCollapsed';
 
   const currentWrap = root.querySelector('[data-current]') as HTMLElement | null;
   const currentLabel = root.querySelector('[data-current-label]') as HTMLElement | null;
@@ -263,7 +245,6 @@ function bindChatSearchShell(root: HTMLElement): void {
   const tabsVisible = root.querySelector('[data-tabs-visible]') as HTMLElement | null;
   const tabsHistory = root.querySelector('[data-tabs-history]') as HTMLElement | null;
   const tabsMore = root.querySelector('[data-tabs-more]') as HTMLButtonElement | null;
-  const tray = root.querySelector('[data-tray]') as HTMLElement | null;
   const panel = root.querySelector('.taskbar-panel') as HTMLElement | null;
   const results = root.querySelector('.taskbar-results') as HTMLElement | null;
   const status = root.querySelector('.taskbar-status') as HTMLElement | null;
@@ -285,7 +266,6 @@ function bindChatSearchShell(root: HTMLElement): void {
   const fieldPais = root.querySelector('[data-search-pais]') as HTMLInputElement | null;
   const fieldPaisConjuge = root.querySelector('[data-search-pais-conjuge]') as HTMLInputElement | null;
   const fieldTipoCas = root.querySelector('[data-search-tipo-cas]') as HTMLInputElement | null;
-  const fieldCartorio = root.querySelector('[data-search-cartorio]') as HTMLInputElement | null;
   const btnRun = root.querySelector('[data-search-run]') as HTMLButtonElement | null;
   const btnClear = root.querySelector('[data-search-clear]') as HTMLButtonElement | null;
 
@@ -340,6 +320,24 @@ function bindChatSearchShell(root: HTMLElement): void {
 
   const setStatus = (msg: string) => {
     if (status) status.textContent = msg;
+  };
+
+  const normalizeKind = (kind: any): 'nascimento' | 'casamento' | 'obito' => {
+    const value = String(kind || '').trim().toLowerCase();
+    if (value === 'casamento') return 'casamento';
+    if (value === 'obito') return 'obito';
+    return 'nascimento';
+  };
+
+  const inferKindFromPayload = (payload: any): 'nascimento' | 'casamento' | 'obito' => {
+    const certKind = String(payload?.certidao?.tipo_registro || '').trim().toLowerCase();
+    if (certKind === 'casamento' || certKind === 'obito' || certKind === 'nascimento') {
+      return certKind;
+    }
+    const reg = payload?.registro || {};
+    if (Array.isArray(reg?.conjuges) && reg.conjuges.length) return 'casamento';
+    if (reg?.data_obito || reg?.data_falecimento) return 'obito';
+    return 'nascimento';
   };
 
   const renderResults = (items: any[], total: number) => {
@@ -429,7 +427,10 @@ function bindChatSearchShell(root: HTMLElement): void {
             (window as any).__setRegistroContext?.('edit', r.id);
           } catch {}
           setStatus('Aplicado na tela');
-          addTab({ id: r.id, kind: r.kind || '', label: r.nome || 'SEM NOME' });
+          const tabKind = normalizeKind(
+            r.kind || rec.kind || inferKindFromPayload(rec.payload),
+          );
+          addTab({ id: r.id, kind: tabKind, label: r.nome || 'SEM NOME' });
         } catch {
           setStatus('Falha ao abrir registro');
         }
@@ -457,7 +458,6 @@ function bindChatSearchShell(root: HTMLElement): void {
       fieldPais?.value,
       fieldPaisConjuge?.value,
       fieldTipoCas?.value,
-      fieldCartorio?.value,
     ]
       .map((v) => String(v || '').trim())
       .filter(Boolean);
@@ -551,7 +551,6 @@ function bindChatSearchShell(root: HTMLElement): void {
       fieldPais,
       fieldPaisConjuge,
       fieldTipoCas,
-      fieldCartorio,
     ].forEach((f) => {
       if (f) f.value = '';
     });
@@ -576,7 +575,6 @@ function bindChatSearchShell(root: HTMLElement): void {
     fieldPais,
     fieldPaisConjuge,
     fieldTipoCas,
-    fieldCartorio,
   ].forEach((f) => {
     f?.addEventListener('keydown', (ev) => {
       if (ev.key === 'Enter') {
@@ -592,7 +590,10 @@ function bindChatSearchShell(root: HTMLElement): void {
       if (!raw) return [];
       const parsed = JSON.parse(raw);
       if (!Array.isArray(parsed)) return [];
-      return parsed;
+      return parsed.map((tab: any) => ({
+        ...tab,
+        kind: normalizeKind(tab?.kind),
+      }));
     } catch {
       return [];
     }
@@ -611,7 +612,7 @@ function bindChatSearchShell(root: HTMLElement): void {
     // Filter duplicates by (label + kind) combination
     const seen = new Set<string>();
     const dedupedForRender = tabs.filter((tab) => {
-      const key = `${tab.label || 'SEM NOME'}|${tab.kind || 'nascimento'}`;
+      const key = `${tab.label || 'SEM NOME'}|${normalizeKind(tab.kind)}`;
       if (seen.has(key)) {
         return false;
       }
@@ -619,14 +620,23 @@ function bindChatSearchShell(root: HTMLElement): void {
       return true;
     });
     
-    const visible = dedupedForRender.slice(0, tabsVisibleLimit);
-    const hidden = dedupedForRender.slice(tabsVisibleLimit, tabsHistoryLimit);
+    const bounded = dedupedForRender.slice(-tabsHistoryLimit);
+    const hiddenCount = Math.max(0, bounded.length - tabsVisibleLimit);
+    const hidden = bounded.slice(0, hiddenCount);
+    const visible = bounded.slice(hiddenCount);
 
-    const renderItem = (tab: any, container: HTMLElement) => {
+    const renderItem = (tab: any, container: HTMLElement, displayIndex: number) => {
       const el = document.createElement('button');
       el.type = 'button';
-      el.className = `taskbar-tab-item kind-${(tab.kind || 'nascimento')}`;
-      el.textContent = tab.label || 'SEM REGISTRO';
+      el.className = `taskbar-tab-item kind-${normalizeKind(tab.kind)}`;
+      const idx = document.createElement('span');
+      idx.className = 'taskbar-tab-index';
+      idx.textContent = `${displayIndex}.`;
+      const txt = document.createElement('span');
+      txt.className = 'taskbar-tab-label';
+      txt.textContent = tab.label || 'SEM REGISTRO';
+      el.appendChild(idx);
+      el.appendChild(txt);
       el.title = tab.label || '';
       el.addEventListener('click', async () => {
         try {
@@ -644,8 +654,12 @@ function bindChatSearchShell(root: HTMLElement): void {
             (window as any).__setRegistroContext?.('edit', tab.id);
           } catch {}
           setStatus('Aplicado na tela');
-          setActive(tab);
-          addTab(tab);
+          const normalizedTab = {
+            ...tab,
+            kind: normalizeKind(tab.kind || rec.kind || inferKindFromPayload(rec.payload)),
+          };
+          setActive(normalizedTab);
+          addTab(normalizedTab);
         } catch {
           setStatus('Falha ao abrir registro');
         }
@@ -653,8 +667,8 @@ function bindChatSearchShell(root: HTMLElement): void {
       container.appendChild(el);
     };
 
-    visible.forEach((tab) => renderItem(tab, tabsVisible));
-    hidden.forEach((tab) => renderItem(tab, tabsHistory));
+    hidden.forEach((tab, i) => renderItem(tab, tabsHistory, i + 1));
+    visible.forEach((tab, i) => renderItem(tab, tabsVisible, hidden.length + i + 1));
     tabsHistory.style.display = hidden.length ? 'block' : 'none';
     if (tabsMore) tabsMore.style.display = hidden.length ? 'inline-flex' : 'none';
   };
@@ -664,7 +678,7 @@ function bindChatSearchShell(root: HTMLElement): void {
     currentLabel.textContent = tab?.label || 'SEM REGISTRO';
     if (currentWrap) {
       currentWrap.classList.remove('kind-nascimento', 'kind-casamento', 'kind-obito');
-      const kind = String(tab?.kind || 'nascimento');
+      const kind = normalizeKind(tab?.kind);
       currentWrap.classList.add(`kind-${kind}`);
     }
     localStorage.setItem('ui.taskbar.activeId', tab?.id || '');
@@ -672,11 +686,12 @@ function bindChatSearchShell(root: HTMLElement): void {
 
   const addTab = (item: { id: string; kind: string; label: string }) => {
     const tabs = loadTabs();
+    const itemKind = normalizeKind(item.kind);
     
     // Check for duplicate: same label + kind but different ID
     const duplicate = tabs.find((t) => 
       t.label === (item.label || 'SEM NOME') && 
-      t.kind === (item.kind || 'nascimento') &&
+      normalizeKind(t.kind) === itemKind &&
       t.id !== item.id
     );
     
@@ -695,16 +710,16 @@ function bindChatSearchShell(root: HTMLElement): void {
     // Remove any existing entry with same ID (allows re-opening same record to move it to top)
     const dedupedById = tabs.filter((t) => t.id !== item.id);
     
-    // Add new tab to front
-    dedupedById.unshift({
+    // Add/update tab at the end, so the most recently used stays at the bottom.
+    dedupedById.push({
       id: item.id,
-      kind: item.kind || 'nascimento',
+      kind: itemKind,
       label: item.label || 'SEM NOME',
       updatedAt: Date.now(),
     });
     
-    // Keep only most recent 100
-    const filtered = dedupedById.slice(0, tabsHistoryLimit);
+    // Keep only last N entries (oldest at top, newest at bottom).
+    const filtered = dedupedById.slice(-tabsHistoryLimit);
     
     saveTabs(filtered);
     renderTabs(filtered);
@@ -714,7 +729,7 @@ function bindChatSearchShell(root: HTMLElement): void {
   const bootstrapTabs = loadTabs();
   renderTabs(bootstrapTabs);
   if (bootstrapTabs.length) {
-    setActive(bootstrapTabs[0]);
+    setActive(bootstrapTabs[bootstrapTabs.length - 1]);
   }
 
   // Tabs dropdown toggle
@@ -734,21 +749,6 @@ function bindChatSearchShell(root: HTMLElement): void {
     if (tabsDropdown) tabsDropdown.setAttribute('data-expanded', next ? '1' : '0');
     if (tabsHistory) tabsHistory.style.display = next ? 'block' : 'none';
     if (tabsMore) tabsMore.textContent = next ? 'Ver menos' : 'Ver mais';
-  });
-
-  // Tray collapse toggle
-  const applyTray = (collapsed: boolean) => {
-    if (!tray) return;
-    tray.style.display = collapsed ? 'none' : 'inline-flex';
-    localStorage.setItem(trayKey, collapsed ? 'true' : 'false');
-  };
-  const trayCollapsed = localStorage.getItem(trayKey) === 'true';
-  applyTray(trayCollapsed);
-  root.querySelectorAll('[data-tray-toggle]').forEach((btn) => {
-    btn.addEventListener('click', () => {
-      const collapsed = tray?.style.display === 'none';
-      applyTray(!collapsed);
-    });
   });
 
   // include toggle
@@ -771,17 +771,6 @@ function bindChatSearchShell(root: HTMLElement): void {
       }
     });
   });
-
-  // taskbar settings
-  const settingsBtn = root.querySelector('[data-taskbar-settings]') as HTMLElement | null;
-  const settingsPanel = root.querySelector('[data-taskbar-settings-panel]') as HTMLElement | null;
-  if (settingsBtn && settingsPanel) {
-    settingsBtn.addEventListener('click', () => {
-      const open = settingsPanel.getAttribute('data-open') === '1';
-      settingsPanel.setAttribute('data-open', open ? '0' : '1');
-      settingsPanel.setAttribute('aria-hidden', open ? 'true' : 'false');
-    });
-  }
 
   // open act buttons (taskbar segmented / include / dropdown)
   root.querySelectorAll('[data-open-act]').forEach((btn) => {

@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Administração de Escreventes - TJ/SE</title>
+  
+  <!-- Estilos base do sistema -->
+  <link rel="stylesheet" href="../../ui.css">
+  
+  <!-- Estilos específicos do painel -->
+  <link rel="stylesheet" href="../../ui/panels/admin-escreventes-panel.css">
+</head>
+<body>
+  <div class="layout-container">
+    <!-- Cabeçalho -->
+    <header class="app-header">
+      <div class="header-content">
+        <h1 class="app-title">
+          <span class="logo">📋</span>
+          Sistema de Segundas Vias - TJ/SE
+        </h1>
+        <div class="header-actions">
+          <button id="btn-back-home" class="btn-secondary">
+            ← Voltar ao Início
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <!-- Navegação -->
+    <nav class="app-nav">
+      <ul class="nav-list">
+        <li><a href="../index.html">Início</a></li>
+        <li><a href="./admin-selos.html">Selos</a></li>
+        <li class="active"><a href="./admin-escreventes.html">Escreventes</a></li>
+        <li><a href="./admin-cartorios.html">Cartórios</a></li>
+      </ul>
+    </nav>
+
+    <!-- Conteúdo Principal -->
+    <main class="app-main">
+      <div id="admin-escreventes-panel"></div>
+    </main>
+
+    <!-- Rodapé -->
+    <footer class="app-footer">
+      <p>Sistema de Segundas Vias - Tribunal de Justiça de Sergipe © 2025</p>
+      <p class="version">v1.0.0</p>
+    </footer>
+  </div>
+
+  <!-- Scripts -->
+  <script type="module">
+    import { initAdminEscreventes } from '../../ui/panels/admin-escreventes-panel.js';
+    
+    // Inicializa painel quando DOM estiver pronto
+    document.addEventListener('DOMContentLoaded', async () => {
+      try {
+        await initAdminEscreventes();
+        console.log('[AdminEscreventes] Painel inicializado com sucesso');
+      } catch (error) {
+        console.error('[AdminEscreventes] Erro ao inicializar:', error);
+        alert('Erro ao carregar painel de administração. Verifique o console para mais detalhes.');
+      }
+    });
+
+    // Botão voltar ao início
+    document.getElementById('btn-back-home')?.addEventListener('click', () => {
+      window.location.href = '../index.html';
+    });
+  </script>
+</body>
+</html>

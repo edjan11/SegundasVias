@@ -3,7 +3,12 @@ import { escapeHtml, sanitizeHref } from '../shared/print-utils';
 type AnyJson = any;
 
 async function fetchTemplate(href: string): Promise<string> {
-  const res = await fetch(href, { cache: 'no-store' });
+      // Ensure we use relative paths or window.location.origin in browser context
+      let resolvedHref = href;
+      if (typeof window !== 'undefined' && resolvedHref.startsWith('/')) {
+        resolvedHref = window.location.origin + resolvedHref;
+      }
+      const res = await fetch(resolvedHref, { cache: 'no-store' });
   if (!res.ok) throw new Error(`Template fetch failed: ${href}`);
   return await res.text();
 }
@@ -34,6 +39,11 @@ function fallback(value: string, def: string): string {
 
 function replaceAll(raw: string, token: string, value: string): string {
   return raw.split(token).join(value);
+}
+
+function normalizeUf(value: string): string {
+  const uf = normalizeSpace(value).toUpperCase();
+  return /^[A-Z]{2}$/.test(uf) ? uf : '';
 }
 
 function parseDateParts(value: string): { dd: string; mm: string; yyyy: string } | null {
@@ -98,7 +108,10 @@ export async function buildCasamentoPdfHtmlFromTemplate(
     '{{CONJUGE1_MES}}': fallback(parseDateParts(c1.data_nascimento || '')?.mm || '', 'NAO CONSTA'),
     '{{CONJUGE1_ANO}}': fallback(parseDateParts(c1.data_nascimento || '')?.yyyy || '', 'NAO CONSTA'),
     '{{CONJUGE1_NAT}}': fallback(c1.municipio_naturalidade ?? '', 'NAO CONSTA'),
-    '{{CONJUGE1_UF}}': fallback(c1.uf_naturalidade ?? '', 'N/C'),
+    '{{CONJUGE1_UF}}': fallback(
+      normalizeUf(c1.uf_naturalidade ?? c1.uf_nascimento ?? ''),
+      'N/C',
+    ),
     '{{CONJUGE1_GENITORES}}': fallback(c1.genitores ?? '', 'NAO CONSTA'),
 
     '{{CONJUGE2_NOME}}': fallback(c2.nome_atual_habilitacao ?? '', 'NAO CONSTA'),
@@ -108,7 +121,10 @@ export async function buildCasamentoPdfHtmlFromTemplate(
     '{{CONJUGE2_MES}}': fallback(parseDateParts(c2.data_nascimento || '')?.mm || '', 'NAO CONSTA'),
     '{{CONJUGE2_ANO}}': fallback(parseDateParts(c2.data_nascimento || '')?.yyyy || '', 'NAO CONSTA'),
     '{{CONJUGE2_NAT}}': fallback(c2.municipio_naturalidade ?? '', 'NAO CONSTA'),
-    '{{CONJUGE2_UF}}': fallback(c2.uf_naturalidade ?? '', 'N/C'),
+    '{{CONJUGE2_UF}}': fallback(
+      normalizeUf(c2.uf_naturalidade ?? c2.uf_nascimento ?? ''),
+      'N/C',
+    ),
     '{{CONJUGE2_GENITORES}}': fallback(c2.genitores ?? '', 'NAO CONSTA'),
 
     '{{DATA_CELEBRACAO_EXTENSO}}': fallback(dataCelebracaoExtenso, 'NAO CONSTA'),

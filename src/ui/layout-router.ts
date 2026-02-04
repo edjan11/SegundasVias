@@ -2,6 +2,8 @@ import { installAbnt2Guards } from '../shared/ui/abnt2';
 import { applyCertificatePayloadToSecondCopy, consumePendingPayload, queuePendingPayload } from './payload/apply-payload';
 import { exposeRegistroContextToWindow, ensureRegistroContext } from '../shared/registro/context';
 import { setupAutoSaveToggle } from '../shared/ui/auto-save-toggle';
+import { createSeloPanel } from '../seal/seloPanel';
+import { setupDrawerTabs } from './panels/drawer-tabs';
 
 const ROUTES: Record<string, { id: string; loader: () => Promise<{ mount: (el: HTMLElement) => Promise<void> | void; unmount?: () => void }> }> = {
   nascimento: { id: 'nascimento', loader: () => import('./routes/nascimento') },
@@ -15,18 +17,54 @@ let lastNavigateHref: { href: string; ts: number } | null = null;
 type ActSwitchIntent = { act: string; expiresAt: number; source: string } | null;
 let actSwitchIntent: ActSwitchIntent = null;
 
+const ROUTER_BUNDLE_CSS_ID = 'layout-router-bundle-css';
+const ACT_BUNDLE_CSS_ID = 'act-bundle-css';
+
+function ensureBundleCss(id: string, href: string): void {
+  try {
+    const head = document.head;
+    if (!head) return;
+    const absoluteHref = new URL(href, window.location.origin).toString();
+    let link = document.getElementById(id) as HTMLLinkElement | null;
+    if (!link) {
+      link = document.createElement('link');
+      link.id = id;
+      link.rel = 'stylesheet';
+      link.href = absoluteHref;
+      head.appendChild(link);
+      return;
+    }
+    if (link.href !== absoluteHref) {
+      link.href = absoluteHref;
+    }
+  } catch {
+    // ignore stylesheet sync failures
+  }
+}
+
 function allowActSwitch(act: string, source: string, ttlMs = 1000): void {
   actSwitchIntent = { act, source, expiresAt: Date.now() + ttlMs };
 }
 
 // init shared UI state
 try {
+  ensureBundleCss(ROUTER_BUNDLE_CSS_ID, '/ui/js/layout-router.bundle.css');
   exposeRegistroContextToWindow();
   ensureRegistroContext();
   setupAutoSaveToggle();
-  window.addEventListener('drawer:loaded', () => setupAutoSaveToggle());
+  try { setupDrawerTabs(); } catch { /* ignore */ }
+  window.addEventListener('drawer:loaded', () => {
+    try { setupAutoSaveToggle(); } catch { /* ignore */ }
+    try { setupDrawerTabs(); } catch { /* ignore */ }
+  });
+  
+  // Initialize Seal Panel (floating sidebar)
+  console.log('[layout-router] Initializing SeloPanel...');
+  const seloPanel = createSeloPanel({ position: 'right', width: 400 });
+  (window as any).__seloPanel = seloPanel; // Expose for debugging/access
+  console.log('[layout-router] SeloPanel initialized:', seloPanel);
 } catch (e) {
-  // ignore
+  console.error('[layout-router] Error initializing SeloPanel:', e);
 }
 
 function consumeActSwitchIntent(act: string): boolean {
@@ -95,6 +133,7 @@ async function importActBundle(act: string): Promise<any> {
 
 async function navigate(act: string, opts: { push?: boolean } = {}): Promise<void> {
   const normalizedAct = normalizeAct(act);
+  ensureBundleCss(ACT_BUNDLE_CSS_ID, `/ui/js/${normalizedAct}.bundle.css`);
 
   const currentFromUrl = resolveActFromLocation();
   const hasIntent = consumeActSwitchIntent(normalizedAct);

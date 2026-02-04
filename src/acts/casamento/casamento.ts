@@ -20,6 +20,7 @@ import {
 import { setupAdminPanel } from '../../shared/ui/admin';
 import { setupActSelect, disableBrowserAutofill, setupDrawerTabs, setupOpsPanel } from '../../ui/setup-ui';
 import { buildCertidaoFileName, readOficioValue } from '../../shared/ui/file-name';
+import { setupOutputDirControls } from '../../ui/output-dirs.js';
 import { setupDraftAutosave } from '../../shared/ui/draft-autosave';
 import { attachCityIntegrationToAll } from '../../ui/city-uf-ui';
 import { createNameValidator } from '../../shared/nameValidator';
@@ -29,6 +30,7 @@ import { validateMatriculaType } from '../../shared/matricula/type';
 import { buildCasamentoXmlFromJson } from './printCasamentoXml';
 import { buildCasamentoPdfHtmlFromTemplate } from '../../prints/casamento/printCasamentoTjTemplate';
 import { openHtmlAndSavePdf } from '../../prints/shared/openAndSavePdf';
+import { runSealFlowBeforePrint } from '../../prints/shared/printSealFlow';
 import { validateCasamentoTipo } from '../../shared/validators/casamento';
 import { setupSearchPanel } from '../../ui/panels/search-panel';
 import { ensureDrawerLoaded } from '../../ui/panels/drawer-loader';
@@ -36,12 +38,14 @@ import { setupSettingsPanelBase } from '../../ui/panels/settings-panel';
 import { applyCertificatePayloadToSecondCopy, consumePendingPayload } from '../../ui/payload/apply-payload';
 import { setupActionsPanel } from '../../ui/panels/actions-panel';
 import { applyFontFamily, applyTheme } from '../../shared/ui/theme';
+import { autoExportJsonXml, buildDateFolderFromValue } from '../../shared/registro/auto-export';
+import { persistRegistro } from '../../shared/registro/persist';
+import { ensureRegistroContext, getRegistroContext, setRegistroContext } from '../../shared/registro/context';
+import { isAutoSaveEnabled } from '../../shared/ui/auto-save-toggle';
 
 const NAME_MODE_KEY = 'ui.nameValidationMode';
 let nameValidationMode = localStorage.getItem(NAME_MODE_KEY) || 'blur';
 const PANEL_INLINE_KEY = 'ui.panelInline';
-const OUTPUT_DIR_KEY_JSON = 'outputDir.casamento.json';
-const OUTPUT_DIR_KEY_XML = 'outputDir.casamento.xml';
 const FIXED_CARTORIO_CNS = '163659';
 const FIXED_LAYOUT_KEY = 'ui.fixedLayout';
 const INTERNAL_ZOOM_KEY = 'ui.internalZoom';
@@ -50,7 +54,6 @@ const THEME_KEY = 'ui.theme';
 const AUTO_JSON_KEY = 'ui.autoGenerateJson';
 const AUTO_XML_KEY = 'ui.autoGenerateXml';
 
-let outputDirs = { json: '', xml: '' };
 const TEMPLATE_CACHE = new Map<string, string>();
 let templatePromise: Promise<string | null> | null = null;
 
@@ -402,47 +405,102 @@ function setupConfigPanel(): void {
   setupAdminPanel();
 }
 
-function updateOutputDirUi(): void {
-  const badge = document.getElementById('outputDirBadge') as HTMLElement | null;
-  if (badge) badge.textContent = `JSON: ${outputDirs.json || '...'} | XML: ${outputDirs.xml || '...'}`;
-  const jsonEl = document.getElementById('json-dir') as HTMLInputElement | null;
-  const xmlEl = document.getElementById('xml-dir') as HTMLInputElement | null;
-  if (jsonEl) jsonEl.value = outputDirs.json || '';
-  if (xmlEl) xmlEl.value = outputDirs.xml || '';
+function setupOutputDirs(): void {
+  setupOutputDirControls({
+    getDocument: () => document,
+    onStatus: setStatus,
+  });
 }
 
-async function pickOutputDir(kind: 'json' | 'xml'): Promise<void> {
-  if (!window.api || (kind === 'json' && !window.api.pickJsonDir) || (kind === 'xml' && !window.api.pickXmlDir)) {
-    setStatus('API indisponivel para escolher pastas', true);
+async function autoSaveFiles(data: any): Promise<void> {
+  if (!isAutoSaveEnabled()) return;
+  try {
+    const json = buildJsonString(data);
+    const xml = await buildXmlString(data);
+    const subdir = buildDateFolderFromValue(data?.registro?.data_registro);
+    await autoExportJsonXml(
+      {
+        json,
+        xml,
+        jsonName: buildFileName('json', data),
+        xmlName: buildFileName('xml', data),
+        subdir,
+        allowDownloadFallback: true,
+      },
+      {
+        saveJson: window.api?.saveJson ? ((payload) => window.api!.saveJson!(payload)) as any : undefined,
+        saveXml: window.api?.saveXml ? ((payload) => window.api!.saveXml!(payload)) as any : undefined,
+        download: (name, content, mime) => {
+          try {
+            return downloadFile(name, content, mime);
+          } catch {
+            return false;
+          }
+        },
+        onStatus: setStatus,
+      },
+    );
+  } catch (err) {
+    console.error('autoSaveFiles error', err);
+    setStatus('Falha no auto salvar', true);
+  }
+}
+
+async function persistRegistroFromForm(mode: 'include' | 'edit'): Promise<void> {
+  if (!canProceed()) return;
+  const ctx = getRegistroContext();
+  if (mode === 'edit' && !ctx.recordId) {
+    setStatus('Use “Incluir Assento” antes de salvar.', true);
     return;
   }
-  const dir = kind === 'json'
-    ? await window.api.pickJsonDir()
-    : await window.api.pickXmlDir();
-  if (!dir || typeof dir !== 'string') return;
-  const dirStr = String(dir);
-  if (kind === 'json') {
-    outputDirs.json = dirStr;
-    localStorage.setItem(OUTPUT_DIR_KEY_JSON, dirStr);
-  } else {
-    outputDirs.xml = dirStr;
-    localStorage.setItem(OUTPUT_DIR_KEY_XML, dirStr);
+
+  const data = buildJsonData();
+  try {
+    const res = await persistRegistro(
+      {
+        data,
+        kind: 'casamento',
+        mode,
+        recordId: mode === 'edit' ? ctx.recordId : null,
+        sourceFormat: 'manual',
+      },
+      {
+        dbSaveDraft: window.api?.dbSaveDraft as any,
+        fallbackSave: (async (payload) => {
+          localStorage.setItem('draft_certidao', JSON.stringify(payload.data || {}));
+          return { id: payload.id || `local-${Date.now()}` };
+        }) as any,
+      },
+    );
+    setRegistroContext(res.mode, res.recordId);
+    setStatus(mode === 'include' ? 'Incluido' : 'Salvo');
+    await autoSaveFiles(data);
+  } catch (err) {
+    console.error('persistRegistro failed', err);
+    setStatus('Falha ao salvar no banco', true);
   }
-  updateOutputDirUi();
 }
 
-function setupOutputDirs(): void {
-  outputDirs = {
-    json: localStorage.getItem(OUTPUT_DIR_KEY_JSON) || '',
-    xml: localStorage.getItem(OUTPUT_DIR_KEY_XML) || '',
-  };
-  updateOutputDirUi();
-  document.getElementById('pick-json')?.addEventListener('click', () => {
-    void pickOutputDir('json');
-  });
-  document.getElementById('pick-xml')?.addEventListener('click', () => {
-    void pickOutputDir('xml');
-  });
+function setupRegistroActions(): void {
+  ensureRegistroContext();
+  const btnInclude = document.getElementById('btn-incluir-assento') as HTMLElement | null;
+  const btnSave = document.getElementById('btn-save') as HTMLElement | null;
+
+  if (btnInclude && btnInclude.getAttribute('data-bound') !== '1') {
+    btnInclude.setAttribute('data-bound', '1');
+    btnInclude.addEventListener('click', (e) => {
+      e.preventDefault();
+      void persistRegistroFromForm('include');
+    });
+  }
+
+  if (btnSave && btnSave.getAttribute('data-bound') !== '1') {
+    btnSave.setAttribute('data-bound', '1');
+    btnSave.addEventListener('click', (e) => {
+      e.preventDefault();
+      void persistRegistroFromForm('edit');
+    });
+  }
 }
 
 function setFieldHint(field: Element | null, message?: string): void {
@@ -734,8 +792,13 @@ function setupMatriculaTypeValidation(): void {
 }
 
 function setupCasamentoNameAutofill(): void {
-  setupAutofillWithDirty('input[name="nomeSolteiro"]', 'input[name="nomeCasado"]');
-  setupAutofillWithDirty('input[name="nomeSolteira"]', 'input[name="nomeCasada"]');
+  // Cônjuge 1 (Noivo) - cascata de 3 campos
+  setupAutofillWithDirty('input[name="nomeAntesCasamentoNoivo"]', 'input[name="nomeAposCasamentoNoivo"]');
+  setupAutofillWithDirty('input[name="nomeAposCasamentoNoivo"]', 'input[name="nomeAtualNoivo"]');
+  
+  // Cônjuge 2 (Noiva) - cascata de 3 campos
+  setupAutofillWithDirty('input[name="nomeAntesCasamentoNoiva"]', 'input[name="nomeAposCasamentoNoiva"]');
+  setupAutofillWithDirty('input[name="nomeAposCasamentoNoiva"]', 'input[name="nomeAtualNoiva"]');
 }
 
 function setupCasamentoNationalityDefaults(): void {
@@ -884,6 +947,7 @@ async function setup(): Promise<void> {
   setupNameValidation();
   setupConfigPanel();
   setupOutputDirs();
+  setupRegistroActions();
   // drawer setup intentionally skipped; drawer controls handled elsewhere
   setupSettingsPanelCasamento();
   setupDrawerTabs();
@@ -953,8 +1017,15 @@ function setupPrintButton(): void {
     }
 
     try {
-      openHtmlAndSavePdf(html, 'CASAMENTO_', popup);
-      setStatus('Gerando PDF…');
+      openHtmlAndSavePdf(html, 'CASAMENTO_', popup, {
+        beforePrint: async (popupWindow) =>
+          await runSealFlowBeforePrint({
+            certType: 'casamento',
+            payload: data,
+            popupWindow,
+          }),
+      });
+      setStatus('PDF aberto. Analise e use Selagem (Ctrl+Espaco) no popup.');
     } catch {
       try { popup.close(); } catch { /* ignore */ }
       showToast('Permita popups para imprimir/baixar PDF');

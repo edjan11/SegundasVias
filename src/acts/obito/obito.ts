@@ -21,13 +21,20 @@ import { setupDraftAutosave } from '../../shared/ui/draft-autosave';
 import { attachCityIntegrationToAll } from '../../ui/city-uf-ui';
 import { createNameValidator } from '../../shared/nameValidator';
 import { buildObitoPrintHtml } from './printTemplate';
+import { openHtmlAndSavePdf } from '../../prints/shared/openAndSavePdf';
+import { runSealFlowBeforePrint } from '../../prints/shared/printSealFlow';
 import { setupSearchPanel } from '../../ui/panels/search-panel';
 import { ensureDrawerLoaded } from '../../ui/panels/drawer-loader';
+import { setupOutputDirControls } from '../../ui/output-dirs.js';
 import { validateMatriculaType } from '../../shared/matricula/type';
 import { setupSettingsPanelBase } from '../../ui/panels/settings-panel';
 import { applyCertificatePayloadToSecondCopy, consumePendingPayload } from '../../ui/payload/apply-payload';
 import { applyFontFamily, applyTheme } from '../../shared/ui/theme';
 import { setupActionsPanel } from '../../ui/panels/actions-panel';
+import { autoExportJsonXml, buildDateFolderFromValue } from '../../shared/registro/auto-export';
+import { persistRegistro } from '../../shared/registro/persist';
+import { ensureRegistroContext, getRegistroContext, setRegistroContext } from '../../shared/registro/context';
+import { isAutoSaveEnabled } from '../../shared/ui/auto-save-toggle';
 
 const NAME_MODE_KEY = 'ui.nameValidationMode';
 let nameValidationMode = localStorage.getItem(NAME_MODE_KEY) || 'blur';
@@ -35,8 +42,6 @@ const DRAWER_POS_KEY = 'ui.drawerPosition';
 const ENABLE_CPF_KEY = 'ui.enableCpfValidation';
 const ENABLE_NAME_KEY = 'ui.enableNameValidation';
 const PANEL_INLINE_KEY = 'ui.panelInline';
-const OUTPUT_DIR_KEY_JSON = 'outputDir.obito.json';
-const OUTPUT_DIR_KEY_XML = 'outputDir.obito.xml';
 const FIXED_CARTORIO_CNS = '110742';
 const FIXED_LAYOUT_KEY = 'ui.fixedLayout';
 const INTERNAL_ZOOM_KEY = 'ui.internalZoom';
@@ -45,7 +50,6 @@ const THEME_KEY = 'ui.theme';
 const AUTO_JSON_KEY = 'ui.autoGenerateJson';
 const AUTO_XML_KEY = 'ui.autoGenerateXml';
 
-let outputDirs = { json: '', xml: '' };
 
 function applyDrawerPosition(pos) {
   const drawer = document.getElementById('drawer') as HTMLElement | null;
@@ -314,16 +318,19 @@ function openPrintPreview() {
   });
   const out = document.getElementById('print-html') as HTMLElement | null;
   if (out) (out as any).value = html;
-  const win = window.open('', '_blank');
-  if (!win) {
+  try {
+    openHtmlAndSavePdf(html, 'OBITO_', undefined, {
+      beforePrint: async (popupWindow) =>
+        await runSealFlowBeforePrint({
+          certType: 'obito',
+          payload: data,
+          popupWindow,
+        }),
+    });
+    setStatus('PDF aberto. Analise e use Selagem (Ctrl+Espaco) no popup.');
+  } catch {
     setStatus('Popup bloqueado. Libere para imprimir.', true);
-    return;
   }
-  win.document.open();
-  win.document.write(html);
-  win.document.close();
-  win.focus();
-  setTimeout(() => win.print(), 300);
 }
 
 function showToast(message) {
@@ -360,47 +367,102 @@ function setupConfigPanel() {
   });
 }
 
-function updateOutputDirUi() {
-  const badge = document.getElementById('outputDirBadge') as HTMLElement | null;
-  if (badge) badge.textContent = `JSON: ${outputDirs.json || '...'} | XML: ${outputDirs.xml || '...'}`;
-  const jsonEl = document.getElementById('json-dir') as HTMLInputElement | null;
-  const xmlEl = document.getElementById('xml-dir') as HTMLInputElement | null;
-  if (jsonEl) (jsonEl as any).value = outputDirs.json || '';
-  if (xmlEl) (xmlEl as any).value = outputDirs.xml || '';
+function setupOutputDirs() {
+  setupOutputDirControls({
+    getDocument: () => document,
+    onStatus: setStatus,
+  });
 }
 
-async function pickOutputDir(kind: 'json' | 'xml') {
-  if (!window.api || (kind === 'json' && !window.api.pickJsonDir) || (kind === 'xml' && !window.api.pickXmlDir)) {
-    setStatus('API indisponivel para escolher pastas', true);
+async function autoSaveFiles(data: any): Promise<void> {
+  if (!isAutoSaveEnabled()) return;
+  try {
+    const json = buildJsonString(data);
+    const xml = await buildXmlString(data);
+    const subdir = buildDateFolderFromValue(data?.registro?.data_registro);
+    await autoExportJsonXml(
+      {
+        json,
+        xml,
+        jsonName: buildFileName(data, 'json'),
+        xmlName: buildFileName(data, 'xml'),
+        subdir,
+        allowDownloadFallback: true,
+      },
+      {
+        saveJson: window.api?.saveJson ? ((payload) => window.api!.saveJson!(payload)) as any : undefined,
+        saveXml: window.api?.saveXml ? ((payload) => window.api!.saveXml!(payload)) as any : undefined,
+        download: (name, content, mime) => {
+          try {
+            return downloadFile(name, content, mime);
+          } catch {
+            return false;
+          }
+        },
+        onStatus: setStatus,
+      },
+    );
+  } catch (err) {
+    console.error('autoSaveFiles error', err);
+    setStatus('Falha no auto salvar', true);
+  }
+}
+
+async function persistRegistroFromForm(mode: 'include' | 'edit'): Promise<void> {
+  if (!canProceed()) return;
+  const ctx = getRegistroContext();
+  if (mode === 'edit' && !ctx.recordId) {
+    setStatus('Use “Incluir Assento” antes de salvar.', true);
     return;
   }
-  const dir = kind === 'json'
-    ? await window.api.pickJsonDir()
-    : await window.api.pickXmlDir();
-  if (!dir || typeof dir !== 'string') return;
-  const dirStr = String(dir);
-  if (kind === 'json') {
-    outputDirs.json = dirStr;
-    localStorage.setItem(OUTPUT_DIR_KEY_JSON, dirStr);
-  } else {
-    outputDirs.xml = dirStr;
-    localStorage.setItem(OUTPUT_DIR_KEY_XML, dirStr);
+
+  const data = buildJsonData();
+  try {
+    const res = await persistRegistro(
+      {
+        data,
+        kind: 'obito',
+        mode,
+        recordId: mode === 'edit' ? ctx.recordId : null,
+        sourceFormat: 'manual',
+      },
+      {
+        dbSaveDraft: window.api?.dbSaveDraft as any,
+        fallbackSave: (async (payload) => {
+          localStorage.setItem('draft_certidao', JSON.stringify(payload.data || {}));
+          return { id: payload.id || `local-${Date.now()}` };
+        }) as any,
+      },
+    );
+    setRegistroContext(res.mode, res.recordId);
+    setStatus(mode === 'include' ? 'Incluido' : 'Salvo');
+    await autoSaveFiles(data);
+  } catch (err) {
+    console.error('persistRegistro failed', err);
+    setStatus('Falha ao salvar no banco', true);
   }
-  updateOutputDirUi();
 }
 
-function setupOutputDirs() {
-  outputDirs = {
-    json: localStorage.getItem(OUTPUT_DIR_KEY_JSON) || '',
-    xml: localStorage.getItem(OUTPUT_DIR_KEY_XML) || '',
-  };
-  updateOutputDirUi();
-  document.getElementById('pick-json')?.addEventListener('click', () => {
-    void pickOutputDir('json');
-  });
-  document.getElementById('pick-xml')?.addEventListener('click', () => {
-    void pickOutputDir('xml');
-  });
+function setupRegistroActions(): void {
+  ensureRegistroContext();
+  const btnInclude = document.getElementById('btn-incluir-assento') as HTMLElement | null;
+  const btnSave = document.getElementById('btn-save') as HTMLElement | null;
+
+  if (btnInclude && btnInclude.getAttribute('data-bound') !== '1') {
+    btnInclude.setAttribute('data-bound', '1');
+    btnInclude.addEventListener('click', (e) => {
+      e.preventDefault();
+      void persistRegistroFromForm('include');
+    });
+  }
+
+  if (btnSave && btnSave.getAttribute('data-bound') !== '1') {
+    btnSave.setAttribute('data-bound', '1');
+    btnSave.addEventListener('click', (e) => {
+      e.preventDefault();
+      void persistRegistroFromForm('edit');
+    });
+  }
 }
 
 function setupCpfIgnoreToggle(): void {
@@ -1212,6 +1274,7 @@ async function setup() {
   setupNameValidation();
   setupConfigPanel();
   setupOutputDirs();
+  setupRegistroActions();
   setupAdminPanel();
   // prefill nacionalidade do falecido com padrão CRC (BRASILEIRO)
   try {

@@ -3,6 +3,7 @@ export {};
 const { contextBridge, ipcRenderer } = require('electron');
 
 contextBridge.exposeInMainWorld('api', {
+  invoke: (channel: string, ...args: any[]) => ipcRenderer.invoke(channel, ...args),
   getConfig: () => ipcRenderer.invoke('app:get-config'),
   pickOutputDir: () => ipcRenderer.invoke('app:set-output-dir'),
   pickJsonDir: () => ipcRenderer.invoke('app:set-json-dir'),

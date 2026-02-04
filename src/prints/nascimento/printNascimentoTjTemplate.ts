@@ -3,7 +3,12 @@ import { escapeHtml, sanitizeHref } from '../shared/print-utils';
 type AnyJson = any;
 
 async function fetchTemplate(href: string): Promise<string> {
-  const res = await fetch(href, { cache: 'no-store' });
+      // Ensure we use relative paths or window.location.origin in browser context
+      let resolvedHref = href;
+      if (typeof window !== 'undefined' && resolvedHref.startsWith('/')) {
+        resolvedHref = window.location.origin + resolvedHref;
+      }
+      const res = await fetch(resolvedHref, { cache: 'no-store' });
   if (!res.ok) throw new Error(`Template fetch failed: ${href}`);
   return await res.text();
 }
@@ -94,7 +99,7 @@ export async function buildNascimentoPdfHtmlFromTemplate(
     '{{CSS_HREF}}': cssHref,
     '{{NOME}}': fallback(reg.nome_completo ?? '', 'NAO CONSTA'),
     '{{CPF}}': fallback(reg.cpf ?? '', 'NAO CONSTA'),
-    '{{MATRICULA}}': fallback(reg.matricula ?? '', 'NAO CONSTA'),
+    '{{MATRICULA}}': fallback(reg.matricula_formatada ?? reg.matricula ?? '', 'NAO CONSTA'),
     '{{DATA_NASC_EXTENSO}}': fallback(reg.data_nascimento_extenso ?? '', 'NAO CONSTA'),
     '{{DIA_NASC}}': fallback(reg.dia_nascimento ?? '', 'NAO CONSTA'),
     '{{MES_NASC}}': fallback(reg.mes_nascimento ?? '', 'NAO CONSTA'),
@@ -129,8 +134,10 @@ export async function buildNascimentoPdfHtmlFromTemplate(
     '{{ANOTACOES}}': fallback(reg.anotacoes_voluntarias ?? '', 'NAO CONSTA'),
     '{{CNS}}': fallback(cert.cartorio_cns ?? '', '000000'),
     '{{CARTORIO_CIDADE_UF}}': fallback(cert.cartorio_cidade_uf ?? '', ''),
-    '{{SERVENTUARIO}}': fallback(cert.serventuario_nome ?? '', ''),
+    '{{SERVENTUARIO}}': fallback(cert.serventuario_nome ?? reg.nome_assinante ?? '', ''),
     '{{SERVENTUARIO_CARGO}}': fallback(cert.serventuario_cargo ?? '', 'ESCREVENTE'),
+    '{{ASSINANTE_ASSINATURA}}': fallback(cert.serventuario_nome ?? reg.nome_assinante ?? '', ''),
+    '{{ASSINANTE_CARGO}}': fallback(cert.serventuario_cargo ?? '', 'ESCREVENTE'),
   };
 
   let html = template;

@@ -333,11 +333,13 @@ export function forceCleanupApplyLoading(): void {
 }
 
 // Expor globalmente para que o layout-router possa acessar durante navegação automática
-(window as any).hideApplyLoading = hideApplyLoading;
-(window as any).showApplyLoading = showApplyLoading;
-(window as any).updateApplyLoading = updateApplyLoading;
-(window as any).isApplyLoadingVisible = isApplyLoadingVisible;
-(window as any).forceCleanupApplyLoading = forceCleanupApplyLoading;
+if (typeof window !== 'undefined') {
+  (window as any).hideApplyLoading = hideApplyLoading;
+  (window as any).showApplyLoading = showApplyLoading;
+  (window as any).updateApplyLoading = updateApplyLoading;
+  (window as any).isApplyLoadingVisible = isApplyLoadingVisible;
+  (window as any).forceCleanupApplyLoading = forceCleanupApplyLoading;
+}
 
 // Declarar globalmente para que o beforeunload possa acessar
 declare global {

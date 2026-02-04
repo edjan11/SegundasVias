@@ -1,15 +1,21 @@
 export function getFieldLabel(input: HTMLElement): string {
+  const normalizeLabel = (raw: string): string =>
+    String(raw || '')
+      .replace(/Adicionar ao banco/gi, '')
+      .replace(/\s+/g, ' ')
+      .trim();
+
   const field = (input as any)?.closest?.('.field') || (input as any)?.closest?.('.campo');
   if (!field)
-    return (
+    return normalizeLabel(
       (input as any)?.getAttribute?.('data-bind') ||
       (input as any)?.name ||
       (input as any)?.id ||
       ''
     );
   const label = field.querySelector('label');
-  const text = label?.textContent?.trim();
-  return (
+  const text = normalizeLabel(label?.textContent || '');
+  return normalizeLabel(
     text ||
     (input as any)?.getAttribute?.('data-bind') ||
     (input as any)?.name ||

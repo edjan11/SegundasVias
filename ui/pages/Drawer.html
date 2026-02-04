@@ -40,6 +40,9 @@
               <label class="inline-check"><input type="checkbox" id="settings-auto-json" /> Auto gerar JSON</label>
               <label class="inline-check"><input type="checkbox" id="settings-auto-xml" /> Auto gerar XML</label>
             </div>
+            <div class="check-grid" style="margin-top:4px;">
+              <label class="inline-check"><input type="checkbox" id="settings-auto-save-files" /> Auto salvar JSON/XML por dia</label>
+            </div>
           </div>
           <div class="field span-6">
             <label>Layout</label>
@@ -158,13 +161,27 @@
       </div>
 
       <div class="toolbar-left" style="margin-top: 8px;">
-        <button id="btn-save" class="btn save dirty" type="button">Salvar (Ctrl+B)</button>
+        <button id="btn-save" class="btn save dirty" type="button" data-preview="1">Salvar (Ctrl+B)</button>
       </div>
     </div>
 
     <div id="tab-admin" class="tab-pane">
       <div class="card">
-        <div class="cardTitle">Administracao</div>
+        <div class="cardTitle">Modulos Administrativos</div>
+        <div class="admin-modules">
+          <a href="admin/admin-escreventes.html" class="admin-module-card" target="_blank">
+            <div class="module-icon">👤</div>
+            <div class="module-info">
+              <div class="module-title">Escreventes</div>
+              <div class="module-desc">Gerenciar escreventes e suas informações</div>
+            </div>
+          </a>
+          <!-- Adicionar mais módulos aqui conforme necessário -->
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="cardTitle">Assinantes</div>
         <div class="grid">
           <div class="field span-9">
             <label>Assinante</label>
@@ -207,3 +224,40 @@
     </div>
   </div>
 </div>
+
+<script>
+// Inicialização das tabs do Drawer
+(function() {
+  const drawer = document.getElementById('drawer');
+  const tabbar = drawer?.querySelector('.tabbar');
+  if (!tabbar) return;
+
+  const buttons = Array.from(tabbar.querySelectorAll('.tab-btn'));
+  const panes = Array.from(drawer.querySelectorAll('.tab-pane'));
+  
+  if (!buttons.length || !panes.length) return;
+
+  // Função para ativar uma tab
+  const activate = (id) => {
+    buttons.forEach(b => b.classList.toggle('active', b.getAttribute('data-tab') === id));
+    panes.forEach(p => p.classList.toggle('active', p.id === id));
+  };
+
+  // Event listener para clicks nas tabs
+  tabbar.addEventListener('click', (e) => {
+    const btn = e.target?.closest('.tab-btn');
+    if (!btn) return;
+    
+    e.preventDefault();
+    const id = btn.getAttribute('data-tab') || '';
+    if (id) activate(id);
+  });
+
+  // Ativar tab inicial
+  const initial = tabbar.querySelector('.tab-btn.active') || tabbar.querySelector('.tab-btn');
+  if (initial) {
+    const id = initial.getAttribute('data-tab') || '';
+    if (id) activate(id);
+  }
+})();
+</script>

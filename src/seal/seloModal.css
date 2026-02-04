@@ -1,0 +1,307 @@
+/* Selo Modal - aligned with drawer/card visual language */
+
+.selo-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.45);
+  z-index: 12000;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease;
+}
+
+.selo-modal {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%) scale(0.98);
+  width: min(760px, 96vw);
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  background: #ffffff;
+  border: 1px solid var(--border, #d6dde8);
+  border-radius: 12px;
+  box-shadow: 0 18px 36px rgba(15, 23, 42, 0.22);
+  overflow: hidden;
+  z-index: 12001;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+  font-family: "Segoe UI", Tahoma, sans-serif;
+}
+
+.selo-modal-overlay.active,
+.selo-modal.active {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.selo-modal.active {
+  transform: translate(-50%, -50%) scale(1);
+}
+
+.selo-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border, #d6dde8);
+  background: #ffffff;
+}
+
+.selo-modal-header h2 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 700;
+  color: #1f2937;
+}
+
+.selo-modal-close {
+  width: 30px;
+  height: 30px;
+  border: 1px solid var(--border, #d6dde8);
+  border-radius: 8px;
+  background: #ffffff;
+  color: #334155;
+  cursor: pointer;
+  font-size: 18px;
+  line-height: 1;
+}
+
+.selo-modal-close:hover {
+  background: #f8fafc;
+}
+
+.selo-modal-body {
+  padding: 12px;
+  overflow: auto;
+  display: grid;
+  gap: 10px;
+  background: #f8fafc;
+}
+
+.selo-modal-info,
+.selo-modal-section,
+.selo-modal-result,
+.selo-modal-loading {
+  border: 1px solid var(--border, #d6dde8);
+  border-radius: 10px;
+  background: #ffffff;
+  padding: 10px;
+}
+
+.selo-modal-info p {
+  margin: 2px 0;
+  font-size: 12px;
+  color: #334155;
+}
+
+.selo-modal-section h3 {
+  margin: 0 0 8px;
+  font-size: 12px;
+  color: #334155;
+}
+
+.selo-modal-paths {
+  display: grid;
+  gap: 8px;
+}
+
+.selo-path-option {
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #ffffff;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 8px;
+  align-items: start;
+  padding: 8px;
+}
+
+.selo-path-option:hover {
+  background: #f8fafc;
+  border-color: #cbd5e1;
+}
+
+.selo-path-label {
+  display: grid;
+  gap: 2px;
+}
+
+.selo-path-label strong {
+  font-size: 12px;
+  color: #1f2937;
+}
+
+.selo-path-label small {
+  font-size: 11px;
+  color: #64748b;
+}
+
+.selo-modal-select,
+.selo-modal-input,
+.selo-modal-file {
+  width: 100%;
+  box-sizing: border-box;
+  height: 32px;
+  border: 1px solid var(--border, #d6dde8);
+  border-radius: 8px;
+  background: #f6f9ff;
+  color: #1f2937;
+  padding: 5px 8px;
+  font-size: 12px;
+  margin-top: 4px;
+}
+
+.selo-modal-file {
+  padding: 4px;
+  background: #ffffff;
+}
+
+.selo-modal-select:focus,
+.selo-modal-input:focus,
+.selo-modal-file:focus {
+  outline: none;
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+  background: #ffffff;
+}
+
+.selo-modal-section label {
+  display: grid;
+  gap: 2px;
+  font-size: 11px;
+  color: #475569;
+}
+
+.selo-modal-validation-result {
+  margin-top: 6px;
+  font-size: 11px;
+}
+
+.selo-modal-validation-result .success {
+  color: #166534;
+}
+
+.selo-modal-validation-result .error {
+  color: #b91c1c;
+}
+
+.selo-modal-loading {
+  display: grid;
+  place-items: center;
+  gap: 8px;
+}
+
+.selo-modal-spinner {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 3px solid #cbd5e1;
+  border-top-color: #2563eb;
+  animation: selo-spin 0.8s linear infinite;
+}
+
+@keyframes selo-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.selo-modal-result h3 {
+  margin: 0 0 8px;
+  font-size: 13px;
+}
+
+.selo-result-info {
+  display: grid;
+  gap: 4px;
+  margin-bottom: 10px;
+}
+
+.selo-result-info p {
+  margin: 0;
+  font-size: 11px;
+  color: #334155;
+}
+
+.selo-result-image {
+  border: 1px dashed #cbd5e1;
+  border-radius: 8px;
+  padding: 8px;
+  background: #ffffff;
+  text-align: center;
+}
+
+.selo-modal-success {
+  border-color: #86efac;
+  background: #f0fdf4;
+}
+
+.selo-modal-error {
+  border-color: #fca5a5;
+  background: #fef2f2;
+}
+
+.selo-modal-footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 10px 12px;
+  border-top: 1px solid var(--border, #d6dde8);
+  background: #ffffff;
+}
+
+.selo-modal-btn-primary,
+.selo-modal-btn-secondary {
+  border: 1px solid var(--border, #d6dde8);
+  border-radius: 8px;
+  height: 30px;
+  padding: 0 10px;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.selo-modal-btn-primary {
+  background: #2563eb;
+  border-color: #1d4ed8;
+  color: #ffffff;
+}
+
+.selo-modal-btn-primary:hover:not(:disabled) {
+  background: #1d4ed8;
+}
+
+.selo-modal-btn-secondary {
+  background: #ffffff;
+  color: #1f2937;
+}
+
+.selo-modal-btn-secondary:hover:not(:disabled) {
+  background: #f8fafc;
+}
+
+.selo-modal-btn-primary:disabled,
+.selo-modal-btn-secondary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+@media (max-width: 760px) {
+  .selo-modal {
+    width: calc(100vw - 16px);
+    max-height: calc(100vh - 16px);
+  }
+
+  .selo-modal-footer {
+    flex-wrap: wrap;
+  }
+
+  .selo-modal-footer button {
+    flex: 1 1 auto;
+  }
+}

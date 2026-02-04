@@ -158,6 +158,7 @@ export function mapperHtmlToCrcJson(root: Root = document) {
   const cota_emolumentos = val(root, 'input[name="certidao.cota_emolumentos"]') || 'Cota';
 
   const averbacao_anotacao =
+    val(root, 'textarea[data-bind="registro.averbacao_anotacao"]') ||
     val(root, 'textarea[name="observacoes"]') ||
     val(root, 'textarea[name="observacao"]') ||
     '';
@@ -170,16 +171,19 @@ export function mapperHtmlToCrcJson(root: Root = document) {
   const rg1 = buildDocItemRG(root, 'Noivo');
 
   const conjuge1 = {
-    nome_atual_habilitacao: val(root, 'input[name="nomeSolteiro"]') || '',
+    nome_atual_habilitacao: val(root, 'input[name="nomeAntesCasamentoNoivo"]') || '',
     cpf_sem_inscricao: cpf1.cpf_sem_inscricao,
     cpf: cpf1.cpf,
-    novo_nome: val(root, 'input[name="nomeSolteiro"]') || '',
-    // REMOVIDO: nome_apos_casamento (proibido)
+    nome_apos_casamento: val(root, 'input[name="nomeAposCasamentoNoivo"]') || '',
+    novo_nome: val(root, 'input[name="nomeAtualNoivo"]') || '',
     data_nascimento: normalizeDate(val(root, 'input[name="dataNascimentoNoivo"]')) || '',
     nacionalidade: val(root, 'input[name="nacionalidadeNoivo"]') || '',
     estado_civil: selectedText(root, 'select[name="estadoCivilNoivo"]') || val(root, 'select[name="estadoCivilNoivo"]') || '',
     municipio_naturalidade: val(root, 'input[name="cidadeNascimentoNoivo"]') || '',
-    uf_naturalidade: val(root, 'input[name="ufNascimentoNoivo"]') || '',
+    uf_naturalidade:
+      val(root, 'select[name="ufNascimentoNoivo"]') ||
+      val(root, 'input[name="ufNascimentoNoivo"]') ||
+      '',
     genitores: buildGenitores(val(root, 'input[name="nomePaiNoivo"]'), val(root, 'input[name="nomeMaeNoivo"]')),
   };
 
@@ -191,16 +195,19 @@ export function mapperHtmlToCrcJson(root: Root = document) {
   const rg2 = buildDocItemRG(root, 'Noiva');
 
   const conjuge2 = {
-    nome_atual_habilitacao: val(root, 'input[name="nomeSolteira"]') || '',
+    nome_atual_habilitacao: val(root, 'input[name="nomeAntesCasamentoNoiva"]') || '',
     cpf_sem_inscricao: cpf2.cpf_sem_inscricao,
     cpf: cpf2.cpf,
-    novo_nome: val(root, 'input[name="nomeSolteira"]') || '',
-    // REMOVIDO: nome_apos_casamento (proibido)
+    nome_apos_casamento: val(root, 'input[name="nomeAposCasamentoNoiva"]') || '',
+    novo_nome: val(root, 'input[name="nomeAtualNoiva"]') || '',
     data_nascimento: normalizeDate(val(root, 'input[name="dataNascimentoNoiva"]')) || '',
     nacionalidade: val(root, 'input[name="nacionalidadeNoiva"]') || '',
     estado_civil: selectedText(root, 'select[name="estadoCivilNoiva"]') || val(root, 'select[name="estadoCivilNoiva"]') || '',
     municipio_naturalidade: val(root, 'input[name="cidadeNascimentoNoiva"]') || '',
-    uf_naturalidade: val(root, 'input[name="ufNascimentoNoiva"]') || '',
+    uf_naturalidade:
+      val(root, 'select[name="ufNascimentoNoiva"]') ||
+      val(root, 'input[name="ufNascimentoNoiva"]') ||
+      '',
     genitores: buildGenitores(val(root, 'input[name="nomePaiNoiva"]'), val(root, 'input[name="nomeMaeNoiva"]')),
   };
 
@@ -229,21 +236,25 @@ export function mapperHtmlToCrcJson(root: Root = document) {
     selectedText(root, 'select[name="regimeBens"]') ||
     val(root, 'select[name="regimeBens"]');
 
+  const tipo_casamento =
+    val(root, 'select[name="tipoCasamento"]') ||
+    selectedText(root, 'select[name="tipoCasamento"]');
+
   // selo / cod selo (se você quiser extrair da observação como no outro mapper, me diz o padrão do texto)
   const selo = val(root, 'input[name="certidao.selo"]') || '';
   const cod_selo = val(root, 'input[name="certidao.cod_selo"]') || '';
 
   return {
     certidao: {
-      plataformaId,
+      plataformaId: "certidao-eletronica",
       tipo_registro: 'casamento',
-      tipo_certidao,
-      transcricao,
+      tipo_certidao: "Breve relato",
+      transcricao: false,
       // JSON deve manter CNS fixo (9º ofício)
       cartorio_cns: '163659',
       selo,
       cod_selo,
-      modalidade,
+      modalidade: "eletronica",
       cota_emolumentos,
       cota_emolumentos_isento: false,
     },
@@ -252,6 +263,7 @@ export function mapperHtmlToCrcJson(root: Root = document) {
       matricula,
       data_celebracao,
       regime_bens,
+      tipo_casamento,
       data_registro,
       averbacao_anotacao,
       anotacoes_cadastro,

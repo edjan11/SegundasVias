@@ -1,0 +1,717 @@
+/* src/seal/seloPanel.css */
+.selo-panel {
+  position: fixed;
+  top: 72px;
+  bottom: 12px;
+  width: min(520px, 42vw);
+  min-width: 360px;
+  background: #ffffff;
+  border: 1px solid var(--border, #d6dde8);
+  border-radius: 12px;
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.16);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  z-index: 80;
+  font-family:
+    "Segoe UI",
+    Tahoma,
+    sans-serif;
+  color: var(--text, #1f2937);
+}
+.selo-panel-right {
+  right: 12px;
+}
+.selo-panel-left {
+  left: 12px;
+}
+.selo-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border, #d6dde8);
+  background: #ffffff;
+}
+.selo-panel-header h2 {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+}
+.selo-panel-header-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.selo-panel-btn-icon {
+  border: 1px solid var(--border, #d6dde8);
+  background: #ffffff;
+  color: var(--text, #1f2937);
+  border-radius: 8px;
+  height: 28px;
+  min-width: 28px;
+  padding: 0 10px;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.selo-panel-btn-icon:hover {
+  background: #f8fafc;
+}
+.selo-panel-toolbar {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border, #d6dde8);
+  background: #ffffff;
+  display: grid;
+  gap: 8px;
+}
+.selo-panel-search {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+}
+.selo-panel-input,
+.selo-panel-select {
+  width: 100%;
+  height: 30px;
+  border: 1px solid var(--border, #d6dde8);
+  border-radius: 8px;
+  background: #f6f9ff;
+  color: var(--text, #1f2937);
+  padding: 4px 8px;
+  font-size: 12px;
+  box-sizing: border-box;
+}
+.selo-panel-input:focus,
+.selo-panel-select:focus {
+  outline: none;
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+  background: #ffffff;
+}
+.selo-panel-view-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.selo-panel-view-btn {
+  border: 1px solid var(--border, #d6dde8);
+  background: #ffffff;
+  color: var(--text, #1f2937);
+  border-radius: 8px;
+  height: 28px;
+  padding: 0 10px;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.selo-panel-view-btn.active {
+  background: #2563eb;
+  color: #ffffff;
+  border-color: #1d4ed8;
+}
+.selo-panel-filters {
+  border-bottom: 1px solid var(--border, #d6dde8);
+  background: #ffffff;
+  padding: 8px 12px;
+}
+.selo-panel-filters details {
+  border: 1px dashed var(--border, #d6dde8);
+  border-radius: 10px;
+  padding: 8px;
+  background: var(--bg2, #f8fafc);
+}
+.selo-panel-filters summary {
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 700;
+  color: #334155;
+  user-select: none;
+}
+.selo-panel-filters-content {
+  margin-top: 8px;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+.selo-panel-filters label {
+  display: grid;
+  gap: 4px;
+  font-size: 11px;
+  color: #475569;
+}
+.selo-panel-btn-primary,
+.selo-panel-btn-secondary,
+.selo-panel-btn-danger {
+  border: 1px solid var(--border, #d6dde8);
+  border-radius: 8px;
+  height: 30px;
+  padding: 0 10px;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.selo-panel-btn-primary {
+  background: #2563eb;
+  color: #ffffff;
+  border-color: #1d4ed8;
+}
+.selo-panel-btn-primary:hover {
+  background: #1d4ed8;
+}
+.selo-panel-btn-secondary {
+  background: #ffffff;
+  color: var(--text, #1f2937);
+}
+.selo-panel-btn-secondary:hover:not(:disabled) {
+  background: #f8fafc;
+}
+.selo-panel-btn-secondary:disabled,
+.selo-panel-btn-primary:disabled,
+.selo-panel-btn-danger:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.selo-panel-btn-danger {
+  background: #dc2626;
+  color: #ffffff;
+  border-color: #b91c1c;
+}
+.selo-panel-btn-danger:hover {
+  background: #b91c1c;
+}
+.selo-panel-content {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  background: #ffffff;
+}
+.selo-panel-table-wrapper {
+  height: 100%;
+  overflow: auto;
+}
+.selo-panel-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 11px;
+}
+.selo-panel-table thead {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: #f8fafc;
+}
+.selo-panel-table th {
+  text-align: left;
+  font-weight: 700;
+  color: #334155;
+  padding: 8px;
+  border-bottom: 1px solid var(--border, #d6dde8);
+  white-space: nowrap;
+}
+.selo-panel-table td {
+  padding: 8px;
+  border-bottom: 1px solid #e5eaf2;
+  color: #334155;
+  white-space: nowrap;
+}
+.selo-panel-table tbody tr {
+  cursor: pointer;
+}
+.selo-panel-table tbody tr:hover {
+  background: #f8fafc;
+}
+.selo-panel-table tbody tr[data-status=pending] td:first-child {
+  border-left: 3px solid #f59e0b;
+}
+.selo-panel-table tbody tr[data-status=generated] td:first-child {
+  border-left: 3px solid #0ea5e9;
+}
+.selo-panel-table tbody tr[data-status=applied] td:first-child {
+  border-left: 3px solid #16a34a;
+}
+.selo-panel-table tbody tr[data-status=failed] td:first-child {
+  border-left: 3px solid #dc2626;
+}
+.selo-panel-table tbody tr[data-status=cancelled] td:first-child {
+  border-left: 3px solid #64748b;
+}
+.selo-table-empty,
+.selo-panel-loading {
+  text-align: center;
+  padding: 16px;
+  color: #64748b;
+}
+.selo-panel-tree,
+.selo-panel-detail {
+  padding: 10px;
+}
+.selo-tree-container {
+  display: grid;
+  gap: 8px;
+}
+.selo-tree-node {
+  border: 1px solid var(--border, #d6dde8);
+  border-radius: 10px;
+  background: #ffffff;
+  overflow: hidden;
+}
+.selo-tree-summary {
+  list-style: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 10px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #334155;
+  background: #f8fafc;
+}
+.selo-tree-summary::-webkit-details-marker {
+  display: none;
+}
+.selo-tree-count {
+  color: #64748b;
+  font-size: 11px;
+  font-weight: 600;
+}
+.selo-tree-children {
+  display: grid;
+  gap: 6px;
+  padding: 8px;
+}
+.selo-tree-item {
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #ffffff;
+  padding: 8px;
+  cursor: pointer;
+  display: grid;
+  gap: 4px;
+}
+.selo-tree-item:hover {
+  background: #f8fafc;
+  border-color: #cbd5e1;
+}
+.selo-tree-item small {
+  color: #64748b;
+}
+.selo-detail-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.selo-detail-header h3 {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 700;
+  color: #1f2937;
+}
+.selo-detail-content {
+  display: grid;
+  gap: 10px;
+}
+.selo-detail-section {
+  border: 1px solid var(--border, #d6dde8);
+  border-radius: 10px;
+  background: #ffffff;
+  padding: 8px;
+}
+.selo-detail-section h4 {
+  margin: 0 0 6px;
+  font-size: 12px;
+  color: #334155;
+}
+.selo-detail-section p {
+  margin: 3px 0;
+  font-size: 11px;
+  color: #334155;
+}
+.selo-detail-error {
+  border-color: #fca5a5;
+  background: #fef2f2;
+}
+.selo-detail-actions {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.selo-status-pending {
+  color: #b45309;
+}
+.selo-status-generated {
+  color: #0369a1;
+}
+.selo-status-applied {
+  color: #166534;
+}
+.selo-status-failed {
+  color: #b91c1c;
+}
+.selo-status-cancelled {
+  color: #334155;
+}
+.selo-panel-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  border-top: 1px solid var(--border, #d6dde8);
+  padding: 8px 10px;
+  background: #ffffff;
+}
+.selo-panel-pagination span {
+  font-size: 11px;
+  color: #475569;
+  text-align: center;
+  flex: 1;
+}
+.selo-panel-footer {
+  border-top: 1px solid var(--border, #d6dde8);
+  background: #ffffff;
+  padding: 8px 10px;
+}
+.selo-panel-stats {
+  font-size: 11px;
+  color: #475569;
+}
+.selo-panel.minimized .selo-panel-toolbar,
+.selo-panel.minimized .selo-panel-filters,
+.selo-panel.minimized .selo-panel-content,
+.selo-panel.minimized .selo-panel-pagination,
+.selo-panel.minimized .selo-panel-footer,
+.selo-panel.minimized .selo-panel-resize-handle {
+  display: none;
+}
+.selo-panel.minimized {
+  bottom: auto;
+  width: 320px;
+}
+.selo-panel-resize-handle {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 6px;
+  cursor: ew-resize;
+  user-select: none;
+}
+.selo-panel-right .selo-panel-resize-handle {
+  left: 0;
+}
+.selo-panel-left .selo-panel-resize-handle {
+  right: 0;
+}
+.selo-panel-toggle {
+  position: fixed;
+  bottom: 12px;
+  right: 12px;
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  border: 1px solid var(--border, #d6dde8);
+  background: #ffffff;
+  color: #1f2937;
+  font-size: 12px;
+  font-weight: 700;
+  z-index: 81;
+}
+@media (max-width: 980px) {
+  .selo-panel {
+    width: min(560px, calc(100vw - 24px));
+    min-width: 0;
+  }
+}
+@media (max-width: 720px) {
+  .selo-panel {
+    top: 10px;
+    right: 10px;
+    left: 10px;
+    bottom: 10px;
+    width: auto;
+    border-radius: 10px;
+  }
+  .selo-panel-right,
+  .selo-panel-left {
+    left: 10px;
+    right: 10px;
+  }
+  .selo-panel-filters-content {
+    grid-template-columns: 1fr;
+  }
+  .selo-panel-resize-handle {
+    display: none;
+  }
+}
+
+/* src/seal/seloModal.css */
+.selo-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.45);
+  z-index: 12000;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease;
+}
+.selo-modal {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%) scale(0.98);
+  width: min(760px, 96vw);
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  background: #ffffff;
+  border: 1px solid var(--border, #d6dde8);
+  border-radius: 12px;
+  box-shadow: 0 18px 36px rgba(15, 23, 42, 0.22);
+  overflow: hidden;
+  z-index: 12001;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+  font-family:
+    "Segoe UI",
+    Tahoma,
+    sans-serif;
+}
+.selo-modal-overlay.active,
+.selo-modal.active {
+  opacity: 1;
+  pointer-events: auto;
+}
+.selo-modal.active {
+  transform: translate(-50%, -50%) scale(1);
+}
+.selo-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border, #d6dde8);
+  background: #ffffff;
+}
+.selo-modal-header h2 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 700;
+  color: #1f2937;
+}
+.selo-modal-close {
+  width: 30px;
+  height: 30px;
+  border: 1px solid var(--border, #d6dde8);
+  border-radius: 8px;
+  background: #ffffff;
+  color: #334155;
+  cursor: pointer;
+  font-size: 18px;
+  line-height: 1;
+}
+.selo-modal-close:hover {
+  background: #f8fafc;
+}
+.selo-modal-body {
+  padding: 12px;
+  overflow: auto;
+  display: grid;
+  gap: 10px;
+  background: #f8fafc;
+}
+.selo-modal-info,
+.selo-modal-section,
+.selo-modal-result,
+.selo-modal-loading {
+  border: 1px solid var(--border, #d6dde8);
+  border-radius: 10px;
+  background: #ffffff;
+  padding: 10px;
+}
+.selo-modal-info p {
+  margin: 2px 0;
+  font-size: 12px;
+  color: #334155;
+}
+.selo-modal-section h3 {
+  margin: 0 0 8px;
+  font-size: 12px;
+  color: #334155;
+}
+.selo-modal-paths {
+  display: grid;
+  gap: 8px;
+}
+.selo-path-option {
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #ffffff;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 8px;
+  align-items: start;
+  padding: 8px;
+}
+.selo-path-option:hover {
+  background: #f8fafc;
+  border-color: #cbd5e1;
+}
+.selo-path-label {
+  display: grid;
+  gap: 2px;
+}
+.selo-path-label strong {
+  font-size: 12px;
+  color: #1f2937;
+}
+.selo-path-label small {
+  font-size: 11px;
+  color: #64748b;
+}
+.selo-modal-select,
+.selo-modal-input,
+.selo-modal-file {
+  width: 100%;
+  box-sizing: border-box;
+  height: 32px;
+  border: 1px solid var(--border, #d6dde8);
+  border-radius: 8px;
+  background: #f6f9ff;
+  color: #1f2937;
+  padding: 5px 8px;
+  font-size: 12px;
+  margin-top: 4px;
+}
+.selo-modal-file {
+  padding: 4px;
+  background: #ffffff;
+}
+.selo-modal-select:focus,
+.selo-modal-input:focus,
+.selo-modal-file:focus {
+  outline: none;
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+  background: #ffffff;
+}
+.selo-modal-section label {
+  display: grid;
+  gap: 2px;
+  font-size: 11px;
+  color: #475569;
+}
+.selo-modal-validation-result {
+  margin-top: 6px;
+  font-size: 11px;
+}
+.selo-modal-validation-result .success {
+  color: #166534;
+}
+.selo-modal-validation-result .error {
+  color: #b91c1c;
+}
+.selo-modal-loading {
+  display: grid;
+  place-items: center;
+  gap: 8px;
+}
+.selo-modal-spinner {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 3px solid #cbd5e1;
+  border-top-color: #2563eb;
+  animation: selo-spin 0.8s linear infinite;
+}
+@keyframes selo-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+.selo-modal-result h3 {
+  margin: 0 0 8px;
+  font-size: 13px;
+}
+.selo-result-info {
+  display: grid;
+  gap: 4px;
+  margin-bottom: 10px;
+}
+.selo-result-info p {
+  margin: 0;
+  font-size: 11px;
+  color: #334155;
+}
+.selo-result-image {
+  border: 1px dashed #cbd5e1;
+  border-radius: 8px;
+  padding: 8px;
+  background: #ffffff;
+  text-align: center;
+}
+.selo-modal-success {
+  border-color: #86efac;
+  background: #f0fdf4;
+}
+.selo-modal-error {
+  border-color: #fca5a5;
+  background: #fef2f2;
+}
+.selo-modal-footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 10px 12px;
+  border-top: 1px solid var(--border, #d6dde8);
+  background: #ffffff;
+}
+.selo-modal-btn-primary,
+.selo-modal-btn-secondary {
+  border: 1px solid var(--border, #d6dde8);
+  border-radius: 8px;
+  height: 30px;
+  padding: 0 10px;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.selo-modal-btn-primary {
+  background: #2563eb;
+  border-color: #1d4ed8;
+  color: #ffffff;
+}
+.selo-modal-btn-primary:hover:not(:disabled) {
+  background: #1d4ed8;
+}
+.selo-modal-btn-secondary {
+  background: #ffffff;
+  color: #1f2937;
+}
+.selo-modal-btn-secondary:hover:not(:disabled) {
+  background: #f8fafc;
+}
+.selo-modal-btn-primary:disabled,
+.selo-modal-btn-secondary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+@media (max-width: 760px) {
+  .selo-modal {
+    width: calc(100vw - 16px);
+    max-height: calc(100vh - 16px);
+  }
+  .selo-modal-footer {
+    flex-wrap: wrap;
+  }
+  .selo-modal-footer button {
+    flex: 1 1 auto;
+  }
+}

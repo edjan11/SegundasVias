@@ -2,6 +2,12 @@ import path from 'path';
 import fs from 'fs';
 const { spawn } = require('child_process');
 import * as db from './db';
+import { getEscreventesService } from './shared/admin/escreventes-instance';
+import type { 
+  EscreventeSearchParams, 
+  EscreventeCreateDTO, 
+  EscreventeUpdateDTO 
+} from './shared/admin/escrevente.schema';
 
 const _db = db as any;
 function ensureElectron() {
@@ -339,7 +345,8 @@ ipcMain.handle('app:save-file', async (_event, payload) => {
 });
 
 ipcMain.handle('app:save-json', async (_event, payload) => {
-  const outputDir = getJsonDir();
+  const baseDir = getJsonDir();
+  const outputDir = resolveOutputDir(baseDir, payload?.subdir);
   ensureDir(outputDir);
   const safeName = sanitizeFilename(payload?.name || `certidao-${Date.now()}.json`);
   const content = payload?.content || '';
@@ -349,7 +356,8 @@ ipcMain.handle('app:save-json', async (_event, payload) => {
 });
 
 ipcMain.handle('app:save-xml', async (_event, payload) => {
-  const outputDir = getXmlDir();
+  const baseDir = getXmlDir();
+  const outputDir = resolveOutputDir(baseDir, payload?.subdir);
   ensureDir(outputDir);
   const safeName = sanitizeFilename(payload?.name || `certidao-${Date.now()}.xml`);
   const content = payload?.content || '';
@@ -416,8 +424,83 @@ ipcMain.handle('db:update-status', async (_event, payload) => {
   return _db.updateStatus(payload || {});
 });
 
+// ========================================
+// Escreventes IPC
+// ========================================
+ipcMain.handle('escreventes:search', async (_event, filters: EscreventeSearchParams) => {
+  try {
+    const service = getEscreventesService();
+    const result = await service.search(filters);
+    // Client expects array, not pagination object
+    return result.items;
+  } catch (error) {
+    console.error('[IPC] escreventes:search error:', error);
+    throw error;
+  }
+});
+
+ipcMain.handle('escreventes:getById', async (_event, id: string) => {
+  try {
+    const service = getEscreventesService();
+    return await service.findById(id);
+  } catch (error) {
+    console.error('[IPC] escreventes:getById error:', error);
+    throw error;
+  }
+});
+
+ipcMain.handle('escreventes:create', async (_event, dto: EscreventeCreateDTO) => {
+  try {
+    const service = getEscreventesService();
+    return await service.create(dto);
+  } catch (error) {
+    console.error('[IPC] escreventes:create error:', error);
+    throw error;
+  }
+});
+
+ipcMain.handle('escreventes:update', async (_event, { id, dto }: { id: string; dto: EscreventeUpdateDTO }) => {
+  try {
+    const service = getEscreventesService();
+    return await service.update(id, dto);
+  } catch (error) {
+    console.error('[IPC] escreventes:update error:', error);
+    throw error;
+  }
+});
+
+ipcMain.handle('escreventes:delete', async (_event, id: string) => {
+  try {
+    const service = getEscreventesService();
+    await service.delete(id);
+  } catch (error) {
+    console.error('[IPC] escreventes:delete error:', error);
+    throw error;
+  }
+});
+
+ipcMain.handle('escreventes:listActive', async (_event) => {
+  try {
+    const service = getEscreventesService();
+    return await service.listActive();
+  } catch (error) {
+    console.error('[IPC] escreventes:listActive error:', error);
+    throw error;
+  }
+});
+
 function sanitizeFilename(name) {
   return (name || '').replace(/[\\/:*?"<>|]+/g, '_').trim() || `saida-${Date.now()}.txt`;
+}
+
+function sanitizeFolderName(name) {
+  return String(name || '').replace(/[^0-9-]+/g, '').slice(0, 10);
+}
+
+function resolveOutputDir(baseDir, subdir) {
+  const safe = sanitizeFolderName(subdir || '');
+  if (!safe) return baseDir;
+  return path.join(baseDir, safe);
 }
 
 // ========================================

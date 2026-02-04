@@ -330,7 +330,7 @@ export function mapperHtmlToCrcJsonObito(root: Root = document) {
       tipo_registro: 'obito',
       tipo_certidao,
       transcricao,
-      cartorio_cns: cartorioCnsEmissor,
+      cartorio_cns: 163659,
       selo: val(root, 'input[name="certidao.selo"]') || '',
       cod_selo: val(root, 'input[name="certidao.cod_selo"]') || '',
       modalidade,

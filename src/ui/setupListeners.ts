@@ -4,6 +4,7 @@
 import { normalizeCpf, formatCpf } from '../shared/validators/cpf';
 import { normalizeDate } from '../shared/validators/date';
 import { normalizeTime } from '../shared/validators/time';
+import { setupOutputDirControls } from './output-dirs';
 
 export function initMatriculaAutoListeners(opts: {
   updateMatricula: () => void;
@@ -179,58 +180,27 @@ export function initConfigModal(opts: { refreshConfig: () => Promise<void>; upda
   };
   tabs.forEach((btn) => btn.addEventListener('click', () => activateTab(btn.dataset.tab || 'tab-pastas')));
 
-  (doc.getElementById('pick-json') as HTMLElement | null)?.addEventListener('click', async () => {
-    const w = window as Window & { api?: { pickJsonDir?: () => Promise<string> }; currentDirs?: { jsonDir?: string; xmlDir?: string } };
-    let dir = '';
-    if (w.api && w.api.pickJsonDir) {
-      dir = String(await w.api.pickJsonDir());
-    } else {
-      const wAny = window as any;
-      if (typeof wAny.showDirectoryPicker === 'function') {
-        const handle = await wAny.showDirectoryPicker();
-        dir = handle?.name ? String(handle.name) : '';
-        (w as any).currentDirs = { ...(w as any).currentDirs, jsonHandle: handle };
-      } else {
-        window.alert('No navegador nao e possivel selecionar pasta. Use o download automatico.');
-        return;
+  setupOutputDirControls({
+    getDocument: () => doc,
+    onStatus: (message, isError) => {
+      if (isError) {
+        console.warn(message);
       }
-    }
-    const jsonEl = doc.getElementById('json-dir') as HTMLInputElement | null;
-    if (jsonEl) jsonEl.value = dir;
-    w.currentDirs = { ...(w.currentDirs || {}), jsonDir: dir };
-    updateBadge();
-  });
-
-  (doc.getElementById('pick-xml') as HTMLElement | null)?.addEventListener('click', async () => {
-    const w = window as Window & { api?: { pickXmlDir?: () => Promise<string> }; currentDirs?: { jsonDir?: string; xmlDir?: string } };
-    let dir = '';
-    if (w.api && w.api.pickXmlDir) {
-      dir = String(await w.api.pickXmlDir());
-    } else {
-      const wAny = window as any;
-      if (typeof wAny.showDirectoryPicker === 'function') {
-        const handle = await wAny.showDirectoryPicker();
-        dir = handle?.name ? String(handle.name) : '';
-        (w as any).currentDirs = { ...(w as any).currentDirs, xmlHandle: handle };
-      } else {
-        window.alert('No navegador nao e possivel selecionar pasta. Use o download automatico.');
-        return;
-      }
-    }
-    const xmlEl = doc.getElementById('xml-dir') as HTMLInputElement | null;
-    if (xmlEl) xmlEl.value = dir;
-    w.currentDirs = { ...(w.currentDirs || {}), xmlDir: dir };
-    updateBadge();
+    },
   });
 }
 
-export function initShortcuts(opts: { saveDraft: () => void; getWindow: () => Window }) {
-  const { saveDraft, getWindow } = opts;
+export function initShortcuts(opts: { saveDraft: () => void; generateFile: (f: string) => void; getWindow: () => Window }) {
+  const { saveDraft, generateFile, getWindow } = opts;
   const w = getWindow();
   w.addEventListener('keydown', (e: KeyboardEvent) => {
     if (e.ctrlKey && e.key.toLowerCase() === 'b') {
       e.preventDefault();
       saveDraft();
+    }
+    if (e.ctrlKey && e.key.toLowerCase() === 'q') {
+      e.preventDefault();
+      generateFile('json');
     }
   });
 }

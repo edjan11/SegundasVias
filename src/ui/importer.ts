@@ -1,5 +1,5 @@
 import { assertIsCertificatePayload } from './payload/apply-payload';
-import { parseCasamentoXmlToPayload, parseNascimentoXmlToPayload } from './payload/xml-to-payload';
+import { parseCasamentoXmlToPayload, parseNascimentoXmlToPayload, parseNascimentoJsonToPayload } from './payload/xml-to-payload';
 import Papa from 'papaparse';
 import { mapCsvRowToPayload } from '../shared/import-export/csv-to-payload';
 import { inferActFromMatricula } from '../shared/matricula/type';
@@ -41,21 +41,26 @@ export async function readImportFile(file: File): Promise<ImportResult> {
   if (!isXml) {
     try {
       const parsed = JSON.parse(text);
-      const payload = parsed?.payload ? parsed.payload : parsed;
+      let payload = parsed?.payload ? parsed.payload : parsed;
+      // First infer the kind to determine if we need specialized processing
+      const inferred =
+        inferActFromMatricula(String(payload?.registro?.matricula || '')) ||
+        inferActFromPayload(payload);
+      const kind = String(payload?.certidao?.tipo_registro || inferred || 'nascimento').toLowerCase() as ImportResult['kind'];
+      // For nascimento JSON, extract/calculate matrícula and CNS
+      if (kind === 'nascimento') {
+        payload = parseNascimentoJsonToPayload(payload);
+      }
       const check = assertIsCertificatePayload(payload);
       if (!check.ok) {
         return {
           ok: false,
-          kind: 'nascimento',
+          kind,
           sourceFormat: 'json',
           raw: text,
           errors: check.errors,
         };
       }
-      const inferred =
-        inferActFromMatricula(String(payload?.registro?.matricula || '')) ||
-        inferActFromPayload(payload);
-      const kind = String(payload?.certidao?.tipo_registro || inferred || 'nascimento').toLowerCase() as ImportResult['kind'];
       return { ok: true, kind, sourceFormat: 'json', raw: text, payload };
     } catch (e) {
       // If not JSON, attempt CSV heuristic

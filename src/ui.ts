@@ -4,7 +4,7 @@
   scoreTextSimilarity,
 } from './shared/city-uf-resolver.js';
 
-import { logger } from './shared/logger.js';
+import { logger } from './shared/logger';
 import {
   initMatriculaAutoListeners,
   initActions,
@@ -12,6 +12,7 @@ import {
   initShortcuts,
   initBeforeUnload,
 } from './ui/setupListeners.js';
+import { readOutputDirs, applyOutputDirUi } from './ui/output-dirs.js';
 
 // Funcoes relacionadas a interface do usuario
 export function showToast(message: string): void {
@@ -489,6 +490,14 @@ const CNS_CARTORIOS: Record<string, string> = {
   '14': '110635',
   '15': '110072',
 };
+const FIXED_CARTORIO_CNS = '163659';
+
+function resolveOficioFromMatricula(matricula: string): string {
+  const cns = digitsOnly(String(matricula || '')).slice(0, 6);
+  if (!cns) return '';
+  const entry = Object.entries(CNS_CARTORIOS).find(([, value]) => value === cns);
+  return entry ? entry[0] : '';
+}
 
 function dvMatricula(base30: string) {
   let s1 = 0;
@@ -618,8 +627,36 @@ function tipoDigit() {
 }
 
 function buildMatricula() {
-  // prefer state values, but fallback to DOM inputs when state is not yet populated
-  let cns = digitsOnly(state.certidao && state.certidao.cartorio_cns ? String(state.certidao.cartorio_cns) : '');
+  // CNS da matrícula representa o acervo; prioriza ofício selecionado e só cai no CNS interno como fallback.
+  let cns = '';
+  const oficioFromState = String(state.ui && state.ui.cartorio_oficio ? state.ui.cartorio_oficio : '').trim();
+  if (oficioFromState && CNS_CARTORIOS[oficioFromState]) {
+    cns = digitsOnly(CNS_CARTORIOS[oficioFromState]);
+  }
+  if (!cns) {
+    try {
+      const select = document.getElementById('cartorio-oficio') as HTMLSelectElement | null;
+      const oficioFromDom = String(select?.value || '').trim();
+      if (oficioFromDom && CNS_CARTORIOS[oficioFromDom]) {
+        cns = digitsOnly(CNS_CARTORIOS[oficioFromDom]);
+      }
+    } catch (e) {
+      logger.warn('ui: buildMatricula oficio DOM fallback read failed', e);
+    }
+  }
+  if (!cns) {
+    // Em importação, mantém o CNS de acervo da matrícula recebida.
+    const importedMat = digitsOnly(
+      String(state.registro && state.registro.matricula ? state.registro.matricula : ''),
+    );
+    if (importedMat.length >= 6) {
+      cns = importedMat.slice(0, 6);
+    }
+  }
+  if (!cns) {
+    // fallback final: CNS interno do cartório emissor (campo certidao.cartorio_cns)
+    cns = FIXED_CARTORIO_CNS;
+  }
   if (!cns) {
     try {
       cns = digitsOnly(
@@ -774,10 +811,25 @@ function markMissingForMatricula() {
       (cartorioSelect && cartorioSelect.value ? cartorioSelect.value : ''),
   ).trim();
 
+  // Keep same CNS resolution rules used by buildMatricula().
+  // Casamento page does not always expose certidao.cartorio_cns as a bound input,
+  // so relying only on state/input would falsely mark matricula as missing.
+  let cnsResolved = cnsValue;
+  if (!cnsResolved && oficioValue && CNS_CARTORIOS[oficioValue]) {
+    cnsResolved = digitsOnly(CNS_CARTORIOS[oficioValue]);
+  }
+  if (!cnsResolved) {
+    const importedMat = digitsOnly(String(state.registro?.matricula || ''));
+    if (importedMat.length >= 6) cnsResolved = importedMat.slice(0, 6);
+  }
+  if (!cnsResolved) {
+    cnsResolved = FIXED_CARTORIO_CNS;
+  }
+
   const missing = !(
     oficioValue &&
-    cnsValue &&
-    cnsValue.length === 6 &&
+    cnsResolved &&
+    cnsResolved.length === 6 &&
     livroEl &&
     String(livroEl.value || '').trim() &&
     folhaEl &&
@@ -817,31 +869,12 @@ function updateMatricula() {
 }
 
 function applyCartorioChange() {
-  const oficio = state.ui.cartorio_oficio || '';
-  if (!oficio) {
+  // Mudança de ofício recalcula apenas a matrícula (CNS de acervo), sem alterar certidao.cartorio_cns.
+  if ((window as any).__applyInProgress) return;
+  setTimeout(() => {
+    if ((window as any).__applyInProgress) return;
     updateMatricula();
-    return;
-  }
-  const cns = CNS_CARTORIOS[oficio];
-  const cnsInput = document.querySelector(
-    '[data-bind="certidao.cartorio_cns"]',
-  ) as HTMLInputElement | null;
-  if (cns) {
-    state.certidao.cartorio_cns = cns;
-    if (cnsInput) {
-      cnsInput.value = cns;
-      // trigger any input/change handlers bound to this field so state sync happens immediately
-      cnsInput.dispatchEvent(new Event('input', { bubbles: true }));
-      cnsInput.dispatchEvent(new Event('change', { bubbles: true }));
-    }
-  } else if (cnsInput) {
-    // clear if unknown
-    cnsInput.value = '';
-    cnsInput.dispatchEvent(new Event('input', { bubbles: true }));
-    cnsInput.dispatchEvent(new Event('change', { bubbles: true }));
-  }
-  // force recalc after ensuring cns is in DOM/state
-  setTimeout(() => updateMatricula(), 0);
+  }, 0);
 }
 
 function trimValue(value: unknown) {
@@ -898,6 +931,9 @@ function normalizeData() {
   const dataIgn = !!reg.data_nascimento_ignorada;
   const horaIgn = !!reg.hora_nascimento_ignorada;
   const natDifferent = !!state.ui.naturalidade_diferente;
+  const matriculaFull = trimValue(reg.matricula);
+  const oficioFromMatricula = resolveOficioFromMatricula(matriculaFull);
+  const oficioFinal = oficioFromMatricula || trimValue(state.ui.cartorio_oficio);
   const municipioNascimento = trimValue(reg.municipio_nascimento);
   const ufNascimento = trimValue(reg.uf_nascimento);
   let municipioNaturalidade = trimValue(reg.municipio_naturalidade);
@@ -912,7 +948,7 @@ function normalizeData() {
     tipo_registro: trimValue(cert.tipo_registro),
     tipo_certidao: trimValue(cert.tipo_certidao),
     transcricao: !!cert.transcricao,
-    cartorio_cns: trimValue(cert.cartorio_cns),
+    cartorio_cns: FIXED_CARTORIO_CNS,
     selo: trimValue(cert.selo),
     cod_selo: trimValue(cert.cod_selo),
     modalidade: trimValue(cert.modalidade),
@@ -938,7 +974,6 @@ function normalizeData() {
   );
   if (pai) filiacao.push(pai);
 
-  const matriculaFull = trimValue(reg.matricula);
   const matriculaDv = matriculaFull.length >= 2 ? matriculaFull.slice(-2) : '';
   const matriculaBase = matriculaFull.length > 2 ? matriculaFull.slice(0, -2) : '';
 
@@ -949,8 +984,8 @@ function normalizeData() {
     matricula: matriculaFull,
     matricula_base: matriculaBase,
     matricula_dv: matriculaDv,
-    cartorio_oficio: trimValue(state.ui.cartorio_oficio),
-    cartorio_cns: trimValue(cert.cartorio_cns),
+    cartorio_oficio: oficioFinal,
+    cartorio_cns: FIXED_CARTORIO_CNS,
     matricula_livro: trimValue(state.ui.matricula_livro),
     matricula_folha: trimValue(state.ui.matricula_folha),
     matricula_termo: trimValue(state.ui.matricula_termo),
@@ -1346,6 +1381,47 @@ async function generateFile(format: string) {
     content = JSON.stringify(data, null, 2);
   }
   try {
+    const w = window as any;
+    
+    // Se tem pasta JSON selecionada e está tentando salvar JSON
+    if (format === 'json' && w.currentDirs?.jsonHandle) {
+      try {
+        const file = await w.currentDirs.jsonHandle.getFileHandle(name, { create: true });
+        const writable = await file.createWritable();
+        await writable.write(content);
+        await writable.close();
+        const dir = w.currentDirs.jsonDir || w.currentDirs.jsonHandle.name;
+        setStatus(`✓ JSON salvo: ${dir}/${name}`);
+        return;
+      } catch (err: any) {
+        console.warn('Erro ao salvar no jsonHandle:', err);
+        if (err.name !== 'NotAllowedError') {
+          setStatus('Erro ao salvar na pasta selecionada', true);
+          return;
+        }
+      }
+    }
+    
+    // Se tem pasta XML selecionada e está tentando salvar XML
+    if (format === 'xml' && w.currentDirs?.xmlHandle) {
+      try {
+        const file = await w.currentDirs.xmlHandle.getFileHandle(name, { create: true });
+        const writable = await file.createWritable();
+        await writable.write(content);
+        await writable.close();
+        const dir = w.currentDirs.xmlDir || w.currentDirs.xmlHandle.name;
+        setStatus(`✓ XML salvo: ${dir}/${name}`);
+        return;
+      } catch (err: any) {
+        console.warn('Erro ao salvar no xmlHandle:', err);
+        if (err.name !== 'NotAllowedError') {
+          setStatus('Erro ao salvar na pasta selecionada', true);
+          return;
+        }
+      }
+    }
+    
+    // Fallback para API Electron
     if (format === 'xml' && window.api && window.api.saveXml) {
       const path = await window.api.saveXml({ name, content });
       setStatus(`XML salvo: ${path || name}`);
@@ -1353,28 +1429,31 @@ async function generateFile(format: string) {
       const path = await window.api.saveJson({ name, content });
       setStatus(`JSON salvo: ${path || name}`);
     } else {
+      // Fallback para download
       const mime = format === 'xml' ? 'application/xml' : 'application/json';
       if (downloadFile(name, content, mime)) {
         setStatus(`${format.toUpperCase()} baixado: ${name}`);
       } else {
-        setStatus('API indisponivel', true);
+        setStatus('API indisponível', true);
       }
     }
   } catch (err) {
+    logger.error('generateFile error', { err, format });
     setStatus('Falha ao gerar arquivo', true);
   }
 }
 
 function updateBadge() {
-  const badge = document.getElementById('outputDirBadge') as HTMLElement | null;
-  if (!badge) return;
-  const json = currentDirs.jsonDir || '...';
-  const xml = currentDirs.xmlDir || '...';
-  badge.textContent = `JSON: ${json} | XML: ${xml}`;
+  const dirs = readOutputDirs();
+  currentDirs = { ...currentDirs, jsonDir: dirs.json, xmlDir: dirs.xml };
+  applyOutputDirUi(document, dirs);
 }
 
 async function refreshConfig() {
-  if (!window.api || !window.api.getConfig) return;
+  if (!window.api || !window.api.getConfig) {
+    updateBadge();
+    return;
+  }
   try {
     const cfg = await window.api.getConfig() as unknown;
     if (cfg && typeof cfg === 'object') {
@@ -2045,7 +2124,7 @@ function setupNaturalidadeToggle() {
 }
 
 function setupShortcuts() {
-  initShortcuts({ saveDraft, getWindow: () => window });
+  initShortcuts({ saveDraft, generateFile, getWindow: () => window });
 }
 
 

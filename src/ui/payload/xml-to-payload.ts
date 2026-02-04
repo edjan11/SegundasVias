@@ -1,4 +1,6 @@
 import { normalizeSpaces, onlyDigits } from './bind';
+import { buildMatriculaFinal, extractMatriculaParts } from '../../shared/matricula';
+import { CNS_BY_OFICIO } from '../../shared/cartorio-mapping';
 
 type CertificatePayload = {
   certidao: Record<string, unknown>;
@@ -40,6 +42,29 @@ function trimHora(h: string): string {
   return `${m[1].padStart(2, '0')}:${m[2]}`;
 }
 
+function yearFromDate(value: string): string {
+  const raw = String(value || '').trim();
+  if (!raw) return '';
+  const br = raw.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  if (br) return br[3];
+  const iso = raw.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (iso) return iso[1];
+  const digits = onlyDigits(raw);
+  if (digits.length >= 8) return digits.slice(-4);
+  return '';
+}
+
+function inferCnsFromOficioText(value: string): string {
+  const txt = String(value || '');
+  if (!txt) return '';
+  const nums = txt.match(/\b\d{1,2}\b/g) || [];
+  for (const n of nums) {
+    const oficio = String(Number(n));
+    if (CNS_BY_OFICIO[oficio]) return CNS_BY_OFICIO[oficio];
+  }
+  return '';
+}
+
 export function parseNascimentoXmlToPayload(xml: string): CertificatePayload | null {
   const doc = parseXml(xml);
   if (!doc) return null;
@@ -70,8 +95,23 @@ export function parseNascimentoXmlToPayload(xml: string): CertificatePayload | n
   const matriculaLivro = numeroLivro || '';
   const matriculaFolha = numeroPagina || '';
   const matriculaTermo = numeroRegistro || '';
-  // Full matricula (best-effort concatenation if present)
-  const matriculaFull = (numeroLivro || '') + (numeroPagina || '') + (numeroRegistro || '');
+
+  // Full matricula: prefer explicit tags when present.
+  const matriculaLine4 = onlyDigits((xml.split(/\r?\n/)[3] || ''));
+  const matriculaExplicit = onlyDigits(
+    textOf(pnas, 'Matricula') ||
+      textOf(pnas, 'matricula') ||
+      textOf(pnas, 'CodigoMatricula') ||
+      textOf(pnas, 'NumeroMatricula') ||
+      textOf(pnas, 'MatriculaRegistro') ||
+      textOf(doc, 'Matricula') ||
+      textOf(doc, 'matricula') ||
+      '',
+  );
+  const matriculaFromLivroFolhaTermo = onlyDigits(`${numeroLivro || ''}${numeroPagina || ''}${numeroRegistro || ''}`);
+  const matriculaFull =
+    (matriculaExplicit.length >= 20 ? matriculaExplicit : '') ||
+    (matriculaLine4.length >= 20 ? matriculaLine4 : '');
 
   const participantes = Array.from(doc.querySelectorAll('Participantes > Participante'));
   const filiacao: any[] = [];
@@ -122,7 +162,40 @@ export function parseNascimentoXmlToPayload(xml: string): CertificatePayload | n
   }
 
   // Priority: explicit CartorioCNS tag, then CodigoCNJ value if present, then matrícula prefix
-  const cartorioCnsFinal = explicitDigits || codigoCnjDigits || matriculaPrefix || '';
+  let cartorioCnsFinal = explicitDigits || codigoCnjDigits || matriculaPrefix || '';
+  if (!cartorioCnsFinal) {
+    const oficioHint =
+      textOf(pnas, 'CartorioRegistro') ||
+      textOf(doc, 'CartorioRegistro') ||
+      textOf(doc, 'ObservacaoCertidao');
+    cartorioCnsFinal = inferCnsFromOficioText(oficioHint);
+  }
+  if (!cartorioCnsFinal) {
+    cartorioCnsFinal = '163659';
+  }
+
+  // Build CNJ matrícula when XML provides livro/folha/termo but not full matrícula.
+  const anoRegistro = yearFromDate(dataRegistro) || yearFromDate(dataNascimento);
+  let matriculaFinal = matriculaFull || '';
+  if (!matriculaFinal && cartorioCnsFinal && anoRegistro && matriculaFromLivroFolhaTermo) {
+    matriculaFinal = buildMatriculaFinal({
+      cns6: cartorioCnsFinal,
+      ano: anoRegistro,
+      tipoAto: '1',
+      livro: matriculaLivro,
+      folha: matriculaFolha,
+      termo: matriculaTermo,
+    });
+  }
+
+  // Last-resort fallback keeps old behavior for malformed XML (never empty if parts exist).
+  if (!matriculaFinal && matriculaFromLivroFolhaTermo) {
+    matriculaFinal = matriculaFromLivroFolhaTermo;
+  }
+
+  if (!cartorioCnsFinal && matriculaFinal.length >= 6) {
+    cartorioCnsFinal = matriculaFinal.slice(0, 6);
+  }
 
   return {
     certidao: {
@@ -165,7 +238,7 @@ export function parseNascimentoXmlToPayload(xml: string): CertificatePayload | n
       matricula_folha: matriculaFolha || '',
       matricula_termo: matriculaTermo || '',
       // Combined matricula (best-effort)
-      matricula: matriculaFull || '',
+      matricula: matriculaFinal || '',
     },
   };
 }
@@ -319,30 +392,27 @@ export function parseNascimentoJsonToPayload(raw: CertificatePayload): Certifica
   
   const reg = raw.registro as Record<string, any>;
   const cert = raw.certidao as Record<string, any> || {};
+  const FIXED_CARTORIO_CNS = '163659';
   
   // Get the full matrícula if present
   const matriculaFull = String(reg.matricula || '').trim();
   const matriculaDigits = onlyDigits(matriculaFull);
   
   // Decompose full matrícula into components if available
-  let cartorioCns = String(cert.cartorio_cns || '').trim();
+  let cartorioCns = FIXED_CARTORIO_CNS;
   let livro = String(reg.matricula_livro || '').trim();
   let folha = String(reg.matricula_folha || '').trim();
   let termo = String(reg.matricula_termo || '').trim();
   
   // If we have a complete matrícula, extract components from it
-  if (matriculaDigits && matriculaDigits.length >= 20) {
-    // Extract cartório (first 6 digits)
-    cartorioCns = matriculaDigits.slice(0, 6);
-    // Extract livro (next 4 digits)
-    livro = matriculaDigits.slice(6, 10);
-    // Extract folha (next 4 digits)
-    folha = matriculaDigits.slice(10, 14);
-    // Extract termo (remaining digits, typically 6+)
-    termo = matriculaDigits.slice(14);
+  if (matriculaDigits && matriculaDigits.length >= 30) {
+    const parsed = extractMatriculaParts(matriculaDigits);
+    livro = parsed.livro || livro;
+    folha = parsed.folha || folha;
+    termo = parsed.termo || termo;
   } else if (livro || folha || termo) {
     // If we have separate components, build the full matrícula from them
-    const cartorioPrefix = String(cert.cartorio_cns || '').trim() || cartorioCns;
+    const cartorioPrefix = cartorioCns;
     if (livro && folha && termo) {
       const matriculaBuilt = 
         (cartorioPrefix || '') + 
