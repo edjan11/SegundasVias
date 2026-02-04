@@ -123,6 +123,7 @@ export async function buildCasamentoPdfHtmlFromTemplate(
     '{{CNS}}': fallback(cert.cartorio_cns ?? '', '000000'),
     '{{CARTORIO_CIDADE_UF}}': fallback(cert.cartorio_cidade_uf ?? '', ''),
     '{{SERVENTUARIO}}': fallback(cert.serventuario_nome ?? '', ''),
+    '{{ASSINANTE}}': fallback(reg.assinante ?? cert.serventuario_nome ?? '', 'ASSINANTE NAO INFORMADO'),
     '{{SERVENTUARIO_CARGO}}': fallback(cert.serventuario_cargo ?? '', 'ESCREVENTE'),
   };
 

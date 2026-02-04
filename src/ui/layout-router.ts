@@ -1,5 +1,7 @@
 import { installAbnt2Guards } from '../shared/ui/abnt2';
 import { applyCertificatePayloadToSecondCopy, consumePendingPayload, queuePendingPayload } from './payload/apply-payload';
+import { exposeRegistroContextToWindow, ensureRegistroContext } from '../shared/registro/context';
+import { setupAutoSaveToggle } from '../shared/ui/auto-save-toggle';
 
 const ROUTES: Record<string, { id: string; loader: () => Promise<{ mount: (el: HTMLElement) => Promise<void> | void; unmount?: () => void }> }> = {
   nascimento: { id: 'nascimento', loader: () => import('./routes/nascimento') },
@@ -15,6 +17,16 @@ let actSwitchIntent: ActSwitchIntent = null;
 
 function allowActSwitch(act: string, source: string, ttlMs = 1000): void {
   actSwitchIntent = { act, source, expiresAt: Date.now() + ttlMs };
+}
+
+// init shared UI state
+try {
+  exposeRegistroContextToWindow();
+  ensureRegistroContext();
+  setupAutoSaveToggle();
+  window.addEventListener('drawer:loaded', () => setupAutoSaveToggle());
+} catch (e) {
+  // ignore
 }
 
 function consumeActSwitchIntent(act: string): boolean {
@@ -274,7 +286,7 @@ window.addEventListener('app:pending-payload', () => {
       return;
     }
     // Se o payload não é da rota atual, re-enfileira e navega para o ato correto
-    try { queuePendingPayload(pending); } catch {}
+    try { queuePendingPayload(pending, { silent: true }); } catch {}
     if (kind) {
       const act = normalizeAct(kind);
       if (act && act !== current) {

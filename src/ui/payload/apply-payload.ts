@@ -202,7 +202,10 @@ function navigateToAct(kind: string): void {
   }
 }
 
-export function queuePendingPayload(payload: CertificatePayload): boolean {
+export function queuePendingPayload(
+  payload: CertificatePayload,
+  options: { silent?: boolean } = {},
+): boolean {
   try {
     // Safely access localStorage via window if available (node/jsdom tests may not have global localStorage)
     const stor = (typeof window !== 'undefined' && (window as any).localStorage) ? (window as any).localStorage : undefined;
@@ -220,19 +223,21 @@ export function queuePendingPayload(payload: CertificatePayload): boolean {
       JSON.stringify({ savedAt: new Date().toISOString(), payload }),
     );
     // Notify UI that a pending payload is queued so pages can show guidance
-    try {
-      const EventCtor = (window as any).CustomEvent || (window as any).Event;
-      let ev: any;
+    if (!options.silent) {
       try {
-        // Preferred: CustomEvent with detail
-        ev = new EventCtor('app:pending-payload', { detail: { kind: (payload?.certidao as any)?.tipo_registro } });
-      } catch (e) {
-        // Fallback: construct simple event and attach detail
-        ev = new EventCtor('app:pending-payload');
-        ev.detail = { kind: (payload?.certidao as any)?.tipo_registro };
-      }
-      window.dispatchEvent(ev);
-    } catch {}
+        const EventCtor = (window as any).CustomEvent || (window as any).Event;
+        let ev: any;
+        try {
+          // Preferred: CustomEvent with detail
+          ev = new EventCtor('app:pending-payload', { detail: { kind: (payload?.certidao as any)?.tipo_registro } });
+        } catch (e) {
+          // Fallback: construct simple event and attach detail
+          ev = new EventCtor('app:pending-payload');
+          ev.detail = { kind: (payload?.certidao as any)?.tipo_registro };
+        }
+        window.dispatchEvent(ev);
+      } catch {}
+    }
     return true;
   } catch (e) {
     return false;
@@ -368,6 +373,14 @@ function applyNascimentoToForm(payload: CertificatePayload, root: Document | HTM
   applyObjectToBinds('certidao', cert as Record<string, unknown>, root, warnings);
   applyObjectToBinds('registro', reg as Record<string, unknown>, root, warnings);
 
+  // Mark CNS input as imported if it has a value from payload
+  if (cert?.cartorio_cns) {
+    const cnsInput = (root as Document).querySelector('input[data-bind="certidao.cartorio_cns"]') as HTMLInputElement | null;
+    if (cnsInput) {
+      cnsInput.dataset.imported = 'true';
+    }
+  }
+
   const munNasc = String((reg as any).municipio_nascimento || '');
   const ufNasc = String((reg as any).uf_nascimento || '');
   const munNat = String((reg as any).municipio_naturalidade || '');
@@ -499,6 +512,70 @@ function mapEstadoCivilValue(raw: string): string {
   return '';
 }
 
+export function normalizeRegimeText(raw: string): string {
+  return String(raw || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toUpperCase()
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+export function mapRegimeBens(raw: string): string {
+  const v = normalizeRegimeText(raw);
+  if (!v) return '';
+  if (v.includes('PARCIAL')) return 'P';
+  if (v.includes('UNIVERSAL')) return 'U';
+  if (v.includes('CONVENCIONAL')) return 'C';
+  if (v.includes('LEGAL')) return 'L';
+  if (v.includes('AQUEST')) return 'A';
+  if (v.includes('IGNOR')) return 'I';
+  // "Separação obrigatória de bens" or "Comunhão de bens" → 'B'
+  if (v.includes('OBRIGAT') || v.includes('COMUNHAO DE BENS')) return 'B';
+  return '';
+}
+
+/**
+ * Map tipo_casamento to letter code
+ * Accepts: "2" (Civil), "3" (Religioso), "Civil", "Religioso", etc.
+ * Returns: "2" or "3", or '' if unmappable
+ */
+export function mapTipoCasamento(raw: string): string {
+  const raw_str = String(raw || '').trim();
+  if (!raw_str) return '';
+  
+  // Already numeric code
+  if (raw_str === '2' || raw_str === '3') return raw_str;
+  
+  // Text-based matching
+  const v = normalizeRegimeText(raw_str);
+  if (v === 'B') return '2';
+  if (v.startsWith('B') && v.includes('AUX')) return '3';
+  if (v.includes('CIVIL')) return '2';
+  if (v.includes('RELIGIOS')) return '3';
+  
+  return '';
+}
+
+export function inferTipoCasamentoFromMatricula(raw: string): string {
+  const digits = String(raw || '').replace(/\D+/g, '');
+  if (digits.length < 15) return '';
+  const tipo = digits.charAt(14);
+  return tipo === '2' || tipo === '3' ? tipo : '';
+}
+
+function setSelectValueIfExists(selectEl: HTMLSelectElement, value: string): void {
+  if (!value) return;
+  const options = Array.from(selectEl.options || []) as HTMLOptionElement[];
+  const match = options.find((opt) => String(opt.value) === value);
+  if (!match) {
+    console.warn('[apply] option not found for select', { name: selectEl.name, value });
+    return;
+  }
+  selectEl.value = value;
+  dispatchInputEvents(selectEl);
+}
+
 function applyCasamentoToForm(payload: CertificatePayload, root: Document | HTMLElement, warnings: BindWarning[]): void {
   const cert = payload.certidao || {};
   const reg = payload.registro || {};
@@ -537,19 +614,35 @@ function applyCasamentoToForm(payload: CertificatePayload, root: Document | HTML
   setBySelector(root, 'input[name="dataTermo"]', (reg as any).data_registro || '');
   setBySelector(root, 'input[name="dataCasamento"]', (reg as any).data_celebracao || '');
 
-  const regime = (reg as any).regime_bens || '';
-  const regimeSel = (root as Document).querySelector?.('select[name="regimeBens"]') as HTMLSelectElement | null;
-  if (regimeSel && regime) {
-    const opt = Array.from(regimeSel.options).find(
-      (o) => normalizeSpaces(o.textContent || '').toUpperCase() === normalizeSpaces(regime).toUpperCase(),
-    );
-    if (opt) {
-      regimeSel.value = opt.value;
-      dispatchInputEvents(regimeSel);
+  // Tipo de casamento: preferir pc_326/pc_499 (B/B AUX/2/3), com fallback pela matrícula (15º dígito)
+  const tipoCasamentoRaw = String((reg as any).tipo_casamento || '').trim();
+  let tipoCasamentoMapped = mapTipoCasamento(tipoCasamentoRaw);
+  if (!tipoCasamentoMapped) {
+    tipoCasamentoMapped = inferTipoCasamentoFromMatricula(String((reg as any).matricula || ''));
+  }
+  if (tipoCasamentoMapped) {
+    const tipoSelect = (root as Document).querySelector?.('#casamento-tipo-select') as HTMLSelectElement | null;
+    if (tipoSelect) {
+      setSelectValueIfExists(tipoSelect, tipoCasamentoMapped);
+      setBoundValue('ui.casamento_tipo', tipoCasamentoMapped, root, warnings);
     }
   }
 
-  setBySelector(root, 'textarea[name="observacao"]', (reg as any).averbacao_anotacao || '');
+  // Map regime_bens from any format (text) to letter code
+  const regimeRaw = String((reg as any).regime_bens || '').trim();
+  if (regimeRaw) {
+    const regimeMapped = mapRegimeBens(regimeRaw);
+    if (regimeMapped) {
+      const regimeSel = (root as Document).querySelector?.('select[name="regimeBens"]') as HTMLSelectElement | null;
+      if (regimeSel) {
+        setSelectValueIfExists(regimeSel, regimeMapped);
+        setBoundValue('ui.regime_bens', regimeMapped, root, warnings);
+      }
+    }
+  }
+
+  // Casamento: não preencher observação com averbação (deixar vazio)
+  // setBySelector(root, 'textarea[name="observacao"]', (reg as any).averbacao_anotacao || '');
   applyMatriculaParts(reg as Record<string, unknown>, root, warnings);
   applyCartorioOficio(cert as Record<string, unknown>, reg as Record<string, unknown>, root, warnings);
 }
@@ -761,11 +854,12 @@ export function applyCertificatePayloadToSecondCopy(
   } else {
   }
 
-  if (kind === 'nascimento') {
+  const effectiveKind = kind || current || urlAct;
+  if (effectiveKind === 'nascimento') {
     applyNascimentoToForm(normalized, effectiveScope, warnings);
-  } else if (kind === 'casamento') {
+  } else if (effectiveKind === 'casamento') {
     applyCasamentoToForm(normalized, effectiveScope, warnings);
-  } else if (kind === 'obito') {
+  } else if (effectiveKind === 'obito') {
     applyObitoToForm(normalized, effectiveScope, warnings);
   } else {
     applyObjectToBinds('certidao', normalized.certidao as Record<string, unknown>, effectiveScope, warnings);

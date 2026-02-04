@@ -214,13 +214,29 @@ export function parseCasamentoXmlToPayload(xml: string): CertificatePayload | nu
   const livro = textOf(root, 'pc_302');
   const folha = textOf(root, 'pc_303');
   const termo = textOf(root, 'pc_301');
-  const pc004 = textOf(root, 'pc_004'); // Número de matrícula no cartório
+  const pc004 = textOf(root, 'pc_004'); // CNS do cartório no XML de casamento
   let cartorioOficio = textOf(root, 'pc_002') || ''; // Cartório/Ofício
-  
+
+  // Matrícula completa pode vir fora dos campos pc_*** (ex.: linha 4 do XML)
+  const matriculaLine4 = onlyDigits((xml.split(/\r?\n/)[3] || ''));
+  const matriculaFromXml =
+    onlyDigits(
+      textOf(root, 'Matricula') ||
+      textOf(root, 'matricula') ||
+      textOf(root, 'CodigoMatricula') ||
+      textOf(root, 'CodigoCNJ') ||
+      textOf(root, 'CNJ') ||
+      textOf(root, 'NumeroMatricula') ||
+      textOf(root, 'MatriculaRegistro') ||
+      ''
+    ) ||
+    (matriculaLine4.length >= 30 ? matriculaLine4 : '');
+
   // Extrair CNS do cartório - em casamento XML temos campos diferentes
-  // Tentar pc_001 primeiro (compatibilidade), depois campos de serventia
+  // Tentar pc_001 primeiro (compatibilidade), depois pc_004 (CNS) e campos de serventia
   let cartorioCnsFinal = onlyDigits(
     textOf(root, 'pc_001') || 
+    pc004 ||
     textOf(root, 'CartorioCNS') || 
     textOf(root, 'Cartorio_CNS') || 
     textOf(root, 'cartorio_cns') || 
@@ -244,18 +260,15 @@ export function parseCasamentoXmlToPayload(xml: string): CertificatePayload | nu
   // Construir matrícula: Se temos cartório + pc_004, concatena
   // Casamento: matrícula é tipicamente: cartório(3) + número(4+)
   let matricula = '';
-  if (pc004) {
-    // Se cartorioOficio tem dígitos, usa como prefixo
-    const oficioDigits = onlyDigits(cartorioOficio).padStart(3, '0').slice(-3);
-    if (oficioDigits && oficioDigits !== '000') {
-      matricula = oficioDigits + onlyDigits(pc004).padStart(6, '0');
-    } else {
-      // Caso contrário, usa apenas pc_004
-      matricula = onlyDigits(pc004).padStart(10, '0');
-    }
-  } else if (livro || folha || termo) {
+  // pc_004 é CNS; não usar como matrícula
+  if (livro || folha || termo) {
     // Fallback: tenta usar livro/folha/termo
     matricula = [livro, folha, termo].filter(Boolean).join('').padStart(10, '0');
+  }
+
+  const matriculaDigits = onlyDigits(matriculaFromXml || matricula || pc004 || '');
+  if (!cartorioCnsFinal && matriculaDigits.length >= 6) {
+    cartorioCnsFinal = matriculaDigits.slice(0, 6);
   }
 
   const tipoCasamento = textOf(root, 'pc_499') || textOf(root, 'pc_326');
