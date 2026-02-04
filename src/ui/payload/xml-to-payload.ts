@@ -211,6 +211,54 @@ export function parseCasamentoXmlToPayload(xml: string): CertificatePayload | nu
   };
 
   const averbacao = textOf(root, 'pc_006') || textOf(root, 'pc_003');
+  const livro = textOf(root, 'pc_302');
+  const folha = textOf(root, 'pc_303');
+  const termo = textOf(root, 'pc_301');
+  const pc004 = textOf(root, 'pc_004'); // Número de matrícula no cartório
+  let cartorioOficio = textOf(root, 'pc_002') || ''; // Cartório/Ofício
+  
+  // Extrair CNS do cartório - em casamento XML temos campos diferentes
+  // Tentar pc_001 primeiro (compatibilidade), depois campos de serventia
+  let cartorioCnsFinal = onlyDigits(
+    textOf(root, 'pc_001') || 
+    textOf(root, 'CartorioCNS') || 
+    textOf(root, 'Cartorio_CNS') || 
+    textOf(root, 'cartorio_cns') || 
+    ''
+  );
+
+  // Se não encontrou CNS explícito, tenta extrair do CartorioRegistro
+  // Exemplo: "CartÃ³rio do 9Âº OfÃ­cio" -> extrai "9"
+  if (!cartorioCnsFinal && !cartorioOficio) {
+    const cartorioRegistro = textOf(root, 'CartorioRegistro') || '';
+    // Tenta extrair número do ofício (ex: "9º Ofício" -> "9")
+    const oficioMatch = cartorioRegistro.match(/(\d+)\s*[ºo]\s*[Oo]f/i);
+    if (oficioMatch) {
+      // Se pc_002 estava vazio, usa a extração do CartorioRegistro
+      cartorioOficio = oficioMatch[1];
+      // Gera CNS mock: "000" + ofício + "001" (exemplo: "0009001" para 9º ofício)
+      cartorioCnsFinal = '000' + oficioMatch[1].padStart(2, '0') + '001';
+    }
+  }
+
+  // Construir matrícula: Se temos cartório + pc_004, concatena
+  // Casamento: matrícula é tipicamente: cartório(3) + número(4+)
+  let matricula = '';
+  if (pc004) {
+    // Se cartorioOficio tem dígitos, usa como prefixo
+    const oficioDigits = onlyDigits(cartorioOficio).padStart(3, '0').slice(-3);
+    if (oficioDigits && oficioDigits !== '000') {
+      matricula = oficioDigits + onlyDigits(pc004).padStart(6, '0');
+    } else {
+      // Caso contrário, usa apenas pc_004
+      matricula = onlyDigits(pc004).padStart(10, '0');
+    }
+  } else if (livro || folha || termo) {
+    // Fallback: tenta usar livro/folha/termo
+    matricula = [livro, folha, termo].filter(Boolean).join('').padStart(10, '0');
+  }
+
+  const tipoCasamento = textOf(root, 'pc_499') || textOf(root, 'pc_326');
 
   return {
     certidao: {
@@ -218,21 +266,94 @@ export function parseCasamentoXmlToPayload(xml: string): CertificatePayload | nu
       tipo_registro: 'casamento',
       tipo_certidao: 'Breve relato',
       transcricao: false,
-      cartorio_cns: '163659',
+      cartorio_cns: cartorioCnsFinal,
       selo: '',
       cod_selo: '',
       modalidade: 'eletronica',
       cota_emolumentos: '',
       cota_emolumentos_isento: false,
+      'data-imported': 'true', // Flag para evitar override do CNS
     },
     registro: {
       conjuges: [conjuge1, conjuge2],
-      matricula: '',
+      matricula: matricula || '',
+      matricula_livro: livro || '',
+      matricula_folha: folha || '',
+      matricula_termo: termo || '',
+      tipo_casamento: tipoCasamento,
       data_celebracao: textOf(root, 'pc_305'),
       regime_bens: textOf(root, 'pc_320'),
       data_registro: textOf(root, 'pc_311'),
       averbacao_anotacao: averbacao,
       anotacoes_cadastro: { primeiro_conjuge: [], segundo_conjuge: [] },
+    },
+  };
+}
+
+/**
+ * Parse nascimento JSON payload: extract/calculate matrícula and CNS from JSON data.
+ * This function is called when importing nascimento JSON files to ensure proper extraction
+ * and bidirectional mapping of matricula components and cartorio CNS.
+ * 
+ * Matrícula structure: CCCCCCLLLLFFFFTTTTT... (32+ digits)
+ * - C (6): Cartório CNS (first 6 digits)
+ * - L (4): Livro (book)
+ * - F (4): Folha (page)
+ * - T (6+): Termo (record number, can be 6+ digits)
+ */
+export function parseNascimentoJsonToPayload(raw: CertificatePayload): CertificatePayload {
+  if (!raw?.registro) return raw;
+  
+  const reg = raw.registro as Record<string, any>;
+  const cert = raw.certidao as Record<string, any> || {};
+  
+  // Get the full matrícula if present
+  const matriculaFull = String(reg.matricula || '').trim();
+  const matriculaDigits = onlyDigits(matriculaFull);
+  
+  // Decompose full matrícula into components if available
+  let cartorioCns = String(cert.cartorio_cns || '').trim();
+  let livro = String(reg.matricula_livro || '').trim();
+  let folha = String(reg.matricula_folha || '').trim();
+  let termo = String(reg.matricula_termo || '').trim();
+  
+  // If we have a complete matrícula, extract components from it
+  if (matriculaDigits && matriculaDigits.length >= 20) {
+    // Extract cartório (first 6 digits)
+    cartorioCns = matriculaDigits.slice(0, 6);
+    // Extract livro (next 4 digits)
+    livro = matriculaDigits.slice(6, 10);
+    // Extract folha (next 4 digits)
+    folha = matriculaDigits.slice(10, 14);
+    // Extract termo (remaining digits, typically 6+)
+    termo = matriculaDigits.slice(14);
+  } else if (livro || folha || termo) {
+    // If we have separate components, build the full matrícula from them
+    const cartorioPrefix = String(cert.cartorio_cns || '').trim() || cartorioCns;
+    if (livro && folha && termo) {
+      const matriculaBuilt = 
+        (cartorioPrefix || '') + 
+        String(livro || '').padStart(4, '0') +
+        String(folha || '').padStart(4, '0') +
+        String(termo || '').padStart(6, '0');
+      if (onlyDigits(matriculaBuilt).length >= 20) {
+        cartorioCns = cartorioPrefix;
+      }
+    }
+  }
+  
+  // Return updated payload with all calculated values
+  return {
+    certidao: {
+      ...cert,
+      cartorio_cns: cartorioCns,
+    },
+    registro: {
+      ...reg,
+      matricula: matriculaDigits && matriculaDigits.length >= 20 ? matriculaDigits : matriculaFull,
+      matricula_livro: livro,
+      matricula_folha: folha,
+      matricula_termo: termo,
     },
   };
 }
